@@ -12,6 +12,7 @@ Hijri
 # pytest / tooling config keys
 addopts
 testpaths
+excinfo
 
 # informal English used in the spec prose
 grabbable

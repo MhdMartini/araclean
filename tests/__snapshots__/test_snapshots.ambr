@@ -1,0 +1,10 @@
+# serializer version: 1
+# name: test_light_profile_golden_snapshot
+  dict({
+    'ascii': 'Hello, world!',
+    'decomposed-hamza': 'أحمد',
+    'empty': '',
+    'tatweel': 'مـح',
+    'vocalized': 'نصّ',
+  })
+# ---
