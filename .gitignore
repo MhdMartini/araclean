@@ -2,3 +2,18 @@
 issues/
 docs/adr
 docs/competitive-landscape.md
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+build/
+dist/
+*.egg-info/
+
+# Node (cspell runs via npx)
+node_modules/

@@ -1,0 +1,53 @@
+# Quality gate (issue 0001). Every hook runs the project's pinned tool via
+# `uv run` so there is a single source of tool versions (the uv lockfile);
+# cSpell runs via npx against the project dictionary (cspell.json).
+#
+#   uv run pre-commit install          # wire the hooks
+#   uv run pre-commit run --all-files  # run the whole gate
+minimum_pre_commit_version: "3.7.0"
+default_install_hook_types: [pre-commit]
+
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff (lint)
+        entry: uv run ruff check --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: ruff-format
+        name: ruff (format)
+        entry: uv run ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true
+
+      - id: mypy
+        name: mypy --strict
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pyright
+        name: pyright
+        entry: uv run pyright
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      - id: cspell
+        name: cspell (canonical terminology)
+        entry: npx --yes cspell@9.8.0 --no-progress --no-summary
+        language: system
+        types: [text]

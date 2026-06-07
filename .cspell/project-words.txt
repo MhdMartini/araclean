@@ -1,0 +1,19 @@
+# Project & tooling vocabulary that is not Arabic-domain terminology.
+# The Arabic glossary lives in cspell.json `words` (ADR-0007); this file holds
+# the non-domain words cspell's bundled dictionaries don't already know.
+# One word per line; blank lines and `#` comments are ignored.
+
+# Unicode code points referenced in prose (cf. FEFF/FDFF in the glossary)
+FEFC
+
+# Domain-adjacent proper nouns
+Hijri
+
+# pytest / tooling config keys
+addopts
+testpaths
+
+# informal English used in the spec prose
+grabbable
+invisibles
+precomputes

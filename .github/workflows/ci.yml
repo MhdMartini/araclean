@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    # The full quality gate (ruff, mypy, pyright, pytest, cspell) via pre-commit.
+    # OS/Python-independent, so it runs once.
+    name: quality gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: pre-commit
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+  test:
+    # Behavior + types across the supported Python and OS matrix.
+    name: test (py${{ matrix.python }} · ${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.12", "3.13", "3.14"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - run: uv sync
+      - name: pytest
+        run: uv run pytest
+      - name: mypy --strict
+        run: uv run mypy
+      - name: pyright
+        run: uv run pyright
