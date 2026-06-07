@@ -37,6 +37,30 @@ uv run pre-commit run --all-files
 The gate runs `ruff`, `mypy --strict`, `pyright`, `pytest`, and `cspell`
 (canonical Arabic terminology per [`GLOSSARY.md`](./GLOSSARY.md)).
 
+## Commits & versioning
+
+The version and changelog are **derived from commit messages** by
+[Commitizen](https://commitizen-tools.github.io/commitizen/) — see
+[ADR-0008](./docs/adr/0008-commit-driven-versioning-commitizen.md). Every commit must be a
+[Conventional Commit](https://www.conventionalcommits.org/); the format is enforced by a
+`commit-msg` hook (wired by `uv run pre-commit install`) and in CI on every PR.
+
+```
+feat(steps): add RemoveTashkeel step     # → minor bump
+fix(pipeline): preserve step order        # → patch bump
+feat(api)!: rename normalize() argument   # breaking → minor (we are pre-1.0)
+```
+
+`feat` bumps the minor, `fix`/others the patch, and a breaking change (`!` or a `BREAKING CHANGE:`
+footer) the minor — the project stays in `0.x` until 1.0 is declared. To cut a release:
+
+```bash
+uv run cz bump        # compute the bump, update pyproject.toml + uv.lock + CHANGELOG.md, tag vX.Y.Z
+uv run cz changelog   # preview release notes without bumping
+```
+
+Never hand-edit `[project].version` — Commitizen owns it.
+
 ## License
 
 [MIT](./LICENSE)

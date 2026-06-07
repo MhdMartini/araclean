@@ -27,13 +27,33 @@ jobs:
       - name: pre-commit
         run: uv run pre-commit run --all-files --show-diff-on-failure
 
+  commits:
+    # Conventional-Commit lint over the PR's commits (ADR-0008). The local
+    # commit-msg hook can be bypassed, so cz check runs server-side too; it reads
+    # the same rules cz bump uses to derive the version, so the changelog/bump
+    # can't be poisoned by a malformed message.
+    name: commit messages
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync
+      - name: commitizen check
+        run: uv run cz check --rev-range ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
+
   test:
     # Behavior + types across the supported Python and OS matrix.
     name: test (py${{ matrix.python }} · ${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
         python: ["3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:

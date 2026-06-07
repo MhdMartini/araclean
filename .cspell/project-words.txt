@@ -17,3 +17,9 @@ testpaths
 grabbable
 invisibles
 precomputes
+
+# release/versioning tooling (ADR-0008)
+Commitizen
+commitizen
+SemVer
+changelog

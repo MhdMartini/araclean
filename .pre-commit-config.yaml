@@ -5,7 +5,10 @@
 #   uv run pre-commit install          # wire the hooks
 #   uv run pre-commit run --all-files  # run the whole gate
 minimum_pre_commit_version: "3.7.0"
-default_install_hook_types: [pre-commit]
+default_install_hook_types: [pre-commit, commit-msg]
+# Hooks below run at pre-commit unless they opt into another stage (only the
+# commitizen hook does, at commit-msg) — so cspell/pytest don't lint commit text.
+default_stages: [pre-commit]
 
 repos:
   - repo: local
@@ -51,3 +54,9 @@ repos:
         entry: npx --yes cspell@9.8.0 --no-progress --no-summary
         language: system
         types: [text]
+
+      - id: commitizen
+        name: commitizen (Conventional Commit message)
+        entry: uv run cz check --allow-abort --commit-msg-file
+        language: system
+        stages: [commit-msg]
