@@ -34,3 +34,10 @@ Commitizen
 commitizen
 SemVer
 changelog
+
+# Python / ML / packaging ecosystem referenced in the ADRs
+stdlib
+vectorizer
+maturin
+pypa
+arabicstopwords
