@@ -93,6 +93,13 @@ def test_light_collapses_whitespace() -> None:
     assert normalize("a  b") == "a b"
 
 
+def test_light_preserves_line_breaks() -> None:
+    # LIGHT is lossless, so it normalizes spacing but keeps line structure (ADR-0010): a blank-line
+    # run collapses to one newline, while horizontal runs still collapse to a single space.
+    assert normalize("a  \n\n  b") == "a\nb"
+    assert normalize("first\tsecond") == "first second"
+
+
 def test_light_is_a_lossless_fixed_point() -> None:
     # A string exercising every LIGHT step at once; running LIGHT again changes nothing.
     messy = (

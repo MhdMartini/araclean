@@ -12,8 +12,11 @@ from araclean import normalize
 CORPUS: list[tuple[str, str]] = [
     # decomposed alef + combining hamza -> composes to alef-with-hamza ("Ahmad")
     ("decomposed-hamza", chr(0x0627) + chr(0x0654) + chr(0x062D) + chr(0x0645) + chr(0x062F)),
-    # already-composed vocalized text: marks and their order are preserved
+    # vocalized text: the tashkeel mark survives (encoding repair never strips vocalization)
     ("vocalized", chr(0x0646) + chr(0x0635) + chr(0x0651)),
+    # multi-mark in NON-canonical order is reordered to canonical NFC by LIGHT's closing pass
+    # (ADR-0009): beh + shadda (ccc 33) + fatha (ccc 30) -> beh + fatha + shadda
+    ("canonicalized-marks", chr(0x0628) + chr(0x0651) + chr(0x064E)),
     # tatweel is now removed (RemoveTatweel, 0004): a letter + tatweel + a letter -> the two letters
     ("tatweel", chr(0x0645) + chr(0x0640) + chr(0x062D)),
     # plain lam-alef ligature -> lam + bare alef
@@ -30,6 +33,9 @@ CORPUS: list[tuple[str, str]] = [
     ("maqsura-residual", chr(0x0639) + chr(0x0644) + chr(0x06CC)),
     # whitespace runs (NBSP + double space) collapse to one ASCII space (CollapseWhitespace, 0004)
     ("whitespace", "a" + chr(0x00A0) + chr(0x0020) + "b"),
+    # line breaks are preserved (ADR-0010): a blank-line run collapses to a single newline, while
+    # the horizontal whitespace on each side is absorbed into it
+    ("line-breaks", "a  \n\n  b"),
     # plain ASCII passes through untouched
     ("ascii", "Hello, world!"),
     # empty string

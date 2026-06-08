@@ -278,24 +278,53 @@ def test_collapse_whitespace_collapses_leading_and_trailing_runs() -> None:
     assert CollapseWhitespace()("  a  ") == " a "
 
 
-def test_collapse_whitespace_collapses_mixed_whitespace_kinds() -> None:
-    # Tabs/newlines are whitespace too: a mixed run collapses to one ASCII space.
-    assert CollapseWhitespace()("a \t\n b") == "a b"
+def test_collapse_whitespace_keeps_line_breaks_by_default() -> None:
+    # A run that crosses a line boundary collapses to a single newline, NOT a space: line structure
+    # is preserved by default (ADR-0010). Horizontal whitespace in the run is absorbed into it.
+    assert CollapseWhitespace()("a \t\n b") == "a\nb"
+    assert CollapseWhitespace()("a\n\n\nb") == "a\nb"  # a run of newlines -> one newline
+    assert CollapseWhitespace()("a" + chr(0x2028) + "b") == "a\nb"  # Unicode LINE SEPARATOR
+    # purely horizontal runs are unaffected -- they still become a single space
+    assert CollapseWhitespace()("a \t b") == "a b"
+
+
+def test_collapse_whitespace_collapse_lines_flattens_to_spaces() -> None:
+    # The opt-in aggressive mode (what SEARCH uses): every run, line breaks included, -> one space.
+    assert CollapseWhitespace(collapse_lines=True)("a \t\n b") == "a b"
+    assert CollapseWhitespace(collapse_lines=True)("a\n\nb") == "a b"
+
+
+def test_collapse_whitespace_serializes_collapse_lines() -> None:
+    # The flag round-trips so a flattening (SEARCH-style) pipeline can be pinned and shared.
+    step = CollapseWhitespace(collapse_lines=True)
+    assert step.to_dict() == {"name": "CollapseWhitespace", "config": {"collapse_lines": True}}
+    assert CollapseWhitespace.from_dict(step.to_dict()["config"])("a\nb") == "a b"
 
 
 def test_collapse_whitespace_safety_is_encoding_repair() -> None:
+    # Both modes are lossless encoding repair: the flag changes aggressiveness, not safety class.
     assert CollapseWhitespace().safety is SafetyClass.ENCODING_REPAIR
+    assert CollapseWhitespace(collapse_lines=True).safety is SafetyClass.ENCODING_REPAIR
 
 
 def test_collapse_whitespace_free_function_agrees_with_step() -> None:
-    text = "a  b\tc"
-    assert collapse_whitespace(text) == CollapseWhitespace()(text)
+    for text in ("a  b\tc", "a\n\nb", "line1 \n\t line2"):
+        assert collapse_whitespace(text) == CollapseWhitespace()(text)
+        assert collapse_whitespace(text, collapse_lines=True) == CollapseWhitespace(
+            collapse_lines=True
+        )(text)
 
 
 @given(st.text())
 def test_collapse_whitespace_is_total_and_idempotent(text: str) -> None:
     once = CollapseWhitespace()(text)
     assert CollapseWhitespace()(once) == once
+
+
+@given(st.text())
+def test_collapse_whitespace_collapse_lines_is_total_and_idempotent(text: str) -> None:
+    once = CollapseWhitespace(collapse_lines=True)(text)
+    assert CollapseWhitespace(collapse_lines=True)(once) == once
 
 
 # --- Safety-class invariant (story 41 / ADR-0004): lossless steps only touch encoding noise ---

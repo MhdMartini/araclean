@@ -2,11 +2,16 @@
 # name: test_light_profile_golden_snapshot
   dict({
     'ascii': 'Hello, world!',
+    'canonicalized-marks': 'بَّ',
     'decomposed-hamza': 'أحمد',
     'empty': '',
     'invisibles': 'اب',
     'lam-alef-hamza': 'لأ',
     'lam-alef-plain': 'لا',
+    'line-breaks': '''
+      a
+      b
+    ''',
     'lookalikes': 'كيه',
     'maqsura-residual': 'علي',
     'presentation-letters': 'به',

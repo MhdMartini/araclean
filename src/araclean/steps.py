@@ -9,6 +9,7 @@ canonical name, so a `Pipeline` can be persisted and rehydrated. The serializati
 fixed here because every later step must follow it.
 """
 
+import re
 import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -234,29 +235,47 @@ class UnifyLookalikes:
 registry.register(UnifyLookalikes.name, UnifyLookalikes.from_dict)
 
 
-def collapse_whitespace(s: str, /) -> str:
-    """Collapse each whitespace run to a single ASCII space — lossless encoding repair."""
-    return chars.WHITESPACE_RUN.sub(" ", s)
+def _collapse_whitespace_run(match: re.Match[str], /) -> str:
+    # A run that crossed a line boundary collapses to a single newline; a purely horizontal run
+    # collapses to a single ASCII space. Preserving the break is what keeps the default lossless
+    # (ADR-0010).
+    run = match.group()
+    return "\n" if any(ch in chars.LINE_BREAKS for ch in run) else " "
+
+
+def collapse_whitespace(s: str, /, *, collapse_lines: bool = False) -> str:
+    """Collapse whitespace runs, keeping line breaks by default — lossless encoding repair.
+
+    A horizontal run becomes one ASCII space; a run containing a line break becomes one ``"\\n"``.
+    Pass ``collapse_lines=True`` to flatten every run (line breaks included) to a single space.
+    """
+    if collapse_lines:
+        return chars.WHITESPACE_RUN.sub(" ", s)
+    return chars.WHITESPACE_RUN.sub(_collapse_whitespace_run, s)
 
 
 @dataclass(frozen=True, slots=True)
 class CollapseWhitespace:
-    """Collapse whitespace runs to a single ASCII space — lossless encoding repair.
+    """Collapse whitespace runs — keeping line breaks by default — lossless encoding repair.
 
-    English: *whitespace collapse*. NBSP and the other Unicode space separators become a plain
-    ASCII space and consecutive whitespace collapses to one, so equality and tokenization stop
-    depending on how many (or which) spaces a source used. Runs collapse but are not trimmed.
+    English: *whitespace collapse*. Each whitespace run collapses to a single character, so equality
+    and tokenization stop depending on how many (or which) spaces a source used: a horizontal run
+    becomes one ASCII space, and a run containing a line break becomes a single ``"\\n"``. Line
+    structure is preserved by default — flattening it to spaces is lossy, not lossless, so it is
+    opt-in via ``collapse_lines=True`` (the recall-oriented behavior SEARCH wants). See ADR-0010.
+    Runs collapse but are not trimmed, so the step stays a fixed point.
     """
 
+    collapse_lines: bool = False
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
     safety = SafetyClass.ENCODING_REPAIR
     name: ClassVar[str] = "CollapseWhitespace"
 
     def __call__(self, s: str, /) -> str:
-        return collapse_whitespace(s)
+        return collapse_whitespace(s, collapse_lines=self.collapse_lines)
 
     def to_dict(self) -> StepDict:
-        return {"name": self.name, "config": {}}
+        return {"name": self.name, "config": {"collapse_lines": self.collapse_lines}}
 
     @classmethod
     def from_dict(cls, config: Mapping[str, Any]) -> Self:

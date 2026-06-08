@@ -158,12 +158,23 @@ UNIFY_LOOKALIKES: dict[int, str] = {
 }
 
 
-# --- CollapseWhitespace pattern (issue 0004, story 24) ----------------------------------------
+# --- CollapseWhitespace pattern + line-break set (issue 0004, story 24) ------------------------
 #
-# A *contextual* rule (a whitespace run -> one space), so a precompiled regex rather than a
+# A *contextual* rule (a whitespace run -> one character), so a precompiled regex rather than a
 # str.translate table (ADR-0006). `\s` already covers ASCII whitespace plus every Unicode space
-# separator -- NBSP U+00A0, the U+2000-U+200A set, U+202F, U+205F, U+3000, the line/paragraph
-# separators -- so the table never needs hand-maintaining. The zero-width characters are NOT `\s`
-# (they are deleted by StripBidi instead). Each run collapses to a single ASCII space; a lone
-# leading/trailing space is left in place (collapse, not trim), which keeps the step a fixed point.
+# separator -- NBSP U+00A0, the U+2000-U+200A set, U+202F, U+205F, U+3000 -- AND the line/paragraph
+# breaks, so the pattern never needs hand-maintaining. The zero-width characters are NOT `\s` (they
+# are deleted by StripBidi instead).
+#
+# CollapseWhitespace then asks, per run, whether the run crossed a line boundary: a purely
+# horizontal run becomes one ASCII space; a run containing any LINE_BREAK becomes a single "\n".
+# Preserving line structure keeps the *default* lossless -- flattening lines to spaces is lossy (it
+# destroys document structure), so it is opt-in via `collapse_lines=True` (ADR-0010). A lone run at
+# the start or end collapses in place (collapse, not trim), so the step stays a fixed point.
+#
+# LINE_BREAKS is exactly the boundary set Python's str.splitlines() recognizes: LF, CR, vertical
+# tab, form feed, the C1 FS/GS/RS separators, NEL (U+0085), and LINE / PARAGRAPH SEPARATOR (U+2028
+# / U+2029). All are matched by `\s`, so they fall inside the runs the pattern finds; U+001F UNIT
+# SEPARATOR is `\s` but NOT a line break (splitlines agrees too), so it is correctly excluded.
 WHITESPACE_RUN: re.Pattern[str] = re.compile(r"\s+")
+LINE_BREAKS: frozenset[str] = frozenset("\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029")

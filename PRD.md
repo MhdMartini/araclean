@@ -2,7 +2,7 @@
 
 > Status: ready for implementation. Decisions in this PRD are grounded in [`CONTEXT.md`](./CONTEXT.md)
 > (ubiquitous language), [`GLOSSARY.md`](./GLOSSARY.md) (terminology), and
-> [`docs/adr/0001`–`0007`](./docs/adr/). This PRD is intended to be sliced
+> [`docs/adr/0001`–`0010`](./docs/adr/). This PRD is intended to be sliced
 > into independently-grabbable issues (tracer-bullet vertical slices); each issue is implemented with
 > TDD.
 
@@ -113,8 +113,10 @@ Casual users get a safe one-liner; power users compose and pin exact, auditable 
     assumption — araclean is Arabic-only. One accepted residual: U+06CC is dotless word-finally, so an
     alef-maqsura word typed on a Persian keyboard can merge على→علي; this is the only look-alike fold
     that is not strictly lossless.)
-24. As a user, I want whitespace normalized (NBSP and other Unicode spaces collapsed to a single
-    space), so that spacing differences don't create duplicate tokens.
+24. As a user, I want horizontal whitespace normalized (NBSP and other Unicode spaces collapsed to a
+    single space) while **line breaks are preserved** (each run collapsed to a single newline), so
+    that spacing differences don't create duplicate tokens without flattening document structure.
+    Flattening lines to spaces is opt-in (`collapse_lines`, set by `SEARCH`). (ADR-0010)
 
 ### Individual normalization steps (Linguistic folding — lossy, opt-in)
 25. As a user, I want a step to remove tashkeel (the diacritical marks), so that vocalized and
