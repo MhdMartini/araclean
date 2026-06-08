@@ -17,6 +17,7 @@ from araclean import (
     collapse_whitespace,
     fold_presentation_forms,
     normalize_unicode,
+    registry,
     remove_tatweel,
     strip_bidi,
     unify_lookalikes,
@@ -295,3 +296,39 @@ def test_collapse_whitespace_free_function_agrees_with_step() -> None:
 def test_collapse_whitespace_is_total_and_idempotent(text: str) -> None:
     once = CollapseWhitespace()(text)
     assert CollapseWhitespace()(once) == once
+
+
+# --- Safety-class invariant (story 41 / ADR-0004): lossless steps only touch encoding noise ---
+#
+# `safety` must be an ENFORCED property, not just a label nobody checks. The check: a lossless
+# ENCODING_REPAIR step only ever rewrites encoding noise (presentation forms, tatweel, invisibles,
+# look-alike letters, redundant whitespace), so on clean, canonical Arabic it must be the identity.
+# A step mislabeled lossless that actually dropped or rewrote a real letter would be caught here.
+
+# Code points that carry genuine Arabic signal. Defined INDEPENDENTLY of the step tables (it is NOT
+# "whatever the tables happen to skip"), so a step whose table wrongly maps a real letter is caught
+# rather than excused:
+#   - U+0621-U+063A and U+0641-U+064A: the standard Arabic letters (hamza, alef, beh ... yeh). The
+#     range is split to drop U+0640 TATWEEL (encoding noise RemoveTatweel deletes) and the rarely
+#     used extended letters U+063B-U+063F, keeping the set to unambiguous core Arabic.
+#   - U+064B-U+0652: tashkeel (harakat / tanween / shadda / sukun). Encoding repair must keep
+#     vocalization; removing it is opt-in LINGUISTIC_FOLDING (issue 0006). None of these canonically
+#     recompose with a base letter under NFC (only the U+0653-U+0655 madda/hamza marks do), so a
+#     canonical run of them survives NFC unchanged.
+_PROTECTED_CODE_POINTS = [chr(cp) for cp in (*range(0x0621, 0x063B), *range(0x0641, 0x0653))]
+
+# Built off the registry, so a NEW lossless step is covered automatically -- that is the point of
+# the invariant. (Every built-in step builds from an empty config today; a future step that needs
+# config would surface here, which is the right place to reckon with its safety class.)
+_LOSSLESS_STEPS = [
+    step
+    for name in sorted(registry.registered_names())
+    if (step := registry.build(name, {})).safety is SafetyClass.ENCODING_REPAIR
+]
+
+
+@given(st.text(alphabet=_PROTECTED_CODE_POINTS))
+def test_lossless_step_is_identity_on_clean_arabic(text: str) -> None:
+    clean = unicodedata.normalize("NFC", text)  # canonical input: nothing legitimate to repair
+    for step in _LOSSLESS_STEPS:
+        assert step(clean) == clean, f"{type(step).__name__} altered clean Arabic text"
