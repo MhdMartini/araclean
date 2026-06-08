@@ -9,9 +9,15 @@ FEFC
 # Unicode Standard technical vocabulary (UAX #15 / UCD), not Arabic-domain terms
 noncharacter
 noncharacters
+doachashmee
+chashmi
 
 # Domain-adjacent proper nouns
 Hijri
+Uyghur
+
+# ruff lint vocabulary (the ambiguous-unicode allow-list, RUF001-003)
+confusables
 
 # pytest / tooling config keys
 addopts

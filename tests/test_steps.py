@@ -7,11 +7,19 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from araclean import (
+    CollapseWhitespace,
     FoldPresentationForms,
     NormalizeUnicode,
+    RemoveTatweel,
     SafetyClass,
+    StripBidi,
+    UnifyLookalikes,
+    collapse_whitespace,
     fold_presentation_forms,
     normalize_unicode,
+    remove_tatweel,
+    strip_bidi,
+    unify_lookalikes,
 )
 
 # Code points (not glyphs) so the decomposed form is immune to source normalization:
@@ -117,3 +125,173 @@ def test_fold_presentation_forms_leaves_base_letters_untouched() -> None:
 def test_fold_presentation_forms_is_total_and_idempotent(text: str) -> None:
     once = FoldPresentationForms()(text)  # never raises on arbitrary text
     assert FoldPresentationForms()(once) == once
+
+
+# --- RemoveTatweel (issue 0004, story 21) ---
+
+TATWEEL = chr(0x0640)  # ـ ARABIC TATWEEL / kashida
+
+
+def test_remove_tatweel_strips_the_elongation_character() -> None:
+    # محـــمد (with three tatweel marks) -> محمد ("Muhammad")
+    word = chr(0x0645) + chr(0x062D) + TATWEEL * 3 + chr(0x0645) + chr(0x062F)
+    assert RemoveTatweel()(word) == chr(0x0645) + chr(0x062D) + chr(0x0645) + chr(0x062F)
+
+
+def test_remove_tatweel_leaves_letters_untouched() -> None:
+    plain = "محمد لا إله"
+    assert RemoveTatweel()(plain) == plain
+
+
+def test_remove_tatweel_safety_is_encoding_repair() -> None:
+    assert RemoveTatweel().safety is SafetyClass.ENCODING_REPAIR
+
+
+def test_remove_tatweel_free_function_agrees_with_step() -> None:
+    text = "مح" + TATWEEL + "مد"
+    assert remove_tatweel(text) == RemoveTatweel()(text)
+
+
+@given(st.text())
+def test_remove_tatweel_is_total_and_idempotent(text: str) -> None:
+    once = RemoveTatweel()(text)
+    assert RemoveTatweel()(once) == once
+
+
+# --- StripBidi (issue 0004, story 22) ---
+
+# Invisible code points that carry no letter content: bidi controls, zero-width formatters, BOM.
+INVISIBLES = [
+    chr(0x200F),  # RIGHT-TO-LEFT MARK (RLM) — bidi control
+    chr(0x200E),  # LEFT-TO-RIGHT MARK (LRM) — bidi control
+    chr(0x061C),  # ARABIC LETTER MARK (ALM) — bidi control
+    chr(0x202B),  # RIGHT-TO-LEFT EMBEDDING — bidi control
+    chr(0x2069),  # POP DIRECTIONAL ISOLATE — bidi control
+    chr(0x200C),  # ZERO WIDTH NON-JOINER (ZWNJ)
+    chr(0x200D),  # ZERO WIDTH JOINER (ZWJ)
+    chr(0x200B),  # ZERO WIDTH SPACE
+    chr(0x2060),  # WORD JOINER
+    chr(0xFEFF),  # ZERO WIDTH NO-BREAK SPACE (the BOM)
+]
+
+
+@pytest.mark.parametrize("invisible", INVISIBLES)
+def test_strip_bidi_removes_invisibles_keeping_visible_letters(invisible: str) -> None:
+    # The invisible sits between two visible letters; only it is removed.
+    text = "ا" + invisible + "ب"
+    assert StripBidi()(text) == "اب"
+
+
+def test_strip_bidi_removes_a_leading_bom() -> None:
+    assert StripBidi()(chr(0xFEFF) + "نص") == "نص"
+
+
+def test_strip_bidi_removes_a_mixed_run_in_one_string() -> None:
+    # RLM + ZWJ/ZWNJ + leading BOM all gone; the visible letters survive in order.
+    text = chr(0xFEFF) + "ا" + chr(0x200F) + "ب" + chr(0x200D) + chr(0x200C) + "ت"
+    assert StripBidi()(text) == "ابت"
+
+
+def test_strip_bidi_leaves_ordinary_text_untouched() -> None:
+    plain = "محمد لا إله"
+    assert StripBidi()(plain) == plain
+
+
+def test_strip_bidi_safety_is_encoding_repair() -> None:
+    assert StripBidi().safety is SafetyClass.ENCODING_REPAIR
+
+
+def test_strip_bidi_free_function_agrees_with_step() -> None:
+    text = chr(0xFEFF) + "ا" + chr(0x200F) + "ب"
+    assert strip_bidi(text) == StripBidi()(text)
+
+
+@given(st.text())
+def test_strip_bidi_is_total_and_idempotent(text: str) -> None:
+    once = StripBidi()(text)
+    assert StripBidi()(once) == once
+
+
+# --- UnifyLookalikes (issue 0004, story 23) ---
+
+# Letters from other Arabic-script orthographies that are visually identical to an Arabic letter;
+# under the Arabic-language assumption they fold to the Arabic form. Built from code points.
+LOOKALIKE_FOLDS = [
+    (chr(0x06A9), chr(0x0643)),  # Persian/Urdu keheh ک -> kaf ك
+    (chr(0x06CC), chr(0x064A)),  # Farsi yeh ی -> yeh ي
+    (chr(0x06C1), chr(0x0647)),  # heh goal ہ -> heh ه
+    (chr(0x06D5), chr(0x0647)),  # ae (Kurdish heh) ە -> heh ه
+    (chr(0x06BE), chr(0x0647)),  # heh doachashmee ھ -> heh ه
+]
+
+
+@pytest.mark.parametrize(("lookalike", "arabic"), LOOKALIKE_FOLDS)
+def test_unify_lookalikes_folds_to_arabic_letter(lookalike: str, arabic: str) -> None:
+    assert UnifyLookalikes()(lookalike) == arabic
+
+
+def test_unify_lookalikes_accepted_residual_merges_maqsura_word() -> None:
+    # The one fold that is not strictly lossless: a Persian-keyboard yeh (U+06CC) is
+    # indistinguishable from alef maqsura word-finally, so علی merges to علي (accepted).
+    persian_keyboard = chr(0x0639) + chr(0x0644) + chr(0x06CC)  # ain + lam + Farsi yeh
+    assert UnifyLookalikes()(persian_keyboard) == chr(0x0639) + chr(0x0644) + chr(0x064A)  # علي
+
+
+def test_unify_lookalikes_leaves_arabic_letters_untouched() -> None:
+    # Already-Arabic kaf/yeh/heh and an alef maqsura are NOT touched (maqsura folding is opt-in).
+    plain = chr(0x0643) + chr(0x064A) + chr(0x0647) + chr(0x0649)  # ك ي ه ى
+    assert UnifyLookalikes()(plain) == plain
+
+
+def test_unify_lookalikes_safety_is_encoding_repair() -> None:
+    assert UnifyLookalikes().safety is SafetyClass.ENCODING_REPAIR
+
+
+def test_unify_lookalikes_free_function_agrees_with_step() -> None:
+    text = chr(0x06A9) + chr(0x06CC) + chr(0x06C1)
+    assert unify_lookalikes(text) == UnifyLookalikes()(text)
+
+
+@given(st.text())
+def test_unify_lookalikes_is_total_and_idempotent(text: str) -> None:
+    once = UnifyLookalikes()(text)
+    assert UnifyLookalikes()(once) == once
+
+
+# --- CollapseWhitespace (issue 0004, story 24) ---
+
+
+def test_collapse_whitespace_collapses_a_run_to_a_single_space() -> None:
+    assert CollapseWhitespace()("a  b") == "a b"
+
+
+def test_collapse_whitespace_maps_unicode_spaces_to_ascii_space() -> None:
+    # NBSP, a thin space and an ideographic space each become a single ASCII space.
+    assert CollapseWhitespace()("a" + chr(0x00A0) + "b") == "a b"  # NBSP
+    assert CollapseWhitespace()("a" + chr(0x2009) + "b") == "a b"  # THIN SPACE
+    assert CollapseWhitespace()("a" + chr(0x3000) + "b") == "a b"  # IDEOGRAPHIC SPACE
+
+
+def test_collapse_whitespace_collapses_leading_and_trailing_runs() -> None:
+    # Runs collapse to a single space (collapse, not trim) — leaving a fixed point.
+    assert CollapseWhitespace()("  a  ") == " a "
+
+
+def test_collapse_whitespace_collapses_mixed_whitespace_kinds() -> None:
+    # Tabs/newlines are whitespace too: a mixed run collapses to one ASCII space.
+    assert CollapseWhitespace()("a \t\n b") == "a b"
+
+
+def test_collapse_whitespace_safety_is_encoding_repair() -> None:
+    assert CollapseWhitespace().safety is SafetyClass.ENCODING_REPAIR
+
+
+def test_collapse_whitespace_free_function_agrees_with_step() -> None:
+    text = "a  b\tc"
+    assert collapse_whitespace(text) == CollapseWhitespace()(text)
+
+
+@given(st.text())
+def test_collapse_whitespace_is_total_and_idempotent(text: str) -> None:
+    once = CollapseWhitespace()(text)
+    assert CollapseWhitespace()(once) == once

@@ -4,10 +4,14 @@
     'ascii': 'Hello, world!',
     'decomposed-hamza': 'أحمد',
     'empty': '',
+    'invisibles': 'اب',
     'lam-alef-hamza': 'لأ',
     'lam-alef-plain': 'لا',
+    'lookalikes': 'كيه',
+    'maqsura-residual': 'علي',
     'presentation-letters': 'به',
-    'tatweel': 'مـح',
+    'tatweel': 'مح',
     'vocalized': 'نصّ',
+    'whitespace': 'a b',
   })
 # ---

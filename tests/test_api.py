@@ -22,11 +22,9 @@ ANY_TEXT = st.text(
 )
 
 
-def test_bare_call_applies_only_nfc() -> None:
-    # No profile => LIGHT => only NFC right now: it composes...
+def test_bare_call_composes_to_nfc() -> None:
+    # No profile => LIGHT, whose first step is NFC: a decomposed sequence composes.
     assert normalize(DECOMPOSED) == COMPOSED
-    # ...and does nothing else yet — e.g. tatweel survives (it is removed only by a later step).
-    assert normalize(TATWEEL) == TATWEEL == unicodedata.normalize("NFC", TATWEEL)
 
 
 def test_already_nfc_text_is_unchanged() -> None:
@@ -55,9 +53,61 @@ def test_light_folds_presentation_form_letters() -> None:
     assert normalize(word) == chr(0x0628) + chr(0x0647)  # -> beh + heh
 
 
-@pytest.mark.parametrize("text", ["", " ", "abc", COMPOSED, TATWEEL])
-def test_normalize_equals_nfc_over_corpus(text: str) -> None:
+# On text with nothing for LIGHT's later steps to repair (no tatweel/invisibles/look-alike/
+# multi-space), LIGHT reduces to NFC. Tatweel is intentionally NOT here — LIGHT now removes it.
+@pytest.mark.parametrize("text", ["", " ", "abc", COMPOSED])
+def test_normalize_equals_nfc_when_only_nfc_applies(text: str) -> None:
     assert normalize(text) == unicodedata.normalize("NFC", text)
+
+
+# --- LIGHT now completes (issue 0004): tatweel / invisibles / look-alike / whitespace ---
+
+
+def test_light_removes_tatweel() -> None:
+    # محـــمد (with three tatweel marks) -> محمد.
+    word = chr(0x0645) + chr(0x062D) + chr(0x0640) * 3 + chr(0x0645) + chr(0x062F)
+    assert normalize(word) == chr(0x0645) + chr(0x062D) + chr(0x0645) + chr(0x062F)
+
+
+def test_light_strips_bidi_zero_width_and_bom() -> None:
+    # Leading BOM + an embedded RLM + ZWJ/ZWNJ are removed; the visible letters are unchanged.
+    noisy = chr(0xFEFF) + "ا" + chr(0x200F) + "ب" + chr(0x200D) + chr(0x200C) + "ت"
+    assert normalize(noisy) == "ابت"
+
+
+def test_light_unifies_lookalike_kaf_yeh_heh() -> None:
+    # Persian keheh + Farsi yeh + heh goal -> Arabic kaf + yeh + heh.
+    assert normalize(chr(0x06A9) + chr(0x06CC) + chr(0x06C1)) == chr(0x0643) + chr(0x064A) + chr(
+        0x0647
+    )
+
+
+def test_light_accepted_residual_merges_maqsura_word() -> None:
+    # The one non-strictly-lossless look-alike fold: a Persian-keyboard yeh merges علی -> علي.
+    assert normalize(chr(0x0639) + chr(0x0644) + chr(0x06CC)) == chr(0x0639) + chr(0x0644) + chr(
+        0x064A
+    )
+
+
+def test_light_collapses_whitespace() -> None:
+    assert normalize("a  b") == "a b"
+
+
+def test_light_is_a_lossless_fixed_point() -> None:
+    # A string exercising every LIGHT step at once; running LIGHT again changes nothing.
+    messy = (
+        chr(0xFEFF)  # BOM
+        + chr(0x0645)
+        + chr(0x0640)
+        + chr(0x062D)  # tatweel between letters
+        + "  "  # a whitespace run
+        + chr(0x06A9)  # a look-alike keheh
+        + chr(0x200D)  # a zero-width joiner
+        + chr(0xFE91)  # a presentation-form glyph
+    )
+    once = normalize(messy)
+    assert normalize(once) == once
+    assert once == chr(0x0645) + chr(0x062D) + " " + chr(0x0643) + chr(0x0628)
 
 
 def test_default_profile_is_light() -> None:

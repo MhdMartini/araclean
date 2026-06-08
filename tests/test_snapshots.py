@@ -8,13 +8,13 @@ from syrupy.assertion import SnapshotAssertion
 
 from araclean import normalize
 
-# (label, input) pairs covering what LIGHT (NFC only, for now) must and must not touch.
+# (label, input) pairs covering what LIGHT (now complete, 0002-0004) must and must not touch.
 CORPUS: list[tuple[str, str]] = [
     # decomposed alef + combining hamza -> composes to alef-with-hamza ("Ahmad")
     ("decomposed-hamza", chr(0x0627) + chr(0x0654) + chr(0x062D) + chr(0x0645) + chr(0x062F)),
     # already-composed vocalized text: marks and their order are preserved
     ("vocalized", chr(0x0646) + chr(0x0635) + chr(0x0651)),
-    # tatweel is preserved (removed only by a later step)
+    # tatweel is now removed (RemoveTatweel, 0004): a letter + tatweel + a letter -> the two letters
     ("tatweel", chr(0x0645) + chr(0x0640) + chr(0x062D)),
     # plain lam-alef ligature -> lam + bare alef
     ("lam-alef-plain", chr(0xFEFB)),
@@ -22,6 +22,14 @@ CORPUS: list[tuple[str, str]] = [
     ("lam-alef-hamza", chr(0xFEF7)),
     # a word as presentation-form glyphs (beh-initial + heh-final) -> base letters
     ("presentation-letters", chr(0xFE91) + chr(0xFEEA)),
+    # bidi/zero-width/BOM stripped (StripBidi, 0004): BOM + alef + RLM + beh -> alef + beh
+    ("invisibles", chr(0xFEFF) + chr(0x0627) + chr(0x200F) + chr(0x0628)),
+    # look-alike kaf/yeh/heh unified for Arabic (UnifyLookalikes, 0004): keheh+farsi-yeh+heh-goal
+    ("lookalikes", chr(0x06A9) + chr(0x06CC) + chr(0x06C1)),
+    # the one accepted residual: a Persian-keyboard yeh merges علی -> علي
+    ("maqsura-residual", chr(0x0639) + chr(0x0644) + chr(0x06CC)),
+    # whitespace runs (NBSP + double space) collapse to one ASCII space (CollapseWhitespace, 0004)
+    ("whitespace", "a" + chr(0x00A0) + chr(0x0020) + "b"),
     # plain ASCII passes through untouched
     ("ascii", "Hello, world!"),
     # empty string

@@ -135,3 +135,132 @@ class FoldPresentationForms:
 
 
 registry.register(FoldPresentationForms.name, FoldPresentationForms.from_dict)
+
+
+def remove_tatweel(s: str, /) -> str:
+    """Strip tatweel (the elongation / kashida character) — lossless encoding repair."""
+    return s.translate(chars.REMOVE_TATWEEL)
+
+
+@dataclass(frozen=True, slots=True)
+class RemoveTatweel:
+    """Strip tatweel ـ (U+0640) — lossless encoding repair.
+
+    English: *tatweel / kashida removal*. Tatweel only stretches a word visually for
+    justification; deleting it collapses elongated spellings (محـــمد → محمد) without touching
+    any letter or vocalization mark.
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.ENCODING_REPAIR
+    name: ClassVar[str] = "RemoveTatweel"
+
+    def __call__(self, s: str, /) -> str:
+        return remove_tatweel(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(RemoveTatweel.name, RemoveTatweel.from_dict)
+
+
+def strip_bidi(s: str, /) -> str:
+    """Remove bidi controls, zero-width characters and the BOM — lossless encoding repair."""
+    return s.translate(chars.STRIP_BIDI)
+
+
+@dataclass(frozen=True, slots=True)
+class StripBidi:
+    """Remove bidi controls, zero-width characters and the BOM — lossless encoding repair.
+
+    English: *bidi/zero-width stripping*. RLM/LRM/ALM and the embedding/isolate controls, the
+    zero-width joiner/non-joiner/space/word-joiner, and the BOM are invisible: they carry no
+    Arabic letter content yet break equality and tokenization, so they are deleted outright.
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.ENCODING_REPAIR
+    name: ClassVar[str] = "StripBidi"
+
+    def __call__(self, s: str, /) -> str:
+        return strip_bidi(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(StripBidi.name, StripBidi.from_dict)
+
+
+def unify_lookalikes(s: str, /) -> str:
+    """Fold script look-alike letters to their Arabic form — lossless encoding repair."""
+    return s.translate(chars.UNIFY_LOOKALIKES)
+
+
+@dataclass(frozen=True, slots=True)
+class UnifyLookalikes:
+    """Unify look-alike kaf/yeh/heh to Arabic letters — lossless encoding repair.
+
+    English: *look-alike unification*. Under the Arabic-language assumption, letters from other
+    Arabic-script orthographies (Persian keheh ک, Farsi yeh ی, the heh-family forms) are encoding
+    artifacts and fold to the Arabic letter (ک→ك, ی→ي, ھ/ہ/ە→ه). One accepted residual: a Persian
+    yeh used word-finally merges على→علي (U+06CC is indistinguishable from alef maqsura).
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.ENCODING_REPAIR
+    name: ClassVar[str] = "UnifyLookalikes"
+
+    def __call__(self, s: str, /) -> str:
+        return unify_lookalikes(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(UnifyLookalikes.name, UnifyLookalikes.from_dict)
+
+
+def collapse_whitespace(s: str, /) -> str:
+    """Collapse each whitespace run to a single ASCII space — lossless encoding repair."""
+    return chars.WHITESPACE_RUN.sub(" ", s)
+
+
+@dataclass(frozen=True, slots=True)
+class CollapseWhitespace:
+    """Collapse whitespace runs to a single ASCII space — lossless encoding repair.
+
+    English: *whitespace collapse*. NBSP and the other Unicode space separators become a plain
+    ASCII space and consecutive whitespace collapses to one, so equality and tokenization stop
+    depending on how many (or which) spaces a source used. Runs collapse but are not trimmed.
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.ENCODING_REPAIR
+    name: ClassVar[str] = "CollapseWhitespace"
+
+    def __call__(self, s: str, /) -> str:
+        return collapse_whitespace(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(CollapseWhitespace.name, CollapseWhitespace.from_dict)

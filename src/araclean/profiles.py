@@ -30,13 +30,20 @@ class Profile(BaseModel):
     steps: list[StepSpec]
 
 
-# The default profile: lossless encoding repair only. NFC then presentation-form folding (0003);
-# it grows further in 0004 (tatweel/bidi/look-alike/whitespace).
+# The default profile: lossless encoding repair only, now complete (0002-0004). Step order follows
+# the PRD ordering contract -- Unicode form -> strip invisibles -> fold presentation forms ->
+# remove tatweel -> unify look-alike letters -> collapse whitespace. The load-bearing constraint is
+# FoldPresentationForms before RemoveTatweel: the medial-form tashkeel glyphs decompose to
+# tatweel + mark, so the fold must run first for RemoveTatweel to clean the stray tatweel.
 LIGHT = Profile(
     name="light",
     steps=[
         StepSpec(name="NormalizeUnicode", config={"form": "NFC"}),
+        StepSpec(name="StripBidi"),
         StepSpec(name="FoldPresentationForms"),
+        StepSpec(name="RemoveTatweel"),
+        StepSpec(name="UnifyLookalikes"),
+        StepSpec(name="CollapseWhitespace"),
     ],
 )
 
