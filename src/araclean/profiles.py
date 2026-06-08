@@ -32,9 +32,27 @@ class Profile(BaseModel):
 
 # The default profile: lossless encoding repair only, now complete (0002-0004). Step order follows
 # the PRD ordering contract -- Unicode form -> strip invisibles -> fold presentation forms ->
-# remove tatweel -> unify look-alike letters -> collapse whitespace. The load-bearing constraint is
-# FoldPresentationForms before RemoveTatweel: the medial-form tashkeel glyphs decompose to
-# tatweel + mark, so the fold must run first for RemoveTatweel to clean the stray tatweel.
+# remove tatweel -> unify look-alike letters -> collapse whitespace (line breaks kept, ADR-0010).
+#
+# Two load-bearing ordering constraints:
+#
+#   1. FoldPresentationForms BEFORE RemoveTatweel: the medial-form tashkeel glyphs decompose to
+#      tatweel + mark, so the fold must run first for RemoveTatweel to clean the stray tatweel.
+#
+#   2. NormalizeUnicode (NFC) runs FIRST *and* LAST. Both passes are needed, and they do different
+#      jobs (this is the surprising part -- do not "simplify" by dropping either):
+#        - The opening NFC composes the input so every later step sees canonical text.
+#        - But two of those steps can *create* a non-canonical combining sequence that the opening
+#          NFC has already passed and cannot fix: FoldPresentationForms expands a ligature into
+#          `base + combining mark`, and StripBidi deletes a format char (e.g. a BOM) that was
+#          separating two marks -- either move can leave two combining marks adjacent in the wrong
+#          canonical order. Without a closing NFC the output is then not NFC, `normalize` is not
+#          idempotent, and an OCR'd ligature fails to match its hand-typed spelling.
+#      The closing NFC re-applies canonical ordering, making "output is NFC" a pipeline
+#      postcondition. It is lossless: araclean treats canonically-equivalent sequences as the same
+#      text, so reordering marks into canonical order never loses signal (ADR-0009). It sits dead
+#      last; CollapseWhitespace only emits ASCII spaces, which are NFC-stable, so the two never
+#      interfere.
 LIGHT = Profile(
     name="light",
     steps=[
@@ -44,6 +62,7 @@ LIGHT = Profile(
         StepSpec(name="RemoveTatweel"),
         StepSpec(name="UnifyLookalikes"),
         StepSpec(name="CollapseWhitespace"),
+        StepSpec(name="NormalizeUnicode", config={"form": "NFC"}),
     ],
 )
 

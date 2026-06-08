@@ -27,12 +27,20 @@ import unicodedata
 # across Unicode releases for free. Every contextual *letter* form has such a mapping, so the
 # OCR/legacy/copy-paste case is fully covered.
 #
-# WHY PER-CODE-POINT TRANSLATE, NOT WHOLE-STRING NFKC: NFKC also applies Canonical Ordering, which
-# **reorders combining marks** by Canonical_Combining_Class (UAX #15). Run over a whole string it
-# would silently reshuffle tashkeel on vocalized/Qur'anic text. Reading each form's decomposition
-# into a `str.translate` map and substituting in place applies the identical folds while leaving
-# every surrounding combining mark exactly where it was -- which is what keeps this step safe for
-# the CLASSICAL profile (0015, vocalized/Qur'anic text). The behavior is pinned by
+# WHY PER-CODE-POINT TRANSLATE, NOT WHOLE-STRING NFKC: two reasons, both about *scope*.
+#   1. SCOPE OF FOLDING. Whole-string NFKC applies *every* compatibility decomposition in the text,
+#      not just the presentation forms -- it would also expand the atomic symbols / honorific
+#      ligatures we deliberately keep (see "INTENTIONALLY NOT FOLDED" below) and any other
+#      compatibility character the caller had elsewhere. Restricting a `str.translate` map to the
+#      two presentation-form ranges folds *only* the contextual glyphs and leaves the rest alone.
+#   2. SCOPE OF REORDERING. NFKC also applies Canonical Ordering, reordering combining marks by
+#      Canonical_Combining_Class (UAX #15). Keeping that out of the fold makes this step a pure
+#      per-glyph substitution that never itself reshuffles a caller's tashkeel. Canonical ordering
+#      is applied exactly once, by the pipeline's *closing* NormalizeUnicode, so the final output
+#      is still NFC -- the fold simply isn't where it happens (ADR-0009).
+# Net effect for vocalized/Qur'anic text (CLASSICAL, 0015): marks are folded in place here and put
+# into canonical order once at the end; no mark is dropped and no compatibility character is
+# silently expanded. This step's own no-reorder behavior is pinned by
 # tests/test_steps.py::test_fold_presentation_forms_preserves_combining_mark_order.
 #
 # INTENTIONALLY NOT FOLDED (the `if folded != char` filter below drops them, because the UCD gives

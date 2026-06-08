@@ -134,3 +134,51 @@ def test_normalize_never_raises(text: str) -> None:
 def test_normalize_is_idempotent_on_light(text: str) -> None:
     once = normalize(text)
     assert normalize(once) == once
+
+
+# --- Canonical-output regression (the closing-NFC fix; ADR-0009) ---
+#
+# FoldPresentationForms expands a ligature into base + combining mark, so a mark that *followed* the
+# ligature in the source can land in non-canonical combining order. NFC runs first (on the input),
+# so without a closing NFC that disorder survives into the output: the result is not NFC, normalize
+# is not idempotent, and an OCR'd ligature fails to match its hand-typed spelling. LIGHT therefore
+# ends with a second NFC (ADR-0009: araclean's notion of "same text" is canonical equivalence).
+#
+# A targeted strategy because plain st.text() almost never emits a presentation-form code point
+# immediately followed by a combining mark — the exact shape that triggers the disorder.
+_PRESENTATION_FORM = st.integers(min_value=0xFB50, max_value=0xFEFF).map(chr)
+_COMBINING_MARK = st.sampled_from(
+    [
+        chr(0x064B),  # tanween fath
+        chr(0x064E),  # fatha
+        chr(0x0650),  # kasra
+        chr(0x0651),  # shadda
+        chr(0x0652),  # sukun
+        chr(0x0670),  # dagger (superscript) alef
+        chr(0x0653),  # combining madda above
+        chr(0x0654),  # combining hamza above
+    ]
+)
+_PRESENTATION_FORMS_WITH_MARKS = st.lists(
+    st.one_of(_PRESENTATION_FORM, _COMBINING_MARK), min_size=1, max_size=6
+).map("".join)
+
+
+@given(_PRESENTATION_FORMS_WITH_MARKS)
+def test_normalize_is_idempotent_and_nfc_on_presentation_forms_with_marks(text: str) -> None:
+    once = normalize(text)
+    assert normalize(once) == once  # idempotent even when folding disturbs mark order
+    assert once == unicodedata.normalize("NFC", once)  # output is canonical (ADR-0009)
+
+
+def test_normalize_canonicalizes_fold_introduced_mark_disorder() -> None:
+    # U+FC5B is a ligature that folds to U+0630 + U+0670 (dagger alef); a fatha that followed the
+    # ligature then sits in non-canonical order (dagger alef ccc=35 before fatha ccc=30). The
+    # closing NFC restores canonical order.
+    folded_then_disordered = chr(0xFC5B) + chr(0x064E)
+    out = normalize(folded_then_disordered)
+    assert out == unicodedata.normalize("NFC", out)  # canonical output
+    assert normalize(out) == out  # idempotent
+    # The whole point of folding: the OCR'd ligature now matches the hand-typed canonical spelling.
+    hand_typed = chr(0x0630) + chr(0x064E) + chr(0x0670)  # U+0630 + fatha + dagger alef (NFC order)
+    assert normalize(folded_then_disordered) == normalize(hand_typed)
