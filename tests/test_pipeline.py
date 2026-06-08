@@ -2,7 +2,7 @@
 
 import unicodedata
 
-from araclean import NormalizeUnicode, Pipeline, SafetyClass
+from araclean import LIGHT, FoldPresentationForms, NormalizeUnicode, Pipeline, SafetyClass
 
 # alef + combining hamza (decomposed) so NFC has real work to do; tail = three more letters.
 DECOMPOSED = chr(0x0627) + chr(0x0654) + chr(0x062D) + chr(0x0645) + chr(0x062F)
@@ -31,6 +31,18 @@ def test_to_dict_from_dict_round_trips_behavior() -> None:
     rebuilt = Pipeline.from_dict(pipe.to_dict())
     for text in CORPUS:
         assert rebuilt(text) == pipe(text)
+
+
+def test_fold_presentation_forms_round_trips_through_registry() -> None:
+    # Every new step must serialize via to_dict/from_dict + the registry (DoD). A LIGHT pipeline
+    # now contains FoldPresentationForms, so round-tripping it exercises the new step's contract.
+    pipe = Pipeline([NormalizeUnicode("NFC"), FoldPresentationForms()])
+    rebuilt = Pipeline.from_dict(pipe.to_dict())
+    for text in [*CORPUS, chr(0xFEF7), chr(0xFEFB) + chr(0xFE91)]:
+        assert rebuilt(text) == pipe(text)
+    # The default LIGHT profile assembles and round-trips identically.
+    light = Pipeline.from_profile(LIGHT)
+    assert Pipeline.from_dict(light.to_dict())(chr(0xFEF7)) == light(chr(0xFEF7))
 
 
 def test_to_dict_is_json_serializable() -> None:

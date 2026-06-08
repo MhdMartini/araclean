@@ -4,6 +4,9 @@
     'ascii': 'Hello, world!',
     'decomposed-hamza': 'أحمد',
     'empty': '',
+    'lam-alef-hamza': 'لأ',
+    'lam-alef-plain': 'لا',
+    'presentation-letters': 'به',
     'tatweel': 'مـح',
     'vocalized': 'نصّ',
   })

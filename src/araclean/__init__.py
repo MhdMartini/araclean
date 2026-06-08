@@ -8,8 +8,10 @@ from araclean.profiles import LIGHT, Profile
 from araclean.safety import SafetyClass
 from araclean.steps import (
     AlignmentNotSupportedError,
+    FoldPresentationForms,
     NormalizeUnicode,
     Step,
+    fold_presentation_forms,
     normalize_unicode,
 )
 
@@ -21,12 +23,14 @@ except PackageNotFoundError:  # pragma: no cover - source tree without install m
 __all__ = [
     "LIGHT",
     "AlignmentNotSupportedError",
+    "FoldPresentationForms",
     "NormalizeUnicode",
     "Pipeline",
     "Profile",
     "SafetyClass",
     "Step",
     "__version__",
+    "fold_presentation_forms",
     "normalize",
     "normalize_unicode",
 ]

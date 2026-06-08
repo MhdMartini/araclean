@@ -33,6 +33,28 @@ def test_already_nfc_text_is_unchanged() -> None:
     assert normalize(COMPOSED) == COMPOSED
 
 
+# Each lam-alef ligature folds under LIGHT to lam + its MATCHING alef variant (story 20).
+LAM = chr(0x0644)
+LAM_ALEF_UNDER_LIGHT = [
+    (chr(0xFEFB), LAM + chr(0x0627)),  # ﻻ -> ل + alef
+    (chr(0xFEF7), LAM + chr(0x0623)),  # ﻷ -> ل + alef-with-hamza-above
+    (chr(0xFEF9), LAM + chr(0x0625)),  # ﻹ -> ل + alef-with-hamza-below
+    (chr(0xFEF5), LAM + chr(0x0622)),  # ﻵ -> ل + alef-with-madda
+]
+
+
+@pytest.mark.parametrize(("ligature", "expected"), LAM_ALEF_UNDER_LIGHT)
+def test_light_folds_lam_alef_keeping_alef_variant(ligature: str, expected: str) -> None:
+    # End-to-end through the facade: the ligature keeps its alef variant, not bare lam-alef.
+    assert normalize(ligature) == expected
+
+
+def test_light_folds_presentation_form_letters() -> None:
+    # A word typed/OCR'd as presentation-form glyphs matches its base-letter spelling under LIGHT.
+    word = chr(0xFE91) + chr(0xFEEA)  # beh-initial + heh-final
+    assert normalize(word) == chr(0x0628) + chr(0x0647)  # -> beh + heh
+
+
 @pytest.mark.parametrize("text", ["", " ", "abc", COMPOSED, TATWEEL])
 def test_normalize_equals_nfc_over_corpus(text: str) -> None:
     assert normalize(text) == unicodedata.normalize("NFC", text)

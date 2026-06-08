@@ -30,10 +30,14 @@ class Profile(BaseModel):
     steps: list[StepSpec]
 
 
-# The default profile: lossless encoding repair only. For now just NFC; it grows in 0003/0004.
+# The default profile: lossless encoding repair only. NFC then presentation-form folding (0003);
+# it grows further in 0004 (tatweel/bidi/look-alike/whitespace).
 LIGHT = Profile(
     name="light",
-    steps=[StepSpec(name="NormalizeUnicode", config={"form": "NFC"})],
+    steps=[
+        StepSpec(name="NormalizeUnicode", config={"form": "NFC"}),
+        StepSpec(name="FoldPresentationForms"),
+    ],
 )
 
 _PROFILES: dict[str, Profile] = {LIGHT.name: LIGHT}

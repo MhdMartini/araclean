@@ -16,6 +16,12 @@ CORPUS: list[tuple[str, str]] = [
     ("vocalized", chr(0x0646) + chr(0x0635) + chr(0x0651)),
     # tatweel is preserved (removed only by a later step)
     ("tatweel", chr(0x0645) + chr(0x0640) + chr(0x062D)),
+    # plain lam-alef ligature -> lam + bare alef
+    ("lam-alef-plain", chr(0xFEFB)),
+    # lam-alef ligature keeps its alef variant -> lam + alef-with-hamza-above (NOT bare lam-alef)
+    ("lam-alef-hamza", chr(0xFEF7)),
+    # a word as presentation-form glyphs (beh-initial + heh-final) -> base letters
+    ("presentation-letters", chr(0xFE91) + chr(0xFEEA)),
     # plain ASCII passes through untouched
     ("ascii", "Hello, world!"),
     # empty string

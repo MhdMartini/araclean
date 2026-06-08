@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, Protocol, Self, TypedDict, runtime_checkable
 
-from araclean import registry
+from araclean import chars, registry
 from araclean.safety import SafetyClass
 
 type UnicodeForm = Literal["NFC", "NFD", "NFKC", "NFKD"]
@@ -102,3 +102,36 @@ class NormalizeUnicode:
 
 
 registry.register(NormalizeUnicode.name, NormalizeUnicode.from_dict)
+
+
+def fold_presentation_forms(s: str, /) -> str:
+    """Fold Arabic presentation-form glyphs to base letters — lossless encoding repair."""
+    return s.translate(chars.PRESENTATION_FORMS)
+
+
+@dataclass(frozen=True, slots=True)
+class FoldPresentationForms:
+    """Fold Arabic presentation forms back to base letters — lossless encoding repair.
+
+    English: *presentation-form folding*. OCR, legacy encodings and copy-paste leave letters as
+    their contextual presentation glyphs (Forms-A/-B); folding them to the base letters lets such
+    text match normally. The lam-alef ligatures decompose to lam + their *matching* alef variant
+    (ﻷ → لأ), and combining marks keep their order (a per-character fold, not whole-string NFKC).
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.ENCODING_REPAIR
+    name: ClassVar[str] = "FoldPresentationForms"
+
+    def __call__(self, s: str, /) -> str:
+        return fold_presentation_forms(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(FoldPresentationForms.name, FoldPresentationForms.from_dict)
