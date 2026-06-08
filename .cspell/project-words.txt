@@ -6,6 +6,10 @@
 # Unicode code points referenced in prose (cf. FEFF/FDFF in the glossary)
 FEFC
 
+# Unicode Standard technical vocabulary (UAX #15 / UCD), not Arabic-domain terms
+noncharacter
+noncharacters
+
 # Domain-adjacent proper nouns
 Hijri
 
