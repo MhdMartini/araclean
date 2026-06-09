@@ -702,3 +702,73 @@ class MapPunctuation:
 
 
 registry.register(MapPunctuation.name, MapPunctuation.from_dict)
+
+
+def _compile_elongation(cap: int) -> tuple[re.Pattern[str], str]:
+    """Build the (pattern, replacement) for capping a repeated-letter run at `cap` copies.
+
+    The pattern matches a letter followed by `cap`-or-more of the same letter (a run longer than
+    `cap`); the replacement re-emits the captured letter `cap` times. `cap` must be >= 1 — `cap < 1`
+    would match a lone letter and replace it with nothing, i.e. delete letters, so it is rejected.
+    """
+    if cap < 1:
+        raise ValueError(f"ReduceElongation cap must be >= 1, got {cap}")
+    pattern = re.compile(rf"(?P<c>[{chars.ELONGATABLE_CLASS}])(?P=c){{{cap},}}")
+    replacement = "\\g<c>" * cap
+    return pattern, replacement
+
+
+def reduce_elongation(s: str, /, *, cap: int = 1) -> str:
+    """Cap runs of a repeated Arabic letter at `cap` copies (default 1) — lossy linguistic folding.
+
+    English: *elongation reduction*. Collapses emphatic word-lengthening (جمييييل → جميل) so the
+    vocabulary does not explode. ``cap=1`` reduces to a single letter; ``cap=2`` keeps a doubled
+    letter so emphasis survives. ``cap`` must be >= 1.
+    """
+    pattern, replacement = _compile_elongation(cap)
+    return pattern.sub(replacement, s)
+
+
+@dataclass(frozen=True, slots=True)
+class ReduceElongation:
+    """Cap runs of a repeated Arabic letter at `cap` copies — lossy linguistic folding.
+
+    English: *elongation reduction*. Word-lengthening repeats a letter for emphasis (جمييييل,
+    راااائع); this collapses any run of the same Arabic letter to at most `cap` copies so emphatic
+    spellings stop exploding the vocabulary. ``cap=1`` (the default) reduces a run to a single
+    letter; ``cap=2`` keeps a doubled letter so emphasis is retained (what SOCIAL wants). A run no
+    longer than `cap` — an ordinary doubled letter — is left untouched: the cap is the contract.
+
+    Only contemporary Arabic letters are capped; digits are never touched (a repeated digit is a
+    number, not emphasis, so 1000 stays 1000), nor are tashkeel marks or tatweel. The fold discards
+    the emphasis, so `safety` is `LINGUISTIC_FOLDING`: opt-in via a lossy profile or an explicit
+    step, never under `LIGHT`. It is a contextual `re` rule, so it stays its own pass and is not a
+    candidate for the 0018 fused-translate engine (ADR-0006).
+    """
+
+    cap: int = 1
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since they are a derived view of `cap`.
+    _pattern: re.Pattern[str] = field(init=False, repr=False, compare=False)
+    _replacement: str = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "ReduceElongation"
+
+    def __post_init__(self) -> None:
+        pattern, replacement = _compile_elongation(self.cap)
+        object.__setattr__(self, "_pattern", pattern)
+        object.__setattr__(self, "_replacement", replacement)
+
+    def __call__(self, s: str, /) -> str:
+        return self._pattern.sub(self._replacement, s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {"cap": self.cap}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(ReduceElongation.name, ReduceElongation.from_dict)

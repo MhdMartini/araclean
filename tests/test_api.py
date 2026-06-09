@@ -180,6 +180,13 @@ def test_light_does_not_map_punctuation() -> None:
     assert normalize(punctuated) == punctuated
 
 
+def test_light_does_not_reduce_elongation() -> None:
+    # Emphatic word-lengthening survives LIGHT unchanged — collapsing a repeated-letter run discards
+    # the emphasis, so it is lossy/opt-in (issue 0009), never run by the lossless default.
+    lengthened = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل
+    assert normalize(lengthened) == lengthened
+
+
 def test_default_profile_is_light() -> None:
     light_pipe = Pipeline.from_profile(LIGHT)
     for text in (DECOMPOSED, COMPOSED, "abc", TATWEEL):

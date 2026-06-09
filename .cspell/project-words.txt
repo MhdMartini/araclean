@@ -32,6 +32,7 @@ grabbable
 invisibles
 precomputes
 configurably
+elongatable
 
 # release/versioning tooling (ADR-0008)
 Commitizen

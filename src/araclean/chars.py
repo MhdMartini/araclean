@@ -410,3 +410,34 @@ _PUNCTUATION_CHARS: str = "".join(re.escape(ch) for ch in ARABIC_PUNCTUATION)
 ARABIC_PUNCTUATION_RUN: re.Pattern[str] = re.compile(
     rf"(?<!\d)[{_PUNCTUATION_CHARS}]|[{_PUNCTUATION_CHARS}](?!\d)"
 )
+
+
+# --- ReduceElongation letter class (issue 0009, story 33) --------------------------------------
+#
+# Word-lengthening (جمييييل, راااائع) repeats a LETTER for emphasis; ReduceElongation caps such a
+# run. This is a *contextual* rule (a run -> at most `cap` copies), so a precompiled regex rather
+# than a str.translate table (ADR-0006) — which also keeps ReduceElongation out of the 0018 fused
+# engine. The quantifier depends on the cap, so steps.py compiles the cap-specific pattern; the
+# letter class it draws from is the single source of truth here.
+#
+# ONE STATED PRINCIPLE. The class is exactly the contemporary Arabic LETTERS: U+0621-U+063A
+# (hamza, the alef/waw/yeh hamza-carriers, alef, beh ... ghain) and U+0641-U+064A (feh ... yeh).
+# Every member is an Arabic letter (Unicode category L*), verified against the live UCD by a
+# tests/test_steps.py soundness invariant. The boundaries are deliberate and load-bearing:
+#   - DIGITS are excluded by construction. A repeated digit is a NUMBER, not emphasis: collapsing it
+#     would turn 1000 into 1. The Arabic-Indic/Extended/ASCII digit runs all sit outside this range.
+#   - TASHKEEL and the other combining marks (U+064B onward) are excluded: they are vocalization,
+#     not lengthened letters, and dediacritization (issue 0006) owns them.
+#   - TATWEEL U+0640 is excluded: a visual stretch character, not a letter, owned by RemoveTatweel.
+#   - The rare extended/non-Arabic letters (U+063B-U+063F and the Arabic Supplement/Extended blocks)
+#     are out of scope. They are encoding artifacts that UnifyLookalikes (issue 0004) folds to their
+#     Arabic form before this step runs in any profile, so an elongated keheh/Farsi-yeh is already
+#     the Arabic letter by the time ReduceElongation sees it; a missed obscure letter only means a
+#     vanishingly rare elongation is left intact, never a corrupted number — soundness, not
+#     completeness, is the contract here (unlike the 0006 mark partition).
+ELONGATABLE_LETTERS: frozenset[int] = frozenset(range(0x0621, 0x063B)) | frozenset(
+    range(0x0641, 0x064B)
+)
+# A regex character-class body listing every elongatable letter (built from code points, so no raw
+# Arabic appears in source). Each letter is re.escape'd for safety though none are regex-special.
+ELONGATABLE_CLASS: str = "".join(re.escape(chr(cp)) for cp in sorted(ELONGATABLE_LETTERS))

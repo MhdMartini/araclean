@@ -18,6 +18,7 @@ from araclean import (
     MapPunctuation,
     MarkClass,
     NormalizeUnicode,
+    ReduceElongation,
     RemoveTashkeel,
     RemoveTatweel,
     SafetyClass,
@@ -33,6 +34,7 @@ from araclean import (
     map_digits,
     map_punctuation,
     normalize_unicode,
+    reduce_elongation,
     registry,
     remove_tashkeel,
     remove_tatweel,
@@ -1029,3 +1031,99 @@ def test_map_punctuation_free_function_agrees_with_step() -> None:
 def test_map_punctuation_is_total_and_idempotent(text: str) -> None:
     once = MapPunctuation()(text)
     assert MapPunctuation()(once) == once
+
+
+# --- ReduceElongation (issue 0009, story 33) — collapse repeated-letter word-lengthening ---
+
+# Built from code points so the expectation is immune to how this file is saved.
+ELONGATED = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل (4 yeh)
+REDUCED = chr(0x062C) + chr(0x0645) + chr(0x064A) + chr(0x0644)  # جميل (1 yeh)
+REDUCED_CAP2 = chr(0x062C) + chr(0x0645) + chr(0x064A) * 2 + chr(0x0644)  # جميّل-style (2 yeh)
+ELONGATED_ALEF = chr(0x0631) + chr(0x0627) * 4 + chr(0x0626) + chr(0x0639)  # راااائع (4 alefs)
+REDUCED_ALEF = chr(0x0631) + chr(0x0627) + chr(0x0626) + chr(0x0639)  # رائع (1 alef)
+
+
+def test_reduce_elongation_cap_one_collapses_to_a_single_letter() -> None:
+    # The default cap (1) collapses a lengthened run all the way to one letter.
+    assert ReduceElongation()(ELONGATED) == REDUCED
+    assert ReduceElongation()(ELONGATED_ALEF) == REDUCED_ALEF
+
+
+def test_reduce_elongation_cap_two_keeps_a_doubled_letter() -> None:
+    # Cap 2 retains emphasis: the run is capped at two copies, not one (جمييييل -> جميّل-style).
+    assert ReduceElongation(cap=2)(ELONGATED) == REDUCED_CAP2
+
+
+def test_reduce_elongation_cap_two_leaves_an_ordinary_double_untouched() -> None:
+    # A run no longer than the cap is not elongation past the cap, so it is left as written: a word
+    # already spelled with a doubled letter (run of 2) survives cap 2 unchanged. The cap is the
+    # contract — it does not try to tell emphasis from a legitimate double.
+    assert ReduceElongation(cap=2)(REDUCED_CAP2) == REDUCED_CAP2
+
+
+def test_reduce_elongation_never_touches_digits() -> None:
+    # The load-bearing exclusion: a repeated digit is a NUMBER, not emphasis. Collapsing it would
+    # turn 1000 into 1, so no digit system is ever capped — ASCII, Arabic-Indic and Extended alike.
+    assert ReduceElongation()("1000") == "1000"
+    arabic_indic_1000 = chr(0x0661) + chr(0x0660) * 3  # ١٠٠٠
+    assert ReduceElongation()(arabic_indic_1000) == arabic_indic_1000
+    extended_run = chr(0x06F5) * 4  # an Extended (Persian/Urdu) digit repeated
+    assert ReduceElongation()(extended_run) == extended_run
+
+
+def test_reduce_elongation_only_caps_letters_never_digits_or_marks() -> None:
+    # Soundness invariant (live UCD): scanning every Arabic-script code point, the only runs the
+    # step collapses are runs of an Arabic LETTER (Unicode category L*) — never a digit (the
+    # 1000->1 hazard) and never a combining mark. Re-derived from the Unicode database, so a code
+    # point that slipped into the elongatable class wrongly fails CI. (This guards soundness, not
+    # completeness: the step may legitimately leave a rare extended letter uncapped — see chars.py.)
+    reduce = ReduceElongation()  # cap 1
+    for lo, hi in _LETTER_BLOCKS:
+        for cp in range(lo, hi + 1):
+            ch = chr(cp)
+            if reduce(ch * 3) == ch:  # this code point's run was capped
+                category = unicodedata.category(ch)
+                assert category.startswith("L"), f"{hex(cp)} ({category}) capped, not a letter"
+
+
+@pytest.mark.parametrize("cap", [0, -1])
+def test_reduce_elongation_rejects_a_cap_below_one(cap: int) -> None:
+    # cap < 1 would match a lone letter and replace it with nothing — i.e. delete letters — so it is
+    # rejected at construction (and in the free function), never silently corrupting text.
+    with pytest.raises(ValueError, match="cap"):
+        ReduceElongation(cap=cap)
+    with pytest.raises(ValueError, match="cap"):
+        reduce_elongation("نص", cap=cap)
+
+
+def test_reduce_elongation_safety_is_linguistic_folding() -> None:
+    assert ReduceElongation().safety is SafetyClass.LINGUISTIC_FOLDING
+    assert ReduceElongation(cap=2).safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_reduce_elongation_free_function_agrees_with_step() -> None:
+    assert reduce_elongation(ELONGATED) == ReduceElongation()(ELONGATED)
+    assert reduce_elongation(ELONGATED, cap=2) == ReduceElongation(cap=2)(ELONGATED)
+
+
+def test_reduce_elongation_serializes_its_cap() -> None:
+    # The cap round-trips so an elongation-reducing pipeline can be pinned and reproduced (0016).
+    step = ReduceElongation(cap=2)
+    assert step.to_dict() == {"name": "ReduceElongation", "config": {"cap": 2}}
+    rebuilt = ReduceElongation.from_dict(step.to_dict()["config"])
+    assert rebuilt == step
+    assert rebuilt(ELONGATED) == REDUCED_CAP2
+
+
+def test_reduce_elongation_default_round_trips_through_registry() -> None:
+    built = registry.build("ReduceElongation", {})  # bare step -> the cap-1 default
+    assert isinstance(built, ReduceElongation)
+    assert built(ELONGATED) == REDUCED
+    assert ReduceElongation.from_dict(built.to_dict()["config"]) == built
+
+
+@given(st.text())
+def test_reduce_elongation_is_total_and_idempotent(text: str) -> None:
+    for cap in (1, 2):
+        once = ReduceElongation(cap=cap)(text)
+        assert ReduceElongation(cap=cap)(once) == once
