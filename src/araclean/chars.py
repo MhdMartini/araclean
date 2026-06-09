@@ -363,3 +363,50 @@ HIGH_HAMZA: int = 0x0674  # ٴ the high hamza spacing letter (heavy-mode standal
 TEH_MARBUTA: frozenset[int] = frozenset((0x0629, 0x06C3))  # teh marbuta + its goal form
 HEH: int = 0x0647  # ه target
 TEH: int = 0x062A  # ت target
+
+
+# --- MapDigits digit systems (issue 0008, story 31) -------------------------------------------
+#
+# The three digit systems araclean converts among (GLOSSARY: Arabic-Indic / Extended Arabic-Indic
+# digits). Each is a CONTIGUOUS 0-9 run in the Unicode Standard, so a system is fully described by
+# its "zero" code point and a +offset: MapDigits maps every source digit to the same position in the
+# target system (by numeric value). Only these three Arabic-relevant systems are in scope — folding
+# arbitrary Unicode digit scripts (Devanagari, ...) is not story 31's concern. The mapping is a 1:1
+# char translate (a fusion candidate for 0018); the target makes it lossy/opt-in, never in LIGHT.
+ASCII_DIGIT_ZERO: int = 0x0030  # 0-9
+ARABIC_INDIC_DIGIT_ZERO: int = 0x0660  # ٠-٩ (Eastern Arabic)
+EXTENDED_ARABIC_INDIC_DIGIT_ZERO: int = 0x06F0  # ۰-۹ (Persian/Urdu)
+DIGIT_ZEROS: tuple[int, ...] = (
+    ASCII_DIGIT_ZERO,
+    ARABIC_INDIC_DIGIT_ZERO,
+    EXTENDED_ARABIC_INDIC_DIGIT_ZERO,
+)
+
+
+# --- MapPunctuation table + pattern (issue 0008, story 32) ------------------------------------
+#
+# Arabic sentence/clause punctuation -> its Latin equivalent, so one tokenizer/sentence-splitter
+# works on Arabic text. Only the three marks with an unambiguous Latin sentence equivalent are in
+# scope (story 32): the comma, semicolon and question mark. The mapping is lossy/opt-in (it erases
+# the script of the punctuation), so it never runs under LIGHT.
+#
+# NUMBER-SEPARATOR SAFETY (story 32). The Arabic comma ، doubles as a digit-grouping separator
+# (١٬٢٣٤). A mark sitting BETWEEN two digits is therefore a numeric separator, not sentence
+# punctuation, and is preserved — only a mark that is not digit-flanked on both sides is mapped.
+# This is a CONTEXTUAL rule, so a precompiled regex rather than a str.translate table (ADR-0006),
+# which also keeps MapPunctuation out of the 0018 fused-translate engine. `\d` matches the
+# Arabic-Indic / Extended digits too, so the guard holds whether or not MapDigits ran first. The
+# DEDICATED number separators — decimal U+066B, thousands U+066C, date U+060D — are out of scope
+# entirely (never mapped), so they are safe by construction.
+ARABIC_PUNCTUATION: dict[str, str] = {
+    "،": ",",  # ، arabic comma
+    "؛": ";",  # ؛ arabic semicolon
+    "؟": "?",  # ؟ arabic question mark
+}
+_PUNCTUATION_CHARS: str = "".join(re.escape(ch) for ch in ARABIC_PUNCTUATION)
+# A punctuation mark that is NOT (preceded AND followed by a digit): the first alternative fires
+# when nothing-or-a-non-digit precedes it, the second when nothing-or-a-non-digit follows. A mark
+# between two digits matches neither alternative, so it is left in place as a numeric separator.
+ARABIC_PUNCTUATION_RUN: re.Pattern[str] = re.compile(
+    rf"(?<!\d)[{_PUNCTUATION_CHARS}]|[{_PUNCTUATION_CHARS}](?!\d)"
+)

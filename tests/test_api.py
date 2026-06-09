@@ -164,6 +164,22 @@ def test_light_does_not_fold_alef_maqsura() -> None:
     assert normalize(ala_maqsura) != normalize(ala_yeh)  # still distinct
 
 
+# --- Digit & punctuation mapping is opt-in (issue 0008, stories 31-32): LIGHT must not map them ---
+
+
+def test_light_does_not_map_digits() -> None:
+    # Arabic-Indic digits survive LIGHT unchanged — converting digit systems is lossy/opt-in (0008),
+    # and the parking-lot default for LIGHT is to keep digits as written.
+    arabic_indic_123 = chr(0x0661) + chr(0x0662) + chr(0x0663)  # ١٢٣
+    assert normalize(arabic_indic_123) == arabic_indic_123
+
+
+def test_light_does_not_map_punctuation() -> None:
+    # The Arabic comma/semicolon/question survive LIGHT — mapping them to Latin is opt-in (0008).
+    punctuated = "نعم" + chr(0x060C) + " لا" + chr(0x061F)  # نعم، لا؟
+    assert normalize(punctuated) == punctuated
+
+
 def test_default_profile_is_light() -> None:
     light_pipe = Pipeline.from_profile(LIGHT)
     for text in (DECOMPOSED, COMPOSED, "abc", TATWEEL):

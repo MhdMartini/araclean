@@ -8,11 +8,14 @@ from hypothesis import strategies as st
 
 from araclean import (
     CollapseWhitespace,
+    DigitTarget,
     FoldAlef,
     FoldAlefMaqsura,
     FoldHamza,
     FoldPresentationForms,
     FoldTehMarbuta,
+    MapDigits,
+    MapPunctuation,
     MarkClass,
     NormalizeUnicode,
     RemoveTashkeel,
@@ -27,6 +30,8 @@ from araclean import (
     fold_hamza,
     fold_presentation_forms,
     fold_teh_marbuta,
+    map_digits,
+    map_punctuation,
     normalize_unicode,
     registry,
     remove_tashkeel,
@@ -885,3 +890,142 @@ def test_lossless_step_is_identity_on_clean_arabic(text: str) -> None:
     clean = unicodedata.normalize("NFC", text)  # canonical input: nothing legitimate to repair
     for step in _LOSSLESS_STEPS:
         assert step(clean) == clean, f"{type(step).__name__} altered clean Arabic text"
+
+
+# --- MapDigits (issue 0008, story 31) — convert among the three digit systems ---
+
+# Built from code points so the expectation is immune to how this file is saved. Each system is a
+# contiguous 0-9 run keyed by its zero: ASCII U+0030, Arabic-Indic U+0660, Extended U+06F0.
+ARABIC_INDIC_123 = chr(0x0661) + chr(0x0662) + chr(0x0663)  # ١٢٣
+EXTENDED_123 = chr(0x06F1) + chr(0x06F2) + chr(0x06F3)  # ۱۲۳ (Persian/Urdu)
+
+
+def test_map_digits_default_target_is_ascii() -> None:
+    # ١٢٣ -> 123: the default folds every digit system to ASCII (numbers parse consistently).
+    assert MapDigits()(ARABIC_INDIC_123) == "123"
+
+
+def test_map_digits_ascii_folds_extended_too() -> None:
+    # The Persian/Urdu (Extended) digits ۱۲۳ also fold to ASCII under the default target.
+    assert MapDigits()(EXTENDED_123) == "123"
+
+
+def test_map_digits_target_arabic_indic() -> None:
+    # Target Arabic-Indic: 123 -> ١٢٣, and the Extended digits fold to Arabic-Indic too.
+    step = MapDigits(target=DigitTarget.ARABIC_INDIC)
+    assert step("123") == ARABIC_INDIC_123
+    assert step(EXTENDED_123) == ARABIC_INDIC_123
+
+
+def test_map_digits_target_extended() -> None:
+    # Target Extended (Persian/Urdu): ASCII and Arabic-Indic both fold to ۰-۹.
+    step = MapDigits(target=DigitTarget.EXTENDED_ARABIC_INDIC)
+    assert step("123") == EXTENDED_123
+    assert step(ARABIC_INDIC_123) == EXTENDED_123
+
+
+def test_map_digits_leaves_the_target_system_untouched() -> None:
+    # Folding to a target is a no-op on digits already in that system (the step is a fixed point).
+    assert MapDigits()("123") == "123"
+    assert MapDigits(target=DigitTarget.ARABIC_INDIC)(ARABIC_INDIC_123) == ARABIC_INDIC_123
+
+
+def test_map_digits_does_not_touch_letters() -> None:
+    # Only the three digit systems are in scope: surrounding Arabic letters pass through untouched.
+    word = "رقم " + ARABIC_INDIC_123  # "number ١٢٣"
+    assert MapDigits()(word) == "رقم 123"
+
+
+def test_map_digits_safety_is_linguistic_folding() -> None:
+    assert MapDigits().safety is SafetyClass.LINGUISTIC_FOLDING
+    assert MapDigits(target=DigitTarget.ARABIC_INDIC).safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_map_digits_serializes_its_target() -> None:
+    # The target round-trips so a digit-folding pipeline can be pinned and reproduced (0016).
+    step = MapDigits(target=DigitTarget.ARABIC_INDIC)
+    assert step.to_dict() == {"name": "MapDigits", "config": {"target": "arabic_indic"}}
+    rebuilt = MapDigits.from_dict(step.to_dict()["config"])
+    assert rebuilt == step
+    assert rebuilt("123") == ARABIC_INDIC_123
+
+
+def test_map_digits_default_round_trips_through_registry() -> None:
+    built = registry.build("MapDigits", {})  # bare step -> the ASCII default
+    assert isinstance(built, MapDigits)
+    assert built(ARABIC_INDIC_123) == "123"
+    assert MapDigits.from_dict(built.to_dict()["config"]) == built
+
+
+def test_map_digits_free_function_agrees_with_step() -> None:
+    text = "رقم " + ARABIC_INDIC_123 + " و " + EXTENDED_123
+    assert map_digits(text) == MapDigits()(text)
+    assert map_digits(text, target=DigitTarget.ARABIC_INDIC) == MapDigits(
+        target=DigitTarget.ARABIC_INDIC
+    )(text)
+
+
+@given(st.text())
+def test_map_digits_is_total_and_idempotent(text: str) -> None:
+    for target in DigitTarget:
+        once = MapDigits(target=target)(text)
+        assert MapDigits(target=target)(once) == once
+
+
+# --- MapPunctuation (issue 0008, story 32) — Arabic punctuation -> Latin, separator-safe ---
+
+ARABIC_COMMA = chr(0x060C)  # ،
+ARABIC_SEMICOLON = chr(0x061B)  # ؛
+ARABIC_QUESTION = chr(0x061F)  # ؟
+
+
+def test_map_punctuation_maps_comma_semicolon_question() -> None:
+    # ما رأيك؟ نعم، شكرا؛ -> the three marks become ? , ; at the right positions.
+    text = "ما رأيك" + ARABIC_QUESTION + " نعم" + ARABIC_COMMA + " شكرا" + ARABIC_SEMICOLON
+    assert MapPunctuation()(text) == "ما رأيك? نعم, شكرا;"
+
+
+def test_map_punctuation_preserves_a_digit_grouped_separator() -> None:
+    # Number-separator safety: an Arabic comma BETWEEN two digits is a numeric separator (e.g. a
+    # thousands-grouped number), so it is preserved — not turned into a sentence comma.
+    assert MapPunctuation()("1" + ARABIC_COMMA + "234") == "1" + ARABIC_COMMA + "234"
+    # The guard holds before MapDigits runs too: ، between Arabic-Indic digits is still a separator.
+    grouped = chr(0x0661) + ARABIC_COMMA + chr(0x0662)  # ١،٢
+    assert MapPunctuation()(grouped) == grouped
+
+
+def test_map_punctuation_maps_a_comma_next_to_a_single_digit() -> None:
+    # Only a mark flanked by digits on BOTH sides is a separator. A trailing/leading comma touching
+    # just one digit is ordinary sentence punctuation and is mapped.
+    assert MapPunctuation()("5" + ARABIC_COMMA) == "5,"  # nothing after -> sentence comma
+    assert MapPunctuation()(ARABIC_COMMA + "5") == ",5"  # nothing before -> sentence comma
+
+
+def test_map_punctuation_leaves_dedicated_number_separators_untouched() -> None:
+    # The decimal (U+066B), thousands (U+066C) and date (U+060D) separators are out of scope
+    # entirely — never mapped — so a decimal number survives unchanged.
+    decimal = "3" + chr(0x066B) + "14"  # ٣٫١٤
+    assert MapPunctuation()(decimal) == decimal
+
+
+def test_map_punctuation_safety_is_linguistic_folding() -> None:
+    assert MapPunctuation().safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_map_punctuation_serializes_and_round_trips_through_registry() -> None:
+    step = MapPunctuation()
+    assert step.to_dict() == {"name": "MapPunctuation", "config": {}}
+    built = registry.build("MapPunctuation", {})
+    assert isinstance(built, MapPunctuation)
+    assert MapPunctuation.from_dict(step.to_dict()["config"]) == step
+
+
+def test_map_punctuation_free_function_agrees_with_step() -> None:
+    text = "ما رأيك" + ARABIC_QUESTION + " 1" + ARABIC_COMMA + "234" + ARABIC_SEMICOLON
+    assert map_punctuation(text) == MapPunctuation()(text)
+
+
+@given(st.text())
+def test_map_punctuation_is_total_and_idempotent(text: str) -> None:
+    once = MapPunctuation()(text)
+    assert MapPunctuation()(once) == once

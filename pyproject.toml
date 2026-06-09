@@ -64,9 +64,11 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 # araclean embeds Arabic letters in comments, docstrings and test data on purpose; a few of them
 # look like Latin letters (alef like l, the heh family like o), which ruff's ambiguous-unicode
-# rules (RUF001-003) would otherwise flag. Allow exactly those Arabic letters so the homoglyph
+# rules (RUF001-003) would otherwise flag. Allow exactly those Arabic glyphs so the homoglyph
 # check still guards the rest of the codebase. Extend as later steps introduce more Arabic.
-allowed-confusables = ["ا", "ه", "ہ", "ە", "ھ"]
+# Digits (issue 0008): the Arabic-Indic / Extended zero ٠ ۰ look like ".", the one ١ like "l", and
+# the decimal separator ٫ like ",". They are documented in MapDigits/MapPunctuation prose on purpose.
+allowed-confusables = ["ا", "ه", "ہ", "ە", "ھ", "٠", "۰", "١", "٫"]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings

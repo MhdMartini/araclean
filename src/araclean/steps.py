@@ -587,3 +587,118 @@ class FoldTehMarbuta:
 
 
 registry.register(FoldTehMarbuta.name, FoldTehMarbuta.from_dict)
+
+
+class DigitTarget(StrEnum):
+    """Which digit system `MapDigits` converts every digit to (story 31).
+
+    English: *digit target*. `ASCII` (default) makes numbers parse and match consistently; the two
+    Arabic systems are `ARABIC_INDIC` (Eastern ٠-٩) and `EXTENDED_ARABIC_INDIC` (Persian/Urdu ۰-۹).
+    """
+
+    ASCII = "ascii"  # 0-9 (default)
+    ARABIC_INDIC = "arabic_indic"  # ٠-٩
+    EXTENDED_ARABIC_INDIC = "extended_arabic_indic"  # ۰-۹ (Persian/Urdu)
+
+
+_DIGIT_TARGET_ZERO: dict[DigitTarget, int] = {
+    DigitTarget.ASCII: chars.ASCII_DIGIT_ZERO,
+    DigitTarget.ARABIC_INDIC: chars.ARABIC_INDIC_DIGIT_ZERO,
+    DigitTarget.EXTENDED_ARABIC_INDIC: chars.EXTENDED_ARABIC_INDIC_DIGIT_ZERO,
+}
+
+
+def _digit_table(target: DigitTarget) -> dict[int, str]:
+    """Build the `str.translate` table mapping every non-target digit system to the target, by
+    numeric value (the digit in position d of one system -> position d of the target system)."""
+    target_zero = _DIGIT_TARGET_ZERO[target]
+    table: dict[int, str] = {}
+    for zero in chars.DIGIT_ZEROS:
+        if zero == target_zero:
+            continue  # the target system is already in the target — leave it untouched
+        for offset in range(10):
+            table[zero + offset] = chr(target_zero + offset)
+    return table
+
+
+def map_digits(s: str, /, *, target: DigitTarget = DigitTarget.ASCII) -> str:
+    """Convert digits among Arabic-Indic / Extended / ASCII to a target (ASCII default) — lossy."""
+    return s.translate(_digit_table(target))
+
+
+@dataclass(frozen=True, slots=True)
+class MapDigits:
+    """Convert digits among Arabic-Indic / Extended / ASCII to a target — lossy linguistic folding.
+
+    English: *digit mapping*. Every digit — Arabic-Indic ٠-٩, Extended (Persian/Urdu) ۰-۹, or ASCII
+    0-9 — is rewritten to the chosen `DigitTarget` by numeric value, so numbers parse and match
+    consistently regardless of how they were typed (story 31). The default target is `ASCII`. The
+    map erases which script a digit was written in, so `safety` is `LINGUISTIC_FOLDING`: opt-in via
+    a lossy profile or an explicit step, never under `LIGHT`.
+    """
+
+    target: DigitTarget = DigitTarget.ASCII
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since it is a derived view of `target`.
+    _table: dict[int, str] = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "MapDigits"
+
+    def __post_init__(self) -> None:
+        # Coerce a plain string ("ascii") to the enum so equality, serialization and the table are
+        # stable regardless of how the target was passed, then precompute the table once.
+        target = DigitTarget(self.target)
+        object.__setattr__(self, "target", target)
+        object.__setattr__(self, "_table", _digit_table(target))
+
+    def __call__(self, s: str, /) -> str:
+        return s.translate(self._table)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {"target": self.target.value}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "target" in kwargs:
+            kwargs["target"] = DigitTarget(kwargs["target"])
+        return cls(**kwargs)
+
+
+registry.register(MapDigits.name, MapDigits.from_dict)
+
+
+def map_punctuation(s: str, /) -> str:
+    """Map Arabic sentence punctuation ، ؛ ؟ to Latin , ; ? (number-separator-safe) — lossy."""
+    return chars.ARABIC_PUNCTUATION_RUN.sub(lambda m: chars.ARABIC_PUNCTUATION[m.group()], s)
+
+
+@dataclass(frozen=True, slots=True)
+class MapPunctuation:
+    """Map Arabic punctuation ، ؛ ؟ to Latin , ; ? — number-separator-safe — lossy folding.
+
+    English: *punctuation mapping*. The Arabic comma ،, semicolon ؛ and question mark ؟ fold to
+    their Latin equivalents so one tokenizer/sentence-splitter works on Arabic text (story 32). A
+    mark sitting between two digits is a numeric separator (e.g. a thousands-grouped number) and is
+    preserved, not turned into sentence punctuation; the dedicated decimal/thousands/date separators
+    are never touched. The fold erases the script of the punctuation, so `safety` is
+    `LINGUISTIC_FOLDING`, never run under `LIGHT`.
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "MapPunctuation"
+
+    def __call__(self, s: str, /) -> str:
+        return map_punctuation(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(MapPunctuation.name, MapPunctuation.from_dict)
