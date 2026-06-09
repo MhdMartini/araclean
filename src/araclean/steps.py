@@ -290,22 +290,23 @@ class MarkClass(StrEnum):
     """A class of tashkeel marks `RemoveTashkeel` can remove independently (story 26).
 
     English: *diacritic class*. The vocalization-mark taxonomy (GLOSSARY: Tashkeel) split into the
-    units a caller selects between. `SUKUN` is not a member — it is the vowelless mark, removed with
-    `HARAKAT` by default but separable via ``exclude_sukun`` (GLOSSARY: Harakat).
+    units a caller selects between. `SUKUN` is not a member — it is the vowelless mark (the
+    *absence* of a vowel, not a haraka), removed together with `HARAKAT` for convenience and not
+    selectable on its own (GLOSSARY: Harakat).
     """
 
-    HARAKAT = "harakat"  # the three short vowels: fatha, damma, kasra
-    TANWEEN = "tanween"  # nunation: fathatan, dammatan, kasratan
+    HARAKAT = "harakat"  # short vowels: fatha/damma/kasra and their typographic variants
+    TANWEEN = "tanween"  # nunation: fathatan/dammatan/kasratan and their variants
     SHADDA = "shadda"  # gemination / consonant-doubling mark
-    MADDA = "madda"  # the combining madda U+0653 (not the letter آ)
-    DAGGER_ALEF = "dagger_alef"  # superscript alef
-    QURANIC = "quranic"  # Qur'anic annotation / recitation signs
+    MADDA = "madda"  # the orthographic combining madda U+0653 (not the letter آ)
+    DAGGER_ALEF = "dagger_alef"  # the standard superscript alef U+0670
+    QURANIC = "quranic"  # Qur'anic recitation/annotation signs + extended marks (catch-all)
 
 
 ALL_MARK_CLASSES: frozenset[MarkClass] = frozenset(MarkClass)
 
 # Bridge the public class enum to its internal code-point seam in `chars`. SUKUN is handled apart
-# (it rides with HARAKAT unless excluded), so it is not in any class's base set.
+# (it always rides with HARAKAT, never on its own), so it is not in any class's base set.
 _MARK_CLASS_CODE_POINTS: dict[MarkClass, frozenset[int]] = {
     MarkClass.HARAKAT: chars.HARAKAT,
     MarkClass.TANWEEN: chars.TANWEEN,
@@ -316,33 +317,26 @@ _MARK_CLASS_CODE_POINTS: dict[MarkClass, frozenset[int]] = {
 }
 
 
-def _tashkeel_removal_table(classes: Collection[MarkClass], exclude_sukun: bool) -> dict[int, None]:
+def _tashkeel_removal_table(classes: Collection[MarkClass]) -> dict[int, None]:
     """Build the `str.translate` deletion table for the selected mark classes (a set of code points
-    each mapped to ``None`` = delete). Sukun joins the set only when HARAKAT is selected and not
-    explicitly excluded — never on its own."""
+    each mapped to ``None`` = delete). Sukun joins the set only when HARAKAT is selected — it rides
+    with the harakat for convenience and never on its own (GLOSSARY: Harakat)."""
     code_points: set[int] = set()
     for mark_class in classes:
         code_points |= _MARK_CLASS_CODE_POINTS[mark_class]
-    if MarkClass.HARAKAT in classes and not exclude_sukun:
-        code_points.add(chars.SUKUN)
+    if MarkClass.HARAKAT in classes:
+        code_points |= chars.SUKUN
     return dict.fromkeys(code_points)
 
 
-def remove_tashkeel(
-    s: str,
-    /,
-    *,
-    classes: Collection[MarkClass] | None = None,
-    exclude_sukun: bool = False,
-) -> str:
+def remove_tashkeel(s: str, /, *, classes: Collection[MarkClass] | None = None) -> str:
     """Remove the selected tashkeel mark classes (default: all) — lossy linguistic folding.
 
     English: *dediacritization*. Deletes only the vocalization marks of the chosen `MarkClass`es,
-    never their carrier letters. ``classes=None`` removes every class; ``exclude_sukun=True`` keeps
-    sukun when HARAKAT is removed.
+    never their carrier letters. ``classes=None`` removes every class. Sukun rides with `HARAKAT`.
     """
     selected = ALL_MARK_CLASSES if classes is None else classes
-    return s.translate(_tashkeel_removal_table(selected, exclude_sukun))
+    return s.translate(_tashkeel_removal_table(selected))
 
 
 @dataclass(frozen=True, slots=True)
@@ -355,15 +349,15 @@ class RemoveTashkeel:
     carrier letter (a tanween over an alef goes; the alef stays). `safety` is `LINGUISTIC_FOLDING`,
     so it never runs under `LIGHT`: it is opt-in via a lossy profile or an explicit step (ADR-0004).
 
-    `classes` defaults to every `MarkClass`; sukun rides with `HARAKAT` unless ``exclude_sukun`` is
-    set (sukun is the *absence* of a vowel, not a haraka). The combining madda U+0653 is removed
-    with `MADDA`; the alef-with-madda letter آ U+0622 is letter folding (issue 0007), kept here.
+    `classes` defaults to every `MarkClass`. Sukun rides with `HARAKAT` (it is the *absence* of a
+    vowel, not a haraka, but stripping the vowels while leaving a bare sukun is never wanted). The
+    orthographic combining madda U+0653 is removed with `MADDA`; the alef-with-madda letter آ U+0622
+    is letter folding (issue 0007), kept here.
     """
 
     classes: Collection[MarkClass] = ALL_MARK_CLASSES
-    exclude_sukun: bool = False
     # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
-    # and repr since it is a derived view of (classes, exclude_sukun).
+    # and repr since it is a derived view of `classes`.
     _table: dict[int, None] = field(init=False, repr=False, compare=False)
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
     safety = SafetyClass.LINGUISTIC_FOLDING
@@ -374,7 +368,7 @@ class RemoveTashkeel:
         # order-insensitive and stable, then precompute the deletion table once.
         classes = frozenset(self.classes)
         object.__setattr__(self, "classes", classes)
-        object.__setattr__(self, "_table", _tashkeel_removal_table(classes, self.exclude_sukun))
+        object.__setattr__(self, "_table", _tashkeel_removal_table(classes))
 
     def __call__(self, s: str, /) -> str:
         return s.translate(self._table)
@@ -382,10 +376,7 @@ class RemoveTashkeel:
     def to_dict(self) -> StepDict:
         return {
             "name": self.name,
-            "config": {
-                "classes": sorted(mark_class.value for mark_class in self.classes),
-                "exclude_sukun": self.exclude_sukun,
-            },
+            "config": {"classes": sorted(mark_class.value for mark_class in self.classes)},
         }
 
     @classmethod

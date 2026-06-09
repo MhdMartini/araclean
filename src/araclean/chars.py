@@ -182,27 +182,100 @@ LINE_BREAKS: frozenset[str] = frozenset("\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029")
 
 # --- RemoveTashkeel mark-class code points (issue 0006, stories 25 & 26) -----------------------
 #
-# The vocalization-mark taxonomy (GLOSSARY: Tashkeel), one frozenset of code points per removable
-# class so RemoveTashkeel can delete the union of the *selected* classes (story 26). These are the
-# internal seam: a step is tested through its str -> str behavior, so the membership of each class
-# can be re-tabulated here without touching a test.
+# The vocalization-mark taxonomy (GLOSSARY: Tashkeel): one frozenset of code points per removable
+# class, so RemoveTashkeel deletes the union of the *selected* classes (story 26). This is the
+# internal seam -- a step is tested through its str -> str behavior, so a class can be re-tabulated
+# here without touching a test.
 #
-# Two boundaries are deliberate and load-bearing:
-#   - SUKUN U+0652 is its OWN constant, not a member of HARAKAT. Sukun is formally the *absence* of
-#     a vowel, not a short vowel (GLOSSARY: Harakat), so it rides with the harakat by default but is
-#     separable via the `exclude_sukun` flag (story 26): RemoveTashkeel adds it to the deletion set
-#     only when HARAKAT is selected and exclude_sukun is False.
-#   - MADDA here is the COMBINING madda U+0653 only. The alef-with-madda LETTER U+0622 (\u0622) is a
-#     real alef variant folded by the opt-in letter folds (issue 0007), NOT by tashkeel removal, so
-#     it is absent here. The combining hamza marks U+0654/U+0655 are likewise absent: they
-#     canonically (re)compose with their carrier under NFC, i.e. they are letter content, not
-#     free-standing vocalization.
-HARAKAT: frozenset[int] = frozenset((0x064E, 0x064F, 0x0650))  # fatha, damma, kasra
-SUKUN: int = 0x0652  # vowelless mark; rides with HARAKAT unless exclude_sukun
-TANWEEN: frozenset[int] = frozenset((0x064B, 0x064C, 0x064D))  # fathatan, dammatan, kasratan
+# ONE STATED PRINCIPLE (verified, not guessed). The classes PARTITION araclean's tashkeel
+# repertoire: pairwise disjoint, together covering EVERY Arabic-script nonspacing combining mark
+# (Unicode category Mn) across the Arabic, Supplement and Extended-A/-B/-C blocks, PLUS a short
+# enumerated set of non-Mn Qur'anic signs (end-of-ayah, rub-el-hizb, sajda, the small waw/yeh
+# letters), MINUS exactly the two NFC-composing hamza marks. Full removal therefore deletes the
+# whole repertoire; tests/test_steps.py re-derives that repertoire from the live Unicode database
+# and asserts the partition matches it -- so a future Unicode version that adds an Arabic mark fails
+# CI until the mark is triaged into a class here. Each member is verified against this principle,
+# never left to a guessed numeric range (the U+06BE lesson).
+#
+# Boundaries that are deliberate and load-bearing:
+#   - SUKUN (U+0652, plus U+08D0 sukun-below) is NOT a haraka: it marks the *absence* of a vowel
+#     (GLOSSARY: Harakat), so it is its own constant, kept OUT of HARAKAT. RemoveTashkeel deletes it
+#     together with HARAKAT purely for convenience (stripping the vowels but leaving a bare sukun is
+#     not a use case); by design, neither is removable without the other.
+#   - The named classes are pure BY FUNCTION, not by name. HARAKAT / TANWEEN gather every
+#     TYPOGRAPHIC variant of the short vowels / nunation (small, curly, open, dotted), but not the
+#     generic "vowel sign" marks coined for non-Arabic languages. MADDA is the orthographic
+#     combining madda U+0653 alone (the LETTER alef-madda U+0622 is letter folding, issue 0007);
+#     DAGGER_ALEF is the standard superscript alef U+0670 alone. Their Qur'anic-recitation
+#     namesakes -- small high madda, madda waajib, superscript alef mokhassas, subscript alef, the
+#     tajweed signs -- are recitation annotation, not orthographic vocalization, ride in QURANIC.
+#   - Two hamza marks are EXCLUDED outright: U+0654 HAMZA ABOVE and U+0655 HAMZA BELOW. Under NFC
+#     they (re)compose with their carrier into a distinct letter (alef-hamza, waw-hamza, ...), i.e.
+#     letter content owned by letter folding (issue 0007), not free-standing vocalization. This is
+#     the NFC-composing pair specifically; non-composing hamza marks (e.g. U+065F wavy hamza below)
+#     are ordinary annotation and ride in QURANIC. A stray U+0654 on a non-composing carrier is left
+#     for 0007 to fold, not stripped here.
+#   - QURANIC is intentionally HETEROGENEOUS -- Qur'anic recitation/annotation signs (small high
+#     letters, pause/sajda/end-of-verse marks, tajweed signs), extended non-Arabic vocalization
+#     marks, and a few non-Mn structural signs. It is the umbrella SEARCH removes as one block and
+#     CLASSICAL preserves, not a single linguistic category.
+HARAKAT: frozenset[int] = frozenset(
+    (
+        0x064E,  # fatha
+        0x064F,  # damma
+        0x0650,  # kasra
+        0x0618,  # small fatha (Qur'anic rawm / ishmaam)
+        0x0619,  # small damma
+        0x061A,  # small kasra
+        0x0657,  # inverted damma
+        0x065D,  # reversed damma
+        0x065E,  # fatha with two dots
+        0x08E3,  # turned damma below
+        0x08E4,  # curly fatha
+        0x08E5,  # curly damma
+        0x08E6,  # curly kasra
+        0x08F4,  # fatha with ring
+        0x08F5,  # fatha with dot above
+        0x08F6,  # kasra with dot below
+        0x08FE,  # damma with dot
+    )
+)
+# Vowelless mark -- the *absence* of a haraka, not a haraka. Its own constant; deleted together with
+# HARAKAT for convenience (see the module note), never on its own and never separable.
+SUKUN: frozenset[int] = frozenset((0x0652, 0x08D0))  # sukun, sukun below
+TANWEEN: frozenset[int] = frozenset(
+    (
+        0x064B,  # fathatan
+        0x064C,  # dammatan
+        0x064D,  # kasratan
+        0x08E7,  # curly fathatan
+        0x08E8,  # curly dammatan
+        0x08E9,  # curly kasratan
+        0x08F0,  # open fathatan
+        0x08F1,  # open dammatan
+        0x08F2,  # open kasratan
+    )
+)
 SHADDA: int = 0x0651  # gemination / consonant-doubling mark
-MADDA: int = 0x0653  # COMBINING madda above (not the letter \u0622 U+0622)
-DAGGER_ALEF: int = 0x0670  # superscript alef marking an omitted long alef
-# Qur'anic annotation/recitation signs (GLOSSARY): U+0656-U+065F and U+06D6-U+06ED. Kept preserved
-# by CLASSICAL; removable as a class under SEARCH.
-QURANIC: frozenset[int] = frozenset((*range(0x0656, 0x0660), *range(0x06D6, 0x06EE)))
+MADDA: int = 0x0653  # orthographic combining madda above (not the letter alef-madda U+0622)
+DAGGER_ALEF: int = 0x0670  # standard superscript alef marking an omitted long alef
+# Qur'anic annotation marks + extended/other combining marks (GLOSSARY) -- the heterogeneous
+# catch-all (see the module note). Preserved by CLASSICAL; removable as a class under SEARCH.
+QURANIC: frozenset[int] = frozenset(
+    (
+        *range(0x0610, 0x0618),  # honorific signs + small high tah / ligature / zain
+        0x0656,  # subscript alef
+        0x0658,  # mark noon ghunna
+        *range(0x0659, 0x065D),  # extended vowel signs (non-Arabic orthographies)
+        0x065F,  # wavy hamza below (a non-composing hamza mark)
+        *range(0x06D6, 0x06EE),  # small high ligatures, pause/sajda/end-of-ayah, small waw/yeh
+        *range(0x0898, 0x08A0),  # small high/low recitation words + extended madda & alef signs
+        *range(0x08CA, 0x08D0),  # small high farsi-yeh/yeh-barree/word-sah/zah, large round dots
+        *range(0x08D1, 0x08E3),  # small high/low words, footnote & safha, disputed end-of-ayah
+        *range(0x08EA, 0x08F0),  # tone marks
+        0x08F3,  # small high waw
+        *range(0x08F7, 0x08FE),  # recitation arrowheads
+        0x08FF,  # mark sideways noon ghunna
+        *range(0x10EFD, 0x10F00),  # small low words: sakta, qasr, madda (Arabic Extended-C)
+    )
+)

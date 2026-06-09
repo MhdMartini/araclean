@@ -123,10 +123,10 @@ Casual users get a safe one-liner; power users compose and pin exact, auditable 
     unvocalized spellings match — *only when I ask for it*.
 26. As a user, I want the tashkeel-removal step to be configurable — **selecting which mark classes to
     remove (harakat/short vowels, tanween, shadda, madda, dagger alef, Qur'anic annotation marks)
-    independently** — so that I can control how deep tashkeel removal goes. Sukun is removed together
-    with the harakat by default; because sukun is formally the *absence* of a haraka (not a haraka), an
-    `exclude_sukun` flag (default `False`) preserves sukun when set. (This selective control is a
-    deliberate edge: no incumbent offers it cleanly — see
+    independently** — so that I can control how deep tashkeel removal goes. Sukun is formally the
+    *absence* of a haraka (not a haraka) but rides with the harakat: it is always removed together with
+    them and never on its own, since stripping the vowels while leaving a bare sukun is never wanted.
+    (This selective control is a deliberate edge: no incumbent offers it cleanly — see
     [`docs/competitive-landscape.md`](./docs/competitive-landscape.md).)
 27. As a user, I want alef variants (أ إ آ ٱ) folded to bare alef ا, so that initial-hamza
     inconsistency stops hurting recall — opt-in.
@@ -353,8 +353,7 @@ wrong); each is the regression anchor for the issue that implements its step:
 | tanween fath keeps its alef | `كتابًا` (…ب + U+064B + ا) | remove tanween | `كتابا` | remove the U+064B mark, **not** the alef letter |
 | dagger alef → standard spelling | `هٰذا` (+ U+0670) | `SEARCH` / remove dagger alef | `هذا` | it's normal MSA, not Qur'anic-only |
 | dagger alef preserved | `هٰذا` | `CLASSICAL` | `هٰذا` (unchanged) | CLASSICAL keeps vocalization |
-| sukun rides with harakat by default | `مِنْ` | remove harakat, `exclude_sukun=False` | `من` | default removes sukun too |
-| sukun separable | `مِنْ` | remove harakat, `exclude_sukun=True` | `منْ` (sukun kept) | sukun is not a haraka |
+| sukun rides with harakat | `مِنْ` | remove harakat | `من` | sukun isn't a haraka but always rides with them, never alone |
 | Farsi yeh residual (accepted) | `علی` (…ل + U+06CC) | `LIGHT` (Encoding repair) | `علي` | the one look-alike fold that isn't strictly lossless |
 
 **Thin modules** (`api`, `cli`, `integrations`, `stopwords`) are covered by **integration tests**

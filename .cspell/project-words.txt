@@ -9,6 +9,7 @@ FEFC
 # Unicode Standard technical vocabulary (UAX #15 / UCD), not Arabic-domain terms
 noncharacter
 noncharacters
+nonspacing
 doachashmee
 chashmi
 

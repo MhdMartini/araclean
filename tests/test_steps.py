@@ -336,12 +336,29 @@ def test_collapse_whitespace_collapse_lines_is_total_and_idempotent(text: str) -
 FATHA, DAMMA, KASRA, SUKUN = chr(0x064E), chr(0x064F), chr(0x0650), chr(0x0652)
 SHADDA, MADDA, DAGGER_ALEF = chr(0x0651), chr(0x0653), chr(0x0670)
 FATHATAN = chr(0x064B)  # tanween fath
+SMALL_FATHA, OPEN_FATHATAN, SUKUN_BELOW = chr(0x0618), chr(0x08F0), chr(0x08D0)
+MADDA_WAAJIB = chr(0x089C)  # an extended Qur'anic recitation mark (Arabic Extended-B)
 
 
-def test_remove_tashkeel_default_strips_all_marks() -> None:
-    # The default removes every tashkeel class: a fully vocalized كَتَبَ -> bare كتب, carriers kept.
-    vocalized = chr(0x0643) + FATHA + chr(0x062A) + FATHA + chr(0x0628) + FATHA
-    assert RemoveTashkeel()(vocalized) == chr(0x0643) + chr(0x062A) + chr(0x0628)
+def test_remove_tashkeel_default_strips_every_class() -> None:
+    # The default removes a mark from EVERY class at once; only the bare carriers remain. This pins
+    # one representative per class, including the small / open / extended marks the original
+    # range-based table silently missed (harakat, tanween, shadda, madda, dagger alef, sukun, then
+    # small fatha, open fathatan, and an extended Qur'anic mark).
+    carriers = (0x0643, 0x062A, 0x0628, 0x0648, 0x0647, 0x0646, 0x0633, 0x0635, 0x0642)
+    marks = (
+        FATHA,
+        FATHATAN,
+        SHADDA,
+        MADDA,
+        DAGGER_ALEF,
+        SUKUN,
+        SMALL_FATHA,
+        OPEN_FATHATAN,
+        MADDA_WAAJIB,
+    )
+    vocalized = "".join(chr(c) + m for c, m in zip(carriers, marks, strict=True))
+    assert RemoveTashkeel()(vocalized) == "".join(chr(c) for c in carriers)
 
 
 def test_remove_tashkeel_selective_harakat_keeps_shadda() -> None:
@@ -365,24 +382,32 @@ def test_remove_tashkeel_dagger_alef_yields_standard_spelling() -> None:
     assert RemoveTashkeel(classes={MarkClass.DAGGER_ALEF})(word) == "هذا"
 
 
-# مِنْ ("from"): م + kasra + ن + sukun. Sukun rides with the harakat by default but is separable.
+def test_remove_tashkeel_covers_small_open_and_extended_marks() -> None:
+    # The widened classes catch the marks a numeric range missed — in the RIGHT class (the
+    # partition stays pure by function): small fatha and sukun-below ride with HARAKAT; open
+    # tanween is nunation (TANWEEN, NOT harakat); extended recitation marks ride in QURANIC.
+    noon = chr(0x0646)
+    assert RemoveTashkeel(classes={MarkClass.HARAKAT})(noon + SMALL_FATHA) == noon
+    assert RemoveTashkeel(classes={MarkClass.HARAKAT})(noon + SUKUN_BELOW) == noon
+    assert RemoveTashkeel(classes={MarkClass.HARAKAT})(noon + OPEN_FATHATAN) == noon + OPEN_FATHATAN
+    assert RemoveTashkeel(classes={MarkClass.TANWEEN})(noon + OPEN_FATHATAN) == noon
+    assert RemoveTashkeel(classes={MarkClass.QURANIC})(noon + MADDA_WAAJIB) == noon
+    assert (
+        RemoveTashkeel(classes={MarkClass.QURANIC})(chr(0x06DD)) == ""
+    )  # a non-Mn structural sign
+
+
+# مِنْ ("from"): م + kasra + ن + sukun. Sukun always rides with the harakat (never separable).
 MIN = chr(0x0645) + KASRA + chr(0x0646) + SUKUN
 
 
-def test_remove_tashkeel_removes_sukun_with_harakat_by_default() -> None:
-    # exclude_sukun defaults False: removing harakat takes the sukun too -> bare من.
+def test_remove_tashkeel_removes_sukun_with_harakat() -> None:
+    # Sukun is not a haraka, but it rides with HARAKAT for convenience -> bare من.
     assert RemoveTashkeel(classes={MarkClass.HARAKAT})(MIN) == chr(0x0645) + chr(0x0646)
 
 
-def test_remove_tashkeel_exclude_sukun_keeps_the_sukun() -> None:
-    # exclude_sukun=True keeps the sukun while the kasra (a real haraka) still goes -> منْ.
-    out = RemoveTashkeel(classes={MarkClass.HARAKAT}, exclude_sukun=True)(MIN)
-    assert out == chr(0x0645) + chr(0x0646) + SUKUN
-
-
-def test_remove_tashkeel_sukun_only_rides_with_harakat() -> None:
-    # exclude_sukun is a no-op when HARAKAT is not selected: a class that does not own sukun never
-    # removes it, regardless of the flag.
+def test_remove_tashkeel_sukun_rides_only_with_harakat() -> None:
+    # Sukun goes ONLY when HARAKAT is selected: a class that does not own it leaves it untouched.
     assert RemoveTashkeel(classes={MarkClass.SHADDA})(MIN) == MIN
 
 
@@ -406,18 +431,18 @@ def test_remove_tashkeel_free_function_agrees_with_step() -> None:
     fully_vocalized = chr(0x0643) + FATHA + chr(0x062A) + SHADDA + chr(0x0628) + FATHATAN
     assert remove_tashkeel(fully_vocalized) == RemoveTashkeel()(fully_vocalized)
     # ... and the selection passes through identically.
-    assert remove_tashkeel(MIN, classes={MarkClass.HARAKAT}, exclude_sukun=True) == RemoveTashkeel(
-        classes={MarkClass.HARAKAT}, exclude_sukun=True
+    assert remove_tashkeel(MIN, classes={MarkClass.HARAKAT}) == RemoveTashkeel(
+        classes={MarkClass.HARAKAT}
     )(MIN)
 
 
 def test_remove_tashkeel_serializes_its_selection() -> None:
     # The selection round-trips so a dediacritization pipeline can be pinned and reproduced (0016).
-    step = RemoveTashkeel(classes={MarkClass.HARAKAT, MarkClass.SHADDA}, exclude_sukun=True)
+    step = RemoveTashkeel(classes={MarkClass.HARAKAT, MarkClass.SHADDA})
     spec = step.to_dict()
     assert spec == {
         "name": "RemoveTashkeel",
-        "config": {"classes": ["harakat", "shadda"], "exclude_sukun": True},
+        "config": {"classes": ["harakat", "shadda"]},
     }
     rebuilt = RemoveTashkeel.from_dict(spec["config"])
     assert rebuilt == step  # value-equal (the precomputed table is excluded from equality)
@@ -436,6 +461,59 @@ def test_remove_tashkeel_default_round_trips_through_registry() -> None:
 def test_remove_tashkeel_is_total_and_idempotent(text: str) -> None:
     once = RemoveTashkeel()(text)  # never raises on arbitrary text
     assert RemoveTashkeel()(once) == once
+
+
+# --- The mark-class partition invariant (chars.py: ONE STATED PRINCIPLE) ---
+#
+# The classes must TILE araclean's tashkeel repertoire: full removal deletes every Arabic-script
+# combining mark, and only marks. These two tests re-derive the repertoire from the LIVE Unicode
+# database, so a future Unicode version that adds an Arabic mark fails CI until the mark is triaged
+# into a class in chars.py — membership is verified against the principle, never left to a guessed
+# numeric range (the U+06BE lesson). The two NFC-composing hamza marks are the documented exception:
+# under NFC they (re)compose into a distinct letter (أ ؤ ئ إ), so they are letter content owned by
+# letter folding (issue 0007), not tashkeel.
+_NFC_COMPOSING_HAMZA = frozenset((0x0654, 0x0655))
+_ARABIC_BLOCKS = (
+    (0x0600, 0x06FF),  # Arabic
+    (0x0750, 0x077F),  # Arabic Supplement
+    (0x0870, 0x089F),  # Arabic Extended-B
+    (0x08A0, 0x08FF),  # Arabic Extended-A
+    (0xFB50, 0xFDFF),  # Arabic Presentation Forms-A
+    (0xFE70, 0xFEFF),  # Arabic Presentation Forms-B
+    (0x10EC0, 0x10EFF),  # Arabic Extended-C
+)
+
+
+def test_remove_tashkeel_deletes_every_arabic_combining_mark() -> None:
+    # Completeness: full removal deletes every Arabic-script nonspacing mark (Mn) save the excluded
+    # hamza pair. A lone mark translates to "" — it has no carrier to leave behind.
+    marks = [
+        cp
+        for lo, hi in _ARABIC_BLOCKS
+        for cp in range(lo, hi + 1)
+        if unicodedata.category(chr(cp)) == "Mn"
+    ]
+    survived = [
+        hex(cp) for cp in marks if cp not in _NFC_COMPOSING_HAMZA and remove_tashkeel(chr(cp)) != ""
+    ]
+    assert survived == [], f"Arabic marks not covered by any MarkClass: {survived}"
+    # the excluded pair is deliberately preserved here (NFC composes it; 0007 folds the seat).
+    assert all(remove_tashkeel(chr(cp)) == chr(cp) for cp in _NFC_COMPOSING_HAMZA)
+
+
+def test_remove_tashkeel_never_strips_a_carrier() -> None:
+    # Carrier safety: removal touches marks only — base letters (incl. the hamza-seat and alef
+    # variants that letter folding 0007 owns) and digits pass through untouched.
+    carriers = (
+        "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"  # the basic letters
+        + "".join(
+            map(chr, (0x0621, 0x0623, 0x0625, 0x0622, 0x0624, 0x0626, 0x0649, 0x0671))
+        )  # hamza / alef family
+        + "".join(map(chr, range(0x0660, 0x066A)))  # Arabic-Indic digits (U+0660-0669)
+        + "".join(map(chr, range(0x06F0, 0x06FA)))  # extended Arabic-Indic digits (U+06F0-06F9)
+        + "ABCabc123"
+    )
+    assert remove_tashkeel(carriers) == carriers
 
 
 # --- Safety-class invariant (story 41 / ADR-0004): lossless steps only touch encoding noise ---

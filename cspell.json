@@ -164,7 +164,21 @@
     "repr",
     "unfused",
     "unicodedata",
-    "toggleable"
+    "toggleable",
+    "tajweed",
+    "madd",
+    "waajib",
+    "hizb",
+    "sajda",
+    "mokhassas",
+    "rawm",
+    "ishmaam",
+    "zain",
+    "ghunna",
+    "barree",
+    "safha",
+    "sakta",
+    "qasr"
   ],
   "flagWords": [
     "alif",
