@@ -399,10 +399,12 @@ def fold_alef(s: str, /) -> str:
 class FoldAlef:
     """Fold the alef variants أ إ آ ٱ to bare alef ا — lossy linguistic folding.
 
-    English: *alef folding*. The hamza-/madda-bearing alef letters and alef-wasla collapse to the
-    plain alef (أ/إ/آ/ٱ → ا), so spelling variation in how an initial alef was written stops
-    splitting otherwise-identical words. It discards a real orthographic distinction, so `safety`
-    is `LINGUISTIC_FOLDING`: opt-in via a lossy profile or an explicit step, never under `LIGHT`.
+    English: *alef folding*. The hamza-/madda-bearing alef letters, alef-wasla, and the wavy-hamza
+    alefs collapse to the plain alef (أ/إ/آ/ٱ/ٲ/ٳ → ا), so spelling variation in how an initial alef
+    was written stops splitting otherwise-identical words. It discards a real orthographic
+    distinction, so `safety` is `LINGUISTIC_FOLDING`: opt-in via a lossy profile or an explicit
+    step, never under `LIGHT`. (Historical/manuscript alefs that are not contemporary Arabic — e.g.
+    the high-hamza alef U+0675, the Extended-B annotation alefs — are deliberately left alone.)
     """
 
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
@@ -457,11 +459,13 @@ registry.register(FoldAlefMaqsura.name, FoldAlefMaqsura.from_dict)
 
 def _hamza_fold_table(*, drop_standalone_hamza: bool) -> dict[int, str | None]:
     """Build the `str.translate` table for `FoldHamza`: fold the waw/yeh carriers and delete the
-    combining hamza marks always; delete the standalone hamza letter only in the heavy mode."""
+    combining hamza marks always; delete the standalone hamza letters (ء and the high hamza ٴ) only
+    in the heavy mode."""
     table: dict[int, str | None] = dict(chars.FOLD_HAMZA_CARRIERS)
     table.update(dict.fromkeys(chars.COMBINING_HAMZA))
     if drop_standalone_hamza:
         table[chars.STANDALONE_HAMZA] = None
+        table[chars.HIGH_HAMZA] = None
     return table
 
 
@@ -478,8 +482,9 @@ class FoldHamza:
     the waw/yeh carriers (ؤ→و, ئ→ي) without folding alef. Folding *lightly* (the default) folds the
     carriers and deletes the combining hamza marks U+0654/U+0655 (hamza seated on a carrier — the
     letter content issue 0006 routes here, not to `RemoveTashkeel`). Folding *heavily*
-    (``drop_standalone_hamza=True``) also drops the standalone hamza ء U+0621. The precomposed
-    alef-hamza letters أ/إ are alef variants, left to `FoldAlef`. `safety` is `LINGUISTIC_FOLDING`.
+    (``drop_standalone_hamza=True``) also drops the standalone hamza ء U+0621 and the high hamza
+    ٴ U+0674. The precomposed alef-hamza letters أ/إ are alef variants, left to `FoldAlef`.
+    `safety` is `LINGUISTIC_FOLDING`.
     """
 
     drop_standalone_hamza: bool = False

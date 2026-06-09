@@ -17,6 +17,7 @@ chashmi
 # Domain-adjacent proper nouns
 Hijri
 Uyghur
+Jawi
 
 # ruff lint vocabulary (the ambiguous-unicode allow-list, RUF001-003)
 confusables

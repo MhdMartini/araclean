@@ -476,12 +476,14 @@ def test_remove_tashkeel_is_total_and_idempotent(text: str) -> None:
 
 BARE_ALEF = chr(0x0627)
 # Every alef-variant LETTER folds to bare alef (built from code points, immune to file encoding):
-# alef-with-hamza-above/below, alef-with-madda, alef-wasla.
+# alef-with-hamza-above/below, alef-with-madda, alef-wasla, and the wavy-hamza alefs.
 ALEF_VARIANTS = [
     (chr(0x0623), BARE_ALEF),  # أ alef with hamza above
     (chr(0x0625), BARE_ALEF),  # إ alef with hamza below
     (chr(0x0622), BARE_ALEF),  # آ alef with madda
     (chr(0x0671), BARE_ALEF),  # ٱ alef wasla
+    (chr(0x0672), BARE_ALEF),  # ٲ alef with wavy hamza above
+    (chr(0x0673), BARE_ALEF),  # ٳ alef with wavy hamza below
 ]
 
 
@@ -579,6 +581,11 @@ def test_fold_hamza_heavy_also_drops_standalone() -> None:
     heavy = FoldHamza(drop_standalone_hamza=True)
     assert heavy("جزء") == "جز"
     assert heavy("مؤمن") == "م" + WAW + "من"
+    # The high hamza ٴ U+0674 is the other standalone hamza letter: dropped in heavy, kept in light
+    # (it has no seat to fold onto, exactly like ء).
+    high_hamza = chr(0x0674)
+    assert heavy(high_hamza) == ""
+    assert FoldHamza()(high_hamza) == high_hamza
 
 
 def test_fold_hamza_owns_the_combining_hamza_marks() -> None:
@@ -704,6 +711,91 @@ def test_fold_teh_marbuta_is_total_and_idempotent(text: str) -> None:
     for target in TehMarbutaTarget:
         once = FoldTehMarbuta(target=target)(text)
         assert FoldTehMarbuta(target=target)(once) == once
+
+
+# --- The letter-fold completeness invariant (chars.py: ONE STATED PRINCIPLE) ---
+#
+# The sibling of the mark-class partition below, for the opt-in letter folds (issue 0007). Re-derive
+# every Arabic-script alef / hamza / maqsura LETTER from the LIVE Unicode database — independent
+# of the fold tables (names and decompositions, not "whatever the tables happen to skip") — and
+# assert each candidate is either folded by its step or in the explicit, documented EXCLUDED set, so
+# a future Unicode letter fails CI until it is triaged, never left to a guessed range (the U+06BE
+# lesson). Membership is checked through BEHAVIOR (the step's output), not table internals. The
+# combining hamza marks U+0654/U+0655 are letter content guarded by the mark-partition test
+# (this is the LETTER repertoire). Presentation forms are excluded from the blocks: those fold to
+# base letters via FoldPresentationForms first, and only then do these folds see them.
+_LETTER_BLOCKS = (
+    (0x0600, 0x06FF),  # Arabic
+    (0x0750, 0x077F),  # Arabic Supplement
+    (0x0870, 0x089F),  # Arabic Extended-B
+    (0x08A0, 0x08FF),  # Arabic Extended-A
+)
+# Alef LETTERS deliberately NOT folded (chars.py FoldAlef note documents why) — not contemporary
+# Arabic: high-hamza alef, the digit-annotated alefs, the Extended-B manuscript alefs, the low alef.
+_ALEF_EXCLUDED = frozenset((0x0675, 0x0773, 0x0774, *range(0x0870, 0x0883), 0x08AD))
+# Non-alef hamza LETTERS deliberately NOT folded (chars.py FoldHamza note) — non-Arabic hamza
+# carriers and the high-hamza waw/u/yeh compositions.
+_HAMZA_EXCLUDED = frozenset(
+    (0x0676, 0x0677, 0x0678, 0x0681, 0x06C2, 0x06D3, 0x076C, 0x0883, 0x08A1, 0x08A8)
+)
+# The Unicode spelling of the maqsura form, read from its OWN code point so the source never
+# hard-codes the project's non-preferred spelling (GLOSSARY: Alef maqsura).
+_MAQSURA_TOKEN = unicodedata.name(chr(0x0649)).split()[-1]
+
+
+def _arabic_letters() -> set[int]:
+    return {
+        cp
+        for lo, hi in _LETTER_BLOCKS
+        for cp in range(lo, hi + 1)
+        if unicodedata.category(chr(cp)).startswith("L")
+    }
+
+
+def _is_alef_letter(cp: int) -> bool:
+    # An alef variant by the UCD: named "...ALEF..." (but not maqsura ى), or an NFKD that begins
+    # with the bare alef U+0627 (e.g. the high-hamza alef U+0675 → U+0627 U+0674).
+    name = unicodedata.name(chr(cp), "")
+    if "ALEF" in name and _MAQSURA_TOKEN not in name:
+        return True
+    decomposition = unicodedata.normalize("NFKD", chr(cp))
+    return bool(decomposition) and ord(decomposition[0]) == 0x0627
+
+
+def test_fold_alef_covers_every_arabic_alef_letter() -> None:
+    fold, bare = FoldAlef(), chr(0x0627)
+    candidates = {cp for cp in _arabic_letters() if cp != 0x0627 and _is_alef_letter(cp)}
+    uncovered = sorted(
+        hex(cp) for cp in candidates if fold(chr(cp)) != bare and cp not in _ALEF_EXCLUDED
+    )
+    assert uncovered == [], f"alef letters neither folded to bare alef nor excluded: {uncovered}"
+    # the EXCLUDED set is real (a subset of the candidates) and genuinely left untouched.
+    assert candidates >= _ALEF_EXCLUDED
+    assert all(fold(chr(cp)) == chr(cp) for cp in _ALEF_EXCLUDED)
+
+
+def test_fold_hamza_covers_every_arabic_hamza_letter() -> None:
+    # Heavy mode touches every hamza letter the step owns (carriers in both modes; the standalone ء
+    # and the high hamza ٴ in heavy), so it is the test for "is this letter handled at all".
+    heavy = FoldHamza(drop_standalone_hamza=True)
+    candidates = {
+        cp
+        for cp in _arabic_letters()
+        if "HAMZA" in unicodedata.name(chr(cp), "") and not _is_alef_letter(cp)
+    }
+    uncovered = sorted(
+        hex(cp) for cp in candidates if heavy(chr(cp)) == chr(cp) and cp not in _HAMZA_EXCLUDED
+    )
+    assert uncovered == [], f"hamza letters neither folded nor excluded: {uncovered}"
+    assert candidates >= _HAMZA_EXCLUDED
+    assert all(heavy(chr(cp)) == chr(cp) for cp in _HAMZA_EXCLUDED)
+
+
+def test_fold_alef_maqsura_is_the_only_arabic_maqsura_letter() -> None:
+    fold, yeh = FoldAlefMaqsura(), chr(0x064A)
+    candidates = {cp for cp in _arabic_letters() if _MAQSURA_TOKEN in unicodedata.name(chr(cp), "")}
+    assert candidates == {0x0649}  # ى is the sole Arabic alef-maqsura letter
+    assert all(fold(chr(cp)) == yeh for cp in candidates)
 
 
 # --- The mark-class partition invariant (chars.py: ONE STATED PRINCIPLE) ---

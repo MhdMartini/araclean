@@ -291,20 +291,36 @@ QURANIC: frozenset[int] = frozenset(
 # combining hamza/madda on an alef is already composed into the precomposed letter (alef + hamza
 # above -> أ, alef + combining madda -> آ) before a fold runs; the fold only sees those letters.
 #
-# FoldAlef -- every alef-variant letter -> bare alef ا U+0627 (GLOSSARY: Alef variants). The
-# hamza-/madda-bearing alef letters (أ إ آ) and alef-wasla ٱ all collapse to the plain alef. The
-# combining marks they carry are not seen here: NFC has already folded them into these letters.
+# FoldAlef -- the alef-variant LETTERS of contemporary Arabic -> bare alef ا U+0627 (GLOSSARY: Alef
+# variants). The hamza-/madda-bearing alef letters (أ إ آ), alef-wasla ٱ, and the wavy-hamza alefs
+# (ٲ ٳ, a Qur'anic/old-orthography hamza shape) all collapse to the plain alef. The combining marks
+# they carry are not seen here: NFC has already folded them into these letters.
+#
+# ONE STATED PRINCIPLE (verified, not a guessed range -- the U+06BE lesson). The candidate set is
+# every Arabic-script alef LETTER (Unicode name "...ALEF..." other than alef maqsura ى, or an NFKD
+# that begins with the bare alef U+0627); tests/test_steps.py re-derives it from the LIVE Unicode
+# database and asserts each candidate is either folded here or in the DELIBERATELY-EXCLUDED set
+# below, so a future Unicode alef fails CI until it is triaged.
+# DELIBERATELY EXCLUDED -- not contemporary Arabic, so folding them would invent a spelling:
+#   - high-hamza alef U+0675 (bare alef + the high hamza U+0674; Kazakh/Jawi orthographies);
+#   - the digit-annotated alefs U+0773/U+0774 (Qur'anic/African superscript-digit marks);
+#   - the Arabic Extended-B manuscript alefs U+0870-U+0882 (attached fatha/kasra, strokes, dots and
+#     rings -- scholarly annotation glyphs) and the low alef U+08AD (African Arabic).
 BARE_ALEF: int = 0x0627
 FOLD_ALEF: dict[int, str] = {
     0x0623: chr(BARE_ALEF),  # أ alef with hamza above
     0x0625: chr(BARE_ALEF),  # إ alef with hamza below
     0x0622: chr(BARE_ALEF),  # آ alef with madda
     0x0671: chr(BARE_ALEF),  # ٱ alef wasla
+    0x0672: chr(BARE_ALEF),  # ٲ alef with wavy hamza above
+    0x0673: chr(BARE_ALEF),  # ٳ alef with wavy hamza below
 }
 
 # FoldAlefMaqsura -- alef maqsura ى U+0649 -> yeh ي U+064A (GLOSSARY: Alef maqsura). The two are a
 # real contrast (ى is a final long-alef sound), so merging them collides على/علي -- which is
-# exactly why the fold is opt-in (SEARCH) and not encoding repair.
+# exactly why the fold is opt-in (SEARCH) and not encoding repair. ى is the ONLY Arabic alef-maqsura
+# letter (a live-UCD test pins this); the Urdu yeh-barree ے/ۓ U+06D2/U+06D3 is a different,
+# non-Arabic letter, deliberately left untouched (it is not a look-alike typo for yeh either).
 YEH: int = 0x064A
 FOLD_ALEF_MAQSURA: dict[int, str] = {0x0649: chr(YEH)}
 
@@ -319,8 +335,17 @@ FOLD_ALEF_MAQSURA: dict[int, str] = {0x0649: chr(YEH)}
 #     carrier+hamza to the bare carrier -- the same neutralization as folding ؤ/ئ -- so it is part
 #     of the always-on carrier fold, in BOTH modes. The precomposed alef-hamza LETTERS أ/إ are NOT
 #     here: they are alef variants owned by FoldAlef.
-#   - the STANDALONE hamza LETTER ء U+0621 (no carrier): dropped only in the HEAVY mode
-#     (drop_standalone_hamza=True). Light keeps it -- it has no seat to fold onto.
+#   - the STANDALONE hamza LETTERS -- ء U+0621 (no carrier) and the HIGH HAMZA ٴ U+0674 (its high
+#     spacing variant): dropped only in the HEAVY mode (drop_standalone_hamza=True). Light keeps
+#     them -- they have no seat to fold onto.
+#
+# ONE STATED PRINCIPLE (verified). The hamza-bearing letters are partitioned across the two letter
+# folds: the alef carriers أ/إ/ٲ/ٳ belong to FoldAlef, the waw/yeh carriers ؤ/ئ and the standalone
+# ء/ٴ belong here. A live-UCD test re-derives every non-alef Arabic-script hamza LETTER and asserts
+# it is folded here or DELIBERATELY EXCLUDED as non-Arabic: the high-hamza waw/u/yeh U+0676-U+0678,
+# the foreign hamza carriers hah U+0681, heh-goal U+06C2, yeh-barree U+06D3, reh U+076C, beh U+08A1
+# and yeh-with-two-dots U+08A8, and the tatweel-hamza element U+0883. (The combining hamza marks
+# U+0654/U+0655 are letter content guarded by the 0006 mark-partition test, not here.)
 WAW: int = 0x0648
 FOLD_HAMZA_CARRIERS: dict[int, str] = {
     0x0624: chr(WAW),  # ؤ waw with hamza above -> waw
@@ -328,6 +353,7 @@ FOLD_HAMZA_CARRIERS: dict[int, str] = {
 }
 COMBINING_HAMZA: frozenset[int] = frozenset((0x0654, 0x0655))  # hamza above / hamza below
 STANDALONE_HAMZA: int = 0x0621  # ء the hamza letter (no carrier)
+HIGH_HAMZA: int = 0x0674  # ٴ the high hamza spacing letter (heavy-mode standalone, parallel to ء)
 
 # FoldTehMarbuta -- the word-final "tied taa" ة U+0629 (GLOSSARY: Teh marbuta) folded to a
 # configurable target. ة marks a real grammatical ending, so the fold is lossy and opt-in. Its
