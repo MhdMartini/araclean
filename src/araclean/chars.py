@@ -279,3 +279,61 @@ QURANIC: frozenset[int] = frozenset(
         *range(0x10EFD, 0x10F00),  # small low words: sakta, qasr, madda (Arabic Extended-C)
     )
 )
+
+
+# --- Letter-fold tables (issue 0007, stories 27-30) -------------------------------------------
+#
+# The opt-in LINGUISTIC_FOLDING letter folds: lossy collapses of letter *spelling* distinctions
+# that boost search recall (SEARCH, 0010) but destroy a real contrast, so none run under LIGHT.
+# Each is a single-character str.translate map (internal seam) -- fusion candidates for 0018.
+#
+# These steps operate on the PRECOMPOSED (NFC) letters. In any profile NFC runs first, so a
+# combining hamza/madda on an alef is already composed into the precomposed letter (alef + hamza
+# above -> أ, alef + combining madda -> آ) before a fold runs; the fold only sees those letters.
+#
+# FoldAlef -- every alef-variant letter -> bare alef ا U+0627 (GLOSSARY: Alef variants). The
+# hamza-/madda-bearing alef letters (أ إ آ) and alef-wasla ٱ all collapse to the plain alef. The
+# combining marks they carry are not seen here: NFC has already folded them into these letters.
+BARE_ALEF: int = 0x0627
+FOLD_ALEF: dict[int, str] = {
+    0x0623: chr(BARE_ALEF),  # أ alef with hamza above
+    0x0625: chr(BARE_ALEF),  # إ alef with hamza below
+    0x0622: chr(BARE_ALEF),  # آ alef with madda
+    0x0671: chr(BARE_ALEF),  # ٱ alef wasla
+}
+
+# FoldAlefMaqsura -- alef maqsura ى U+0649 -> yeh ي U+064A (GLOSSARY: Alef maqsura). The two are a
+# real contrast (ى is a final long-alef sound), so merging them collides على/علي -- which is
+# exactly why the fold is opt-in (SEARCH) and not encoding repair.
+YEH: int = 0x064A
+FOLD_ALEF_MAQSURA: dict[int, str] = {0x0649: chr(YEH)}
+
+# FoldHamza -- a SEPARATE, configurably-aggressive fold of the hamza (GLOSSARY: Hamza), kept apart
+# from FoldAlef so a caller can neutralize hamza on the waw/yeh carriers without folding alef.
+# Three pieces, by what hamza they touch:
+#   - CARRIERS: the precomposed waw-/yeh-hamza letters ؤ/ئ -> bare waw/yeh. Always folded (light).
+#   - COMBINING marks U+0654/U+0655: hamza seated ON a carrier as a standalone combining mark. NFC
+#     composes these into a precomposed letter (ا+ٔ→أ, و+ٔ→ؤ, ي+ٔ→ئ, ا+ٕ→إ), so in normalized text
+#     they are gone; a *stray* one on a non-composing carrier is letter content that issue 0006
+#     routes here (it is NOT tashkeel, so RemoveTashkeel leaves it). Deleting the mark folds
+#     carrier+hamza to the bare carrier -- the same neutralization as folding ؤ/ئ -- so it is part
+#     of the always-on carrier fold, in BOTH modes. The precomposed alef-hamza LETTERS أ/إ are NOT
+#     here: they are alef variants owned by FoldAlef.
+#   - the STANDALONE hamza LETTER ء U+0621 (no carrier): dropped only in the HEAVY mode
+#     (drop_standalone_hamza=True). Light keeps it -- it has no seat to fold onto.
+WAW: int = 0x0648
+FOLD_HAMZA_CARRIERS: dict[int, str] = {
+    0x0624: chr(WAW),  # ؤ waw with hamza above -> waw
+    0x0626: chr(YEH),  # ئ yeh with hamza above -> yeh
+}
+COMBINING_HAMZA: frozenset[int] = frozenset((0x0654, 0x0655))  # hamza above / hamza below
+STANDALONE_HAMZA: int = 0x0621  # ء the hamza letter (no carrier)
+
+# FoldTehMarbuta -- the word-final "tied taa" ة U+0629 (GLOSSARY: Teh marbuta) folded to a
+# configurable target. ة marks a real grammatical ending, so the fold is lossy and opt-in. Its
+# goal-form variant ۃ U+06C3 folds with it (issue 0004 routed it here, not to look-alike repair).
+# The two standard search/morphology targets are heh (default, the common search fold) and teh
+# (its underlying value); `keep` is the no-op target a profile can pin to leave ة in place.
+TEH_MARBUTA: frozenset[int] = frozenset((0x0629, 0x06C3))  # teh marbuta + its goal form
+HEH: int = 0x0647  # ه target
+TEH: int = 0x062A  # ت target

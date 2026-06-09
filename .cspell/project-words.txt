@@ -10,6 +10,7 @@ FEFC
 noncharacter
 noncharacters
 nonspacing
+precomposed
 doachashmee
 chashmi
 
@@ -29,6 +30,7 @@ excinfo
 grabbable
 invisibles
 precomputes
+configurably
 
 # release/versioning tooling (ADR-0008)
 Commitizen

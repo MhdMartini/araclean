@@ -137,6 +137,33 @@ def test_tashkeel_is_removed_only_via_an_explicit_step() -> None:
     assert Pipeline([*Pipeline.from_profile(LIGHT).steps, RemoveTashkeel()])(VOCALIZED) == bare
 
 
+# --- Letter folds are opt-in (issue 0007, stories 27-30): LIGHT must never fold letters ---
+
+
+def test_light_does_not_fold_letters() -> None:
+    # None of the lossy letter folds run under the lossless default. The alef variants, the
+    # standalone hamza, the waw/yeh hamza carriers and the teh marbuta all survive LIGHT unchanged.
+    # (NFC may compose marks, but never folds a letter to another.)
+    distinct = (
+        chr(0x0623)  # أ alef-hamza-above (NOT folded to bare alef)
+        + chr(0x0624)  # ؤ waw-hamza (NOT folded to waw)
+        + chr(0x0626)  # ئ yeh-hamza (NOT folded to yeh)
+        + chr(0x0621)  # ء standalone hamza (kept)
+        + chr(0x0629)  # ة teh marbuta (NOT folded to heh)
+    )
+    assert normalize(distinct) == unicodedata.normalize("NFC", distinct)
+
+
+def test_light_does_not_fold_alef_maqsura() -> None:
+    # "maqsura not folded by default": على keeps its alef maqsura and علي keeps its yeh, so the two
+    # stay distinct words under LIGHT — the fold that would merge them is opt-in (issue 0007).
+    ala_maqsura = chr(0x0639) + chr(0x0644) + chr(0x0649)  # على
+    ala_yeh = chr(0x0639) + chr(0x0644) + chr(0x064A)  # علي
+    assert normalize(ala_maqsura) == ala_maqsura
+    assert normalize(ala_yeh) == ala_yeh
+    assert normalize(ala_maqsura) != normalize(ala_yeh)  # still distinct
+
+
 def test_default_profile_is_light() -> None:
     light_pipe = Pipeline.from_profile(LIGHT)
     for text in (DECOMPOSED, COMPOSED, "abc", TATWEEL):

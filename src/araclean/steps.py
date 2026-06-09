@@ -388,3 +388,197 @@ class RemoveTashkeel:
 
 
 registry.register(RemoveTashkeel.name, RemoveTashkeel.from_dict)
+
+
+def fold_alef(s: str, /) -> str:
+    """Fold every alef-variant letter to bare alef — lossy linguistic folding."""
+    return s.translate(chars.FOLD_ALEF)
+
+
+@dataclass(frozen=True, slots=True)
+class FoldAlef:
+    """Fold the alef variants أ إ آ ٱ to bare alef ا — lossy linguistic folding.
+
+    English: *alef folding*. The hamza-/madda-bearing alef letters and alef-wasla collapse to the
+    plain alef (أ/إ/آ/ٱ → ا), so spelling variation in how an initial alef was written stops
+    splitting otherwise-identical words. It discards a real orthographic distinction, so `safety`
+    is `LINGUISTIC_FOLDING`: opt-in via a lossy profile or an explicit step, never under `LIGHT`.
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "FoldAlef"
+
+    def __call__(self, s: str, /) -> str:
+        return fold_alef(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(FoldAlef.name, FoldAlef.from_dict)
+
+
+def fold_alef_maqsura(s: str, /) -> str:
+    """Fold alef maqsura to yeh — lossy linguistic folding."""
+    return s.translate(chars.FOLD_ALEF_MAQSURA)
+
+
+@dataclass(frozen=True, slots=True)
+class FoldAlefMaqsura:
+    """Fold alef maqsura ى to yeh ي — lossy linguistic folding.
+
+    English: *alef-maqsura folding*. The dotless final ى (a long-alef sound) folds to yeh ي so the
+    two spellings stop splitting a word. This merges على and علي, a genuine distinction, so the fold
+    is `LINGUISTIC_FOLDING` and never runs under `LIGHT`: it is opt-in for recall (SEARCH).
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "FoldAlefMaqsura"
+
+    def __call__(self, s: str, /) -> str:
+        return fold_alef_maqsura(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(FoldAlefMaqsura.name, FoldAlefMaqsura.from_dict)
+
+
+def _hamza_fold_table(*, drop_standalone_hamza: bool) -> dict[int, str | None]:
+    """Build the `str.translate` table for `FoldHamza`: fold the waw/yeh carriers and delete the
+    combining hamza marks always; delete the standalone hamza letter only in the heavy mode."""
+    table: dict[int, str | None] = dict(chars.FOLD_HAMZA_CARRIERS)
+    table.update(dict.fromkeys(chars.COMBINING_HAMZA))
+    if drop_standalone_hamza:
+        table[chars.STANDALONE_HAMZA] = None
+    return table
+
+
+def fold_hamza(s: str, /, *, drop_standalone_hamza: bool = False) -> str:
+    """Fold hamza off the waw/yeh carriers; optionally drop the standalone ء — lossy folding."""
+    return s.translate(_hamza_fold_table(drop_standalone_hamza=drop_standalone_hamza))
+
+
+@dataclass(frozen=True, slots=True)
+class FoldHamza:
+    """Fold hamza off its carriers ؤ→و, ئ→ي — separate and configurably aggressive — lossy folding.
+
+    English: *hamza folding*. A toggle kept separate from `FoldAlef` so hamza can be neutralized on
+    the waw/yeh carriers (ؤ→و, ئ→ي) without folding alef. Folding *lightly* (the default) folds the
+    carriers and deletes the combining hamza marks U+0654/U+0655 (hamza seated on a carrier — the
+    letter content issue 0006 routes here, not to `RemoveTashkeel`). Folding *heavily*
+    (``drop_standalone_hamza=True``) also drops the standalone hamza ء U+0621. The precomposed
+    alef-hamza letters أ/إ are alef variants, left to `FoldAlef`. `safety` is `LINGUISTIC_FOLDING`.
+    """
+
+    drop_standalone_hamza: bool = False
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since it is a derived view of `drop_standalone_hamza`.
+    _table: dict[int, str | None] = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "FoldHamza"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "_table", _hamza_fold_table(drop_standalone_hamza=self.drop_standalone_hamza)
+        )
+
+    def __call__(self, s: str, /) -> str:
+        return s.translate(self._table)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {"drop_standalone_hamza": self.drop_standalone_hamza}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(FoldHamza.name, FoldHamza.from_dict)
+
+
+class TehMarbutaTarget(StrEnum):
+    """What `FoldTehMarbuta` rewrites the teh marbuta ة to (story 29).
+
+    English: *teh-marbuta target*. `HEH` (the common search fold, default) and `TEH` (its underlying
+    value) are the standard targets; `KEEP` leaves ة in place so a profile can pin "do not fold".
+    """
+
+    HEH = "heh"  # ة -> heh ه (default)
+    TEH = "teh"  # ة -> teh ت
+    KEEP = "keep"  # leave ة untouched (the no-op target)
+
+
+_TEH_MARBUTA_TARGET_CODE_POINT: dict[TehMarbutaTarget, int | None] = {
+    TehMarbutaTarget.HEH: chars.HEH,
+    TehMarbutaTarget.TEH: chars.TEH,
+    TehMarbutaTarget.KEEP: None,
+}
+
+
+def _teh_marbuta_table(target: TehMarbutaTarget) -> dict[int, str]:
+    """Build the `str.translate` table mapping every teh-marbuta form to the chosen target (an empty
+    table — identity — for ``KEEP``)."""
+    code_point = _TEH_MARBUTA_TARGET_CODE_POINT[target]
+    if code_point is None:
+        return {}
+    return {source: chr(code_point) for source in chars.TEH_MARBUTA}
+
+
+def fold_teh_marbuta(s: str, /, *, target: TehMarbutaTarget = TehMarbutaTarget.HEH) -> str:
+    """Fold teh marbuta ة to a target (heh by default; `keep` is a no-op) — lossy folding."""
+    return s.translate(_teh_marbuta_table(target))
+
+
+@dataclass(frozen=True, slots=True)
+class FoldTehMarbuta:
+    """Fold teh marbuta ة to a configurable target (heh by default) — lossy linguistic folding.
+
+    English: *teh-marbuta folding*. The word-final "tied taa" ة (and its goal form ۃ) folds to
+    `TehMarbutaTarget.HEH` ه (the common search fold, default), `TEH` ت (its underlying value), or
+    is left in place with `KEEP`. ة marks a real grammatical ending, so the fold discards
+    information: `safety` is `LINGUISTIC_FOLDING`, never run under `LIGHT`.
+    """
+
+    target: TehMarbutaTarget = TehMarbutaTarget.HEH
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since it is a derived view of `target`.
+    _table: dict[int, str] = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "FoldTehMarbuta"
+
+    def __post_init__(self) -> None:
+        # Coerce a plain string ("heh") to the enum so equality, serialization and the table are
+        # stable regardless of how the target was passed, then precompute the table once.
+        target = TehMarbutaTarget(self.target)
+        object.__setattr__(self, "target", target)
+        object.__setattr__(self, "_table", _teh_marbuta_table(target))
+
+    def __call__(self, s: str, /) -> str:
+        return s.translate(self._table)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {"target": self.target.value}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "target" in kwargs:
+            kwargs["target"] = TehMarbutaTarget(kwargs["target"])
+        return cls(**kwargs)
+
+
+registry.register(FoldTehMarbuta.name, FoldTehMarbuta.from_dict)

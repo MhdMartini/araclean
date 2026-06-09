@@ -8,16 +8,25 @@ from hypothesis import strategies as st
 
 from araclean import (
     CollapseWhitespace,
+    FoldAlef,
+    FoldAlefMaqsura,
+    FoldHamza,
     FoldPresentationForms,
+    FoldTehMarbuta,
     MarkClass,
     NormalizeUnicode,
     RemoveTashkeel,
     RemoveTatweel,
     SafetyClass,
     StripBidi,
+    TehMarbutaTarget,
     UnifyLookalikes,
     collapse_whitespace,
+    fold_alef,
+    fold_alef_maqsura,
+    fold_hamza,
     fold_presentation_forms,
+    fold_teh_marbuta,
     normalize_unicode,
     registry,
     remove_tashkeel,
@@ -461,6 +470,240 @@ def test_remove_tashkeel_default_round_trips_through_registry() -> None:
 def test_remove_tashkeel_is_total_and_idempotent(text: str) -> None:
     once = RemoveTashkeel()(text)  # never raises on arbitrary text
     assert RemoveTashkeel()(once) == once
+
+
+# --- FoldAlef (issue 0007, story 27) — the alef-variant letter fold ---
+
+BARE_ALEF = chr(0x0627)
+# Every alef-variant LETTER folds to bare alef (built from code points, immune to file encoding):
+# alef-with-hamza-above/below, alef-with-madda, alef-wasla.
+ALEF_VARIANTS = [
+    (chr(0x0623), BARE_ALEF),  # أ alef with hamza above
+    (chr(0x0625), BARE_ALEF),  # إ alef with hamza below
+    (chr(0x0622), BARE_ALEF),  # آ alef with madda
+    (chr(0x0671), BARE_ALEF),  # ٱ alef wasla
+]
+
+
+@pytest.mark.parametrize(("variant", "expected"), ALEF_VARIANTS)
+def test_fold_alef_folds_every_variant_to_bare_alef(variant: str, expected: str) -> None:
+    assert FoldAlef()(variant) == expected
+
+
+def test_fold_alef_in_words() -> None:
+    # أحمد / إبراهيم / آمنة / ٱسم -> the bare-alef spellings (the alef variant only; tail intact).
+    assert FoldAlef()("أحمد") == BARE_ALEF + "حمد"
+    assert FoldAlef()("إبراهيم") == BARE_ALEF + "براهيم"
+    assert FoldAlef()("آمنة") == BARE_ALEF + "منة"
+    assert FoldAlef()("ٱسم") == BARE_ALEF + "سم"
+
+
+def test_fold_alef_leaves_bare_alef_and_other_letters_untouched() -> None:
+    plain = BARE_ALEF + "محمد لا إله"  # already-bare alef and unrelated letters
+    assert FoldAlef()(plain) == BARE_ALEF + "محمد لا " + BARE_ALEF + "له"  # only the إ folds
+
+
+def test_fold_alef_safety_is_linguistic_folding() -> None:
+    # Collapsing the alef variants discards a spelling distinction, so it is the LOSSY class.
+    assert FoldAlef().safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_fold_alef_free_function_agrees_with_step() -> None:
+    text = "أحمد وإبراهيم"
+    assert fold_alef(text) == FoldAlef()(text)
+
+
+@given(st.text())
+def test_fold_alef_is_total_and_idempotent(text: str) -> None:
+    once = FoldAlef()(text)  # never raises on arbitrary text
+    assert FoldAlef()(once) == once
+
+
+# --- FoldAlefMaqsura (issue 0007, story 30) — alef maqsura -> yeh ---
+
+YEH = chr(0x064A)
+ALEF_MAQSURA = chr(0x0649)
+
+
+def test_fold_alef_maqsura_folds_to_yeh() -> None:
+    assert FoldAlefMaqsura()(ALEF_MAQSURA) == YEH
+
+
+def test_fold_alef_maqsura_merges_ala_words() -> None:
+    # The documented merge that makes this fold opt-in: على (…+ alef maqsura) -> علي (…+ yeh), so it
+    # collides with the genuine علي. This is *why* it never runs under LIGHT.
+    ala = chr(0x0639) + chr(0x0644) + ALEF_MAQSURA  # على
+    assert FoldAlefMaqsura()(ala) == chr(0x0639) + chr(0x0644) + YEH  # علي
+
+
+def test_fold_alef_maqsura_leaves_yeh_and_other_letters_untouched() -> None:
+    plain = chr(0x0639) + chr(0x0644) + YEH  # already-yeh علي
+    assert FoldAlefMaqsura()(plain) == plain
+
+
+def test_fold_alef_maqsura_safety_is_linguistic_folding() -> None:
+    assert FoldAlefMaqsura().safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_fold_alef_maqsura_free_function_agrees_with_step() -> None:
+    text = chr(0x0639) + chr(0x0644) + ALEF_MAQSURA
+    assert fold_alef_maqsura(text) == FoldAlefMaqsura()(text)
+
+
+@given(st.text())
+def test_fold_alef_maqsura_is_total_and_idempotent(text: str) -> None:
+    once = FoldAlefMaqsura()(text)
+    assert FoldAlefMaqsura()(once) == once
+
+
+# --- FoldHamza (issue 0007, story 28) — the separate, configurably-aggressive hamza fold ---
+
+WAW = chr(0x0648)
+WAW_HAMZA = chr(0x0624)  # ؤ
+YEH_HAMZA = chr(0x0626)  # ئ
+STANDALONE_HAMZA = chr(0x0621)  # ء
+HAMZA_ABOVE, HAMZA_BELOW = chr(0x0654), chr(0x0655)  # the combining hamza marks
+
+
+def test_fold_hamza_light_folds_carriers_keeps_standalone() -> None:
+    # Light (default): the waw/yeh hamza carriers fold to bare waw/yeh; مؤمن -> مومن, سئل -> سيل.
+    assert FoldHamza()("مؤمن") == "م" + WAW + "من"
+    assert FoldHamza()("سئل") == "س" + YEH + "ل"
+    # ... but the STANDALONE hamza ء is preserved (that is the "light" contract).
+    assert FoldHamza()("جزء") == "جزء"
+    assert STANDALONE_HAMZA in FoldHamza()(STANDALONE_HAMZA)
+
+
+def test_fold_hamza_heavy_also_drops_standalone() -> None:
+    # Heavy: the standalone hamza ء is dropped too; carriers still fold.
+    heavy = FoldHamza(drop_standalone_hamza=True)
+    assert heavy("جزء") == "جز"
+    assert heavy("مؤمن") == "م" + WAW + "من"
+
+
+def test_fold_hamza_owns_the_combining_hamza_marks() -> None:
+    # The combining hamza marks U+0654/U+0655 are hamza ON a carrier (GLOSSARY: Hamza).
+    # RemoveTashkeel deliberately leaves them (issue 0006 documents them as letter content owned
+    # by letter folding); FoldHamza is that owner — it deletes them in BOTH modes, folding
+    # carrier+hamza to a bare carrier, parallel to folding ؤ/ئ. (NFC composes them away anyway.)
+    beh = chr(0x0628)
+    assert FoldHamza()(beh + HAMZA_ABOVE) == beh
+    assert FoldHamza()(beh + HAMZA_BELOW) == beh
+    assert FoldHamza(drop_standalone_hamza=True)(beh + HAMZA_ABOVE) == beh
+
+
+def test_fold_hamza_leaves_precomposed_alef_hamza_to_fold_alef() -> None:
+    # Division of labor: the precomposed alef-hamza LETTERS أ/إ are alef territory (FoldAlef), so
+    # FoldHamza leaves them untouched — it owns the waw/yeh carriers and the combining marks only.
+    assert FoldHamza()(chr(0x0623)) == chr(0x0623)  # أ untouched
+    assert FoldHamza()(chr(0x0625)) == chr(0x0625)  # إ untouched
+
+
+def test_fold_hamza_safety_is_linguistic_folding() -> None:
+    assert FoldHamza().safety is SafetyClass.LINGUISTIC_FOLDING
+    assert FoldHamza(drop_standalone_hamza=True).safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_fold_hamza_serializes_its_mode() -> None:
+    # The light/heavy toggle round-trips so an aggressive-folding pipeline can be pinned (0016).
+    light, heavy = FoldHamza(), FoldHamza(drop_standalone_hamza=True)
+    assert light.to_dict() == {"name": "FoldHamza", "config": {"drop_standalone_hamza": False}}
+    assert heavy.to_dict() == {"name": "FoldHamza", "config": {"drop_standalone_hamza": True}}
+    assert FoldHamza.from_dict(heavy.to_dict()["config"]) == heavy
+    assert FoldHamza.from_dict(heavy.to_dict()["config"])("جزء") == "جز"
+
+
+def test_fold_hamza_default_round_trips_through_registry() -> None:
+    built = registry.build("FoldHamza", {})  # bare step -> the light default
+    assert isinstance(built, FoldHamza)
+    assert built("جزء") == "جزء"  # standalone kept
+    assert FoldHamza.from_dict(built.to_dict()["config"]) == built
+
+
+def test_fold_hamza_free_function_agrees_with_step() -> None:
+    text = "مؤمن سئل عن جزء"
+    assert fold_hamza(text) == FoldHamza()(text)
+    assert fold_hamza(text, drop_standalone_hamza=True) == FoldHamza(drop_standalone_hamza=True)(
+        text
+    )
+
+
+@given(st.text())
+def test_fold_hamza_is_total_and_idempotent(text: str) -> None:
+    once = FoldHamza()(text)
+    assert FoldHamza()(once) == once
+    heavy_once = FoldHamza(drop_standalone_hamza=True)(text)
+    assert FoldHamza(drop_standalone_hamza=True)(heavy_once) == heavy_once
+
+
+# --- FoldTehMarbuta (issue 0007, story 29) — configurable target ---
+
+HEH = chr(0x0647)
+TEH = chr(0x062A)
+TEH_MARBUTA = chr(0x0629)  # ة
+TEH_MARBUTA_GOAL = chr(0x06C3)  # ۃ the goal form
+MADRASA = "مدرس"  # the stem of مدرسة minus its final teh marbuta
+
+
+def test_fold_teh_marbuta_default_target_is_heh() -> None:
+    # مدرسة -> مدرسه (the common search fold): teh marbuta ة -> heh ه by default.
+    assert FoldTehMarbuta()(MADRASA + TEH_MARBUTA) == MADRASA + HEH
+
+
+def test_fold_teh_marbuta_target_teh() -> None:
+    assert FoldTehMarbuta(target=TehMarbutaTarget.TEH)(MADRASA + TEH_MARBUTA) == MADRASA + TEH
+
+
+def test_fold_teh_marbuta_target_keep_is_identity() -> None:
+    # `keep` leaves the teh marbuta in place (the step is a no-op for that target).
+    word = MADRASA + TEH_MARBUTA
+    assert FoldTehMarbuta(target=TehMarbutaTarget.KEEP)(word) == word
+
+
+def test_fold_teh_marbuta_folds_the_goal_form_too() -> None:
+    # The goal-form teh marbuta ۃ U+06C3 folds with ة (issue 0004 routed it to this opt-in fold).
+    assert FoldTehMarbuta()(MADRASA + TEH_MARBUTA_GOAL) == MADRASA + HEH
+
+
+def test_fold_teh_marbuta_leaves_plain_heh_and_teh_untouched() -> None:
+    plain = MADRASA + HEH + TEH  # already heh / teh — nothing to fold
+    assert FoldTehMarbuta()(plain) == plain
+
+
+def test_fold_teh_marbuta_safety_is_linguistic_folding() -> None:
+    assert FoldTehMarbuta().safety is SafetyClass.LINGUISTIC_FOLDING
+    assert FoldTehMarbuta(target=TehMarbutaTarget.KEEP).safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_fold_teh_marbuta_serializes_its_target() -> None:
+    # The target round-trips so a folding pipeline can be pinned and reproduced (0016).
+    step = FoldTehMarbuta(target=TehMarbutaTarget.TEH)
+    assert step.to_dict() == {"name": "FoldTehMarbuta", "config": {"target": "teh"}}
+    rebuilt = FoldTehMarbuta.from_dict(step.to_dict()["config"])
+    assert rebuilt == step
+    assert rebuilt(MADRASA + TEH_MARBUTA) == MADRASA + TEH
+
+
+def test_fold_teh_marbuta_default_round_trips_through_registry() -> None:
+    built = registry.build("FoldTehMarbuta", {})  # bare step -> the heh default
+    assert isinstance(built, FoldTehMarbuta)
+    assert built(MADRASA + TEH_MARBUTA) == MADRASA + HEH
+    assert FoldTehMarbuta.from_dict(built.to_dict()["config"]) == built
+
+
+def test_fold_teh_marbuta_free_function_agrees_with_step() -> None:
+    text = MADRASA + TEH_MARBUTA
+    assert fold_teh_marbuta(text) == FoldTehMarbuta()(text)
+    assert fold_teh_marbuta(text, target=TehMarbutaTarget.TEH) == FoldTehMarbuta(
+        target=TehMarbutaTarget.TEH
+    )(text)
+
+
+@given(st.text())
+def test_fold_teh_marbuta_is_total_and_idempotent(text: str) -> None:
+    for target in TehMarbutaTarget:
+        once = FoldTehMarbuta(target=target)(text)
+        assert FoldTehMarbuta(target=target)(once) == once
 
 
 # --- The mark-class partition invariant (chars.py: ONE STATED PRINCIPLE) ---
