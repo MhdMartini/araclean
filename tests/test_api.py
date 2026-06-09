@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from araclean import LIGHT, Pipeline, normalize
+from araclean import LIGHT, Pipeline, RemoveTashkeel, normalize
 
 # alef + combining hamza (decomposed); NFC composes it to alef-with-hamza.
 DECOMPOSED = chr(0x0627) + chr(0x0654) + chr(0x062D) + chr(0x0645) + chr(0x062F)
@@ -115,6 +115,26 @@ def test_light_is_a_lossless_fixed_point() -> None:
     once = normalize(messy)
     assert normalize(once) == once
     assert once == chr(0x0645) + chr(0x062D) + " " + chr(0x0643) + chr(0x0628)
+
+
+# --- Tashkeel removal is opt-in (issue 0006, story 25): LIGHT must never strip vocalization ---
+
+# كَتَبَ fully vocalized: every letter carries a fatha.
+VOCALIZED = chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E)
+
+
+def test_light_does_not_remove_tashkeel() -> None:
+    # The bare call (LIGHT) is lossless, so a fully vocalized word keeps all of its marks — the
+    # first lossy step never runs by default (ADR-0004). NFC composes but never deletes a haraka.
+    assert normalize(VOCALIZED) == unicodedata.normalize("NFC", VOCALIZED)
+    assert chr(0x064E) in normalize(VOCALIZED)  # the fatha survives
+
+
+def test_tashkeel_is_removed_only_via_an_explicit_step() -> None:
+    # The opt-in path: dropping RemoveTashkeel into a pipeline strips the marks LIGHT preserved.
+    bare = RemoveTashkeel()(VOCALIZED)
+    assert bare == chr(0x0643) + chr(0x062A) + chr(0x0628)
+    assert Pipeline([*Pipeline.from_profile(LIGHT).steps, RemoveTashkeel()])(VOCALIZED) == bare
 
 
 def test_default_profile_is_light() -> None:

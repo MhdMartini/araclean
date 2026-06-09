@@ -178,3 +178,31 @@ UNIFY_LOOKALIKES: dict[int, str] = {
 # SEPARATOR is `\s` but NOT a line break (splitlines agrees too), so it is correctly excluded.
 WHITESPACE_RUN: re.Pattern[str] = re.compile(r"\s+")
 LINE_BREAKS: frozenset[str] = frozenset("\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029")
+
+
+# --- RemoveTashkeel mark-class code points (issue 0006, stories 25 & 26) -----------------------
+#
+# The vocalization-mark taxonomy (GLOSSARY: Tashkeel), one frozenset of code points per removable
+# class so RemoveTashkeel can delete the union of the *selected* classes (story 26). These are the
+# internal seam: a step is tested through its str -> str behavior, so the membership of each class
+# can be re-tabulated here without touching a test.
+#
+# Two boundaries are deliberate and load-bearing:
+#   - SUKUN U+0652 is its OWN constant, not a member of HARAKAT. Sukun is formally the *absence* of
+#     a vowel, not a short vowel (GLOSSARY: Harakat), so it rides with the harakat by default but is
+#     separable via the `exclude_sukun` flag (story 26): RemoveTashkeel adds it to the deletion set
+#     only when HARAKAT is selected and exclude_sukun is False.
+#   - MADDA here is the COMBINING madda U+0653 only. The alef-with-madda LETTER U+0622 (\u0622) is a
+#     real alef variant folded by the opt-in letter folds (issue 0007), NOT by tashkeel removal, so
+#     it is absent here. The combining hamza marks U+0654/U+0655 are likewise absent: they
+#     canonically (re)compose with their carrier under NFC, i.e. they are letter content, not
+#     free-standing vocalization.
+HARAKAT: frozenset[int] = frozenset((0x064E, 0x064F, 0x0650))  # fatha, damma, kasra
+SUKUN: int = 0x0652  # vowelless mark; rides with HARAKAT unless exclude_sukun
+TANWEEN: frozenset[int] = frozenset((0x064B, 0x064C, 0x064D))  # fathatan, dammatan, kasratan
+SHADDA: int = 0x0651  # gemination / consonant-doubling mark
+MADDA: int = 0x0653  # COMBINING madda above (not the letter \u0622 U+0622)
+DAGGER_ALEF: int = 0x0670  # superscript alef marking an omitted long alef
+# Qur'anic annotation/recitation signs (GLOSSARY): U+0656-U+065F and U+06D6-U+06ED. Kept preserved
+# by CLASSICAL; removable as a class under SEARCH.
+QURANIC: frozenset[int] = frozenset((*range(0x0656, 0x0660), *range(0x06D6, 0x06EE)))

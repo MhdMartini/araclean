@@ -9,7 +9,9 @@ from hypothesis import strategies as st
 from araclean import (
     CollapseWhitespace,
     FoldPresentationForms,
+    MarkClass,
     NormalizeUnicode,
+    RemoveTashkeel,
     RemoveTatweel,
     SafetyClass,
     StripBidi,
@@ -18,6 +20,7 @@ from araclean import (
     fold_presentation_forms,
     normalize_unicode,
     registry,
+    remove_tashkeel,
     remove_tatweel,
     strip_bidi,
     unify_lookalikes,
@@ -325,6 +328,114 @@ def test_collapse_whitespace_is_total_and_idempotent(text: str) -> None:
 def test_collapse_whitespace_collapse_lines_is_total_and_idempotent(text: str) -> None:
     once = CollapseWhitespace(collapse_lines=True)(text)
     assert CollapseWhitespace(collapse_lines=True)(once) == once
+
+
+# --- RemoveTashkeel (issue 0006, stories 25 & 26) — the first LOSSY step ---
+
+# Code points so the vocalization is pinned regardless of how this file is saved.
+FATHA, DAMMA, KASRA, SUKUN = chr(0x064E), chr(0x064F), chr(0x0650), chr(0x0652)
+SHADDA, MADDA, DAGGER_ALEF = chr(0x0651), chr(0x0653), chr(0x0670)
+FATHATAN = chr(0x064B)  # tanween fath
+
+
+def test_remove_tashkeel_default_strips_all_marks() -> None:
+    # The default removes every tashkeel class: a fully vocalized كَتَبَ -> bare كتب, carriers kept.
+    vocalized = chr(0x0643) + FATHA + chr(0x062A) + FATHA + chr(0x0628) + FATHA
+    assert RemoveTashkeel()(vocalized) == chr(0x0643) + chr(0x062A) + chr(0x0628)
+
+
+def test_remove_tashkeel_selective_harakat_keeps_shadda() -> None:
+    # دَرَّس with *remove harakat, keep shadda* -> درّس (the doubling survives), NOT درس (story 26).
+    word = chr(0x062F) + FATHA + chr(0x0631) + SHADDA + FATHA + chr(0x0633)
+    out = RemoveTashkeel(classes={MarkClass.HARAKAT})(word)
+    assert out == chr(0x062F) + chr(0x0631) + SHADDA + chr(0x0633)
+    assert out != chr(0x062F) + chr(0x0631) + chr(0x0633)  # shadda was NOT dropped
+
+
+def test_remove_tashkeel_tanween_keeps_its_alef() -> None:
+    # كتابًا (...beh + tanween fath + alef) with *remove tanween* -> كتابا: the U+064B mark is
+    # deleted, the alef LETTER stays (removal never touches a carrier).
+    word = "كتاب" + FATHATAN + chr(0x0627)
+    assert RemoveTashkeel(classes={MarkClass.TANWEEN})(word) == "كتاب" + chr(0x0627)
+
+
+def test_remove_tashkeel_dagger_alef_yields_standard_spelling() -> None:
+    # هٰذا (heh + dagger alef + ذ + alef) with *remove dagger alef* -> the standard هذا spelling.
+    word = chr(0x0647) + DAGGER_ALEF + chr(0x0630) + chr(0x0627)
+    assert RemoveTashkeel(classes={MarkClass.DAGGER_ALEF})(word) == "هذا"
+
+
+# مِنْ ("from"): م + kasra + ن + sukun. Sukun rides with the harakat by default but is separable.
+MIN = chr(0x0645) + KASRA + chr(0x0646) + SUKUN
+
+
+def test_remove_tashkeel_removes_sukun_with_harakat_by_default() -> None:
+    # exclude_sukun defaults False: removing harakat takes the sukun too -> bare من.
+    assert RemoveTashkeel(classes={MarkClass.HARAKAT})(MIN) == chr(0x0645) + chr(0x0646)
+
+
+def test_remove_tashkeel_exclude_sukun_keeps_the_sukun() -> None:
+    # exclude_sukun=True keeps the sukun while the kasra (a real haraka) still goes -> منْ.
+    out = RemoveTashkeel(classes={MarkClass.HARAKAT}, exclude_sukun=True)(MIN)
+    assert out == chr(0x0645) + chr(0x0646) + SUKUN
+
+
+def test_remove_tashkeel_sukun_only_rides_with_harakat() -> None:
+    # exclude_sukun is a no-op when HARAKAT is not selected: a class that does not own sukun never
+    # removes it, regardless of the flag.
+    assert RemoveTashkeel(classes={MarkClass.SHADDA})(MIN) == MIN
+
+
+def test_remove_tashkeel_madda_removes_combining_mark_not_the_letter() -> None:
+    # The COMBINING madda U+0653 is removed with MADDA; the alef-with-madda LETTER آ U+0622 is a
+    # real alef variant (letter folding, issue 0007) and must be left untouched here.
+    waw_with_madda = chr(0x0648) + MADDA  # waw carrying a combining madda
+    assert RemoveTashkeel(classes={MarkClass.MADDA})(waw_with_madda) == chr(0x0648)
+    alef_madda = chr(0x0622)  # the standalone letter آ
+    assert RemoveTashkeel()(alef_madda) == alef_madda  # even full removal leaves the letter
+
+
+def test_remove_tashkeel_safety_is_linguistic_folding() -> None:
+    # Dediacritization discards information, so it is the LOSSY class (story 41 / ADR-0004); the
+    # selection does not change the safety class.
+    assert RemoveTashkeel().safety is SafetyClass.LINGUISTIC_FOLDING
+    assert RemoveTashkeel(classes={MarkClass.SHADDA}).safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_remove_tashkeel_free_function_agrees_with_step() -> None:
+    fully_vocalized = chr(0x0643) + FATHA + chr(0x062A) + SHADDA + chr(0x0628) + FATHATAN
+    assert remove_tashkeel(fully_vocalized) == RemoveTashkeel()(fully_vocalized)
+    # ... and the selection passes through identically.
+    assert remove_tashkeel(MIN, classes={MarkClass.HARAKAT}, exclude_sukun=True) == RemoveTashkeel(
+        classes={MarkClass.HARAKAT}, exclude_sukun=True
+    )(MIN)
+
+
+def test_remove_tashkeel_serializes_its_selection() -> None:
+    # The selection round-trips so a dediacritization pipeline can be pinned and reproduced (0016).
+    step = RemoveTashkeel(classes={MarkClass.HARAKAT, MarkClass.SHADDA}, exclude_sukun=True)
+    spec = step.to_dict()
+    assert spec == {
+        "name": "RemoveTashkeel",
+        "config": {"classes": ["harakat", "shadda"], "exclude_sukun": True},
+    }
+    rebuilt = RemoveTashkeel.from_dict(spec["config"])
+    assert rebuilt == step  # value-equal (the precomputed table is excluded from equality)
+    assert rebuilt(MIN) == step(MIN)
+
+
+def test_remove_tashkeel_default_round_trips_through_registry() -> None:
+    # Building from an empty config (what the registry does for a bare step) yields the all-classes
+    # default, and its serialized form rehydrates to an equal step.
+    built = registry.build("RemoveTashkeel", {})
+    assert isinstance(built, RemoveTashkeel)
+    assert RemoveTashkeel.from_dict(built.to_dict()["config"]) == built
+
+
+@given(st.text())
+def test_remove_tashkeel_is_total_and_idempotent(text: str) -> None:
+    once = RemoveTashkeel()(text)  # never raises on arbitrary text
+    assert RemoveTashkeel()(once) == once
 
 
 # --- Safety-class invariant (story 41 / ADR-0004): lossless steps only touch encoding noise ---
