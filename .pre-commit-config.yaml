@@ -51,7 +51,11 @@ repos:
 
       - id: cspell
         name: cspell (canonical terminology)
-        entry: npx --yes cspell@9.8.0 --no-progress --no-summary
+        # --no-must-find-files: a commit can stage a file cspell has nothing to check (the generated
+        # uv.lock, which cspell skips); without this, cspell exits non-zero on "no files" when that
+        # file is checked alone, failing the commit even though nothing is misspelled. A real
+        # misspelling in a checked file still fails the hook.
+        entry: npx --yes cspell@9.8.0 --no-progress --no-summary --no-must-find-files
         language: system
         types: [text]
 

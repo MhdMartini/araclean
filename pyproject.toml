@@ -32,10 +32,17 @@ Homepage = "https://github.com/MhdMartini/araclean"
 Repository = "https://github.com/MhdMartini/araclean"
 Issues = "https://github.com/MhdMartini/araclean/issues"
 
+# The `araclean` command-line entry point (issue 0020). It lives behind the [cli] extra: the
+# console script resolves to `araclean.cli:main`, which prints an actionable "install araclean[cli]"
+# message instead of an ImportError traceback when Typer is absent, so the lean core never pulls it.
+[project.scripts]
+araclean = "araclean.cli:main"
+
 # Extras are declared now and populated by later slices; none pull a dependency
 # into the core. `all` aggregates them, so it grows automatically as they fill in.
 [project.optional-dependencies]
-cli = []
+# Typer (a thin layer over click) powers the CLI; it bundles `rich` for help/error formatting.
+cli = ["typer>=0.12"]
 pandas = []
 polars = []
 # `emoji` powers HandleEmoji's `demojize` mode only (keep/strip are pure-Python). Kept behind an
@@ -56,6 +63,8 @@ dev = [
     "commitizen>=4.16",
     # The optional `emoji` backend, so HandleEmoji's `demojize` mode is exercised in CI.
     "emoji>=2",
+    # The [cli] extra's backend, so the CLI (issue 0020) is exercised by the test suite in CI.
+    "typer>=0.12",
     # An independent JSON Schema validator, so tests prove a profile's emitted JSON validates
     # against its emitted JSON Schema (story 40) — the schema is published, not just pydantic-internal.
     "jsonschema>=4",
@@ -91,6 +100,11 @@ select = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["araclean"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Typer's interface *requires* `typer.Option(...)` / `typer.Argument(...)` as parameter defaults
+# (it reads them to build the CLI), so B008 (no function calls in defaults) does not apply to them.
+extend-immutable-calls = ["typer.Argument", "typer.Option"]
 
 [tool.mypy]
 python_version = "3.12"

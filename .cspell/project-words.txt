@@ -26,6 +26,10 @@ confusables
 addopts
 testpaths
 excinfo
+capsys
+
+# Typer / CLI vocabulary (issue 0020): Typer's styled-echo helper
+secho
 
 # informal English used in the spec prose
 grabbable
