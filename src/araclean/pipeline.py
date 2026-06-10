@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from araclean import registry
+from araclean import fusion, registry
 from araclean.profiles import Profile, get_profile
 from araclean.safety import SafetyClass, SafetyReport
 from araclean.steps import (
@@ -20,7 +20,7 @@ from araclean.steps import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator, Mapping, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 
 
 class PipelineDict(TypedDict):
@@ -42,6 +42,12 @@ class Pipeline:
 
     def __init__(self, steps: Sequence[Step]) -> None:
         self._steps: tuple[Step, ...] = tuple(steps)
+        # Compile the execution plan once: maximal runs of consecutive single-char `str.translate`
+        # steps fuse into one combined table applied in a single C-level pass (issue 0018), while
+        # the contextual steps stay their own pass, in order. This is purely an execution
+        # optimization behind the fixed interface -- `_steps` remains the source of truth for
+        # repr/select/audit/to_dict, so the plan changes nothing observable (ADR-0006).
+        self._plan: tuple[Callable[[str], str], ...] = fusion.build_plan(self._steps)
 
     @property
     def steps(self) -> tuple[Step, ...]:
@@ -53,8 +59,8 @@ class Pipeline:
         return f"Pipeline([{names}])"
 
     def __call__(self, text: str, /) -> str:
-        for step in self._steps:
-            text = step(text)
+        for op in self._plan:
+            text = op(text)
         return text
 
     def batch(self, texts: Iterable[str]) -> Iterator[str]:

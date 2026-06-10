@@ -22,6 +22,11 @@ from araclean.safety import SafetyClass
 
 type UnicodeForm = Literal["NFC", "NFD", "NFKC", "NFKD"]
 
+# The shape of a `str.translate` table: each Unicode code point maps to a replacement string, a
+# replacement ordinal, or ``None`` (delete). The fused engine (issue 0018) reads such tables off
+# the fusible steps and composes a run of them into one.
+type TranslateTable = Mapping[int, str | int | None]
+
 
 class StepDict(TypedDict):
     """The serialized form of one `Step`: its registry name and its constructor config."""
@@ -76,6 +81,24 @@ class SupportsAlignment(Protocol):
     """
 
     def apply_aligned(self, s: str, /) -> tuple[str, object]: ...
+
+
+@runtime_checkable
+class SupportsTranslate(Step, Protocol):
+    """A `Step` whose entire behavior is one `str.translate` over a static table — *fusible*.
+
+    The fused engine (`araclean.fusion`, issue 0018 / ADR-0006) collapses a run of consecutive
+    `SupportsTranslate` steps into a single combined table applied in one C-level pass. This is
+    exact because `str.translate` is a context-free, single-pass, per-character map — it never
+    re-scans its own output — so composing the run per code point reproduces applying the steps in
+    sequence. A step opts in by exposing the precomputed table its `__call__` applies. The
+    *contextual* steps (`NormalizeUnicode`, and the regex `CollapseWhitespace` / `MapPunctuation` /
+    `ReduceElongation` / cleaning steps) do not implement this and stay their own pass, so ordering
+    across them is never disturbed.
+    """
+
+    @property
+    def translate_table(self) -> TranslateTable: ...
 
 
 def normalize_unicode(s: str, /, form: UnicodeForm = "NFC") -> str:
@@ -133,6 +156,11 @@ class FoldPresentationForms:
     def __call__(self, s: str, /) -> str:
         return fold_presentation_forms(s)
 
+    @property
+    def translate_table(self) -> dict[int, str]:
+        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        return chars.PRESENTATION_FORMS
+
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
 
@@ -164,6 +192,11 @@ class RemoveTatweel:
 
     def __call__(self, s: str, /) -> str:
         return remove_tatweel(s)
+
+    @property
+    def translate_table(self) -> dict[int, None]:
+        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        return chars.REMOVE_TATWEEL
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
@@ -197,6 +230,11 @@ class StripBidi:
     def __call__(self, s: str, /) -> str:
         return strip_bidi(s)
 
+    @property
+    def translate_table(self) -> dict[int, None]:
+        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        return chars.STRIP_BIDI
+
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
 
@@ -229,6 +267,11 @@ class UnifyLookalikes:
 
     def __call__(self, s: str, /) -> str:
         return unify_lookalikes(s)
+
+    @property
+    def translate_table(self) -> dict[int, str]:
+        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        return chars.UNIFY_LOOKALIKES
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
@@ -378,6 +421,11 @@ class RemoveTashkeel:
     def __call__(self, s: str, /) -> str:
         return s.translate(self._table)
 
+    @property
+    def translate_table(self) -> dict[int, None]:
+        """The precomputed `str.translate` deletion table — the fused-engine seam (0018)."""
+        return self._table
+
     def to_dict(self) -> StepDict:
         return {
             "name": self.name,
@@ -419,6 +467,11 @@ class FoldAlef:
     def __call__(self, s: str, /) -> str:
         return fold_alef(s)
 
+    @property
+    def translate_table(self) -> dict[int, str]:
+        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        return chars.FOLD_ALEF
+
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
 
@@ -450,6 +503,11 @@ class FoldAlefMaqsura:
 
     def __call__(self, s: str, /) -> str:
         return fold_alef_maqsura(s)
+
+    @property
+    def translate_table(self) -> dict[int, str]:
+        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        return chars.FOLD_ALEF_MAQSURA
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
@@ -507,6 +565,11 @@ class FoldHamza:
 
     def __call__(self, s: str, /) -> str:
         return s.translate(self._table)
+
+    @property
+    def translate_table(self) -> dict[int, str | None]:
+        """The precomputed `str.translate` table — the fused-engine seam (0018)."""
+        return self._table
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {"drop_standalone_hamza": self.drop_standalone_hamza}}
@@ -579,6 +642,11 @@ class FoldTehMarbuta:
 
     def __call__(self, s: str, /) -> str:
         return s.translate(self._table)
+
+    @property
+    def translate_table(self) -> dict[int, str]:
+        """The precomputed `str.translate` table (empty for ``KEEP``) — fused-engine seam (0018)."""
+        return self._table
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {"target": self.target.value}}
@@ -659,6 +727,11 @@ class MapDigits:
 
     def __call__(self, s: str, /) -> str:
         return s.translate(self._table)
+
+    @property
+    def translate_table(self) -> dict[int, str]:
+        """The precomputed `str.translate` table this step applies — fused-engine seam (0018)."""
+        return self._table
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {"target": self.target.value}}

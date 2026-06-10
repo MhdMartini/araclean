@@ -63,6 +63,10 @@ dev = [
     "pytest>=8",
     "hypothesis>=6",
     "syrupy>=4",
+    # Micro-benchmarks for the fused str.translate engine (issue 0018, ADR-0006): the fused profile
+    # is shown to run in fewer char passes and faster than the unfused composition; the numbers feed
+    # the cross-tool benchmark harness (issue 0019).
+    "pytest-benchmark>=4",
     "pre-commit>=3.7",
     "commitizen>=4.16",
     # The optional `emoji` backend, so HandleEmoji's `demojize` mode is exercised in CI.
