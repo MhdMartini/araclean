@@ -12,7 +12,7 @@ fixed here because every later step must follow it.
 import html
 import re
 import unicodedata
-from collections.abc import Collection, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar, Literal, Protocol, Self, TypedDict, runtime_checkable
@@ -39,11 +39,15 @@ class Step(Protocol):
     a clear error otherwise. Steps precompute any table/regex at construction so `__call__` does
     no setup and no validation (ADR-0006).
 
-    A step satisfies the contract by exposing a `safety` attribute — the natural idiom is a
-    class-level ``safety = SafetyClass.…`` assignment (what built-in and custom steps both use).
+    A step satisfies the contract by exposing a readable `safety` attribute — the natural idiom is
+    a class-level ``safety = SafetyClass.…`` assignment (what built-in and custom steps both use).
+    It is a *read-only* member: a step's safety class is an intrinsic trait, never reassigned, so a
+    class variable, a frozen field (when the class varies it by config, like `HandleEmoji`), or a
+    property all satisfy it.
     """
 
-    safety: SafetyClass
+    @property
+    def safety(self) -> SafetyClass: ...
 
     def __call__(self, s: str, /) -> str: ...
 
@@ -981,3 +985,129 @@ class CleanHTML:
 
 
 registry.register(CleanHTML.name, CleanHTML.from_dict)
+
+
+class EmojiMode(StrEnum):
+    """How `HandleEmoji` treats emoji (story 35).
+
+    English: *emoji handling*. `KEEP` (default) leaves emoji in place so affective signal survives;
+    `STRIP` removes them; `DEMOJIZE` replaces each with its text alias (😍 → ``:heart_eyes:``),
+    which needs the optional ``emoji`` library (the ``[emoji]`` extra).
+    """
+
+    KEEP = "keep"  # leave emoji untouched (default — a lossless no-op)
+    STRIP = "strip"  # remove emoji
+    DEMOJIZE = "demojize"  # replace each emoji with its text alias (needs the [emoji] extra)
+
+
+class EmojiSupportNotInstalledError(ImportError):
+    """Raised when `HandleEmoji(mode="demojize")` is built without the optional ``emoji`` extra.
+
+    `KEEP`/`STRIP` need no dependency; only `DEMOJIZE` requires the ``emoji`` library, kept out of
+    the lean MIT core (ADR-0003). Subclasses `ImportError` so a caller probing for the capability
+    can catch it; the message says how to install the extra.
+    """
+
+
+def _load_demojize() -> Callable[[str], str]:
+    """Resolve ``emoji.demojize`` (the `DEMOJIZE` backend), or raise a clear, actionable error.
+
+    A module-level seam so the optional dependency is imported lazily (never at package import) and
+    its absence can be simulated in tests. Catches `ImportError` broadly so both a missing package
+    and a stubbed-out module surface as `EmojiSupportNotInstalledError`.
+    """
+    try:
+        import emoji
+    except ImportError as exc:
+        raise EmojiSupportNotInstalledError(
+            "HandleEmoji(mode='demojize') needs the optional `emoji` library, which is not "
+            "installed. Install it with: pip install 'araclean[emoji]'."
+        ) from exc
+    return emoji.demojize
+
+
+def _keep_emoji(s: str, /) -> str:
+    return s
+
+
+def _strip_emoji(s: str, /) -> str:
+    return chars.EMOJI.sub("", s)
+
+
+def handle_emoji(s: str, /, *, mode: EmojiMode = EmojiMode.KEEP) -> str:
+    """Keep, strip, or demojize emoji (default: keep) — cleaning, except `KEEP` (a no-op).
+
+    English: *emoji handling*. ``mode="strip"`` removes emoji; ``mode="demojize"`` replaces each
+    with its text alias (needs the ``[emoji]`` extra, else raises `EmojiSupportNotInstalledError`);
+    ``mode="keep"`` leaves them untouched.
+    """
+    mode = EmojiMode(mode)
+    if mode is EmojiMode.KEEP:
+        return _keep_emoji(s)
+    if mode is EmojiMode.STRIP:
+        return _strip_emoji(s)
+    return _load_demojize()(s)
+
+
+# `KEEP` is a pure no-op, so it is lossless `ENCODING_REPAIR` (safe even under LIGHT); `STRIP` and
+# `DEMOJIZE` discard or rewrite non-linguistic noise, so they are `CLEANING` (ADR-0011).
+_EMOJI_SAFETY: dict[EmojiMode, SafetyClass] = {
+    EmojiMode.KEEP: SafetyClass.ENCODING_REPAIR,
+    EmojiMode.STRIP: SafetyClass.CLEANING,
+    EmojiMode.DEMOJIZE: SafetyClass.CLEANING,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class HandleEmoji:
+    """Keep, strip, or demojize emoji — cleaning (non-linguistic noise), or a no-op when kept.
+
+    English: *emoji handling*. Social text carries affective signal in emoji, so the default `KEEP`
+    leaves them untouched (a lossless no-op). `STRIP` removes them; `DEMOJIZE` rewrites each to its
+    text alias (😍 → ``:smiling_face_with_heart_eyes:``) so the signal survives as words a tokenizer
+    can read. `safety` is therefore *mode-dependent*: `KEEP` is `ENCODING_REPAIR` (lossless, safe
+    under `LIGHT`); `STRIP`/`DEMOJIZE` are `CLEANING` (opt-in noise removal — ADR-0011).
+
+    `DEMOJIZE` needs the optional ``emoji`` library (the ``[emoji]`` extra), resolved once at
+    construction so the per-string call stays setup-free; building a `DEMOJIZE` step without the
+    extra raises `EmojiSupportNotInstalledError`. `KEEP`/`STRIP` need no dependency — `STRIP`
+    recognizes emoji from a built-in Unicode set, so the lean core covers it (it strips a whole
+    ZWJ sequence, leaving a standalone joiner — invisible formatting owned by StripBidi — alone).
+    """
+
+    mode: EmojiMode = EmojiMode.KEEP
+    # Derived from `mode`, precomputed at construction so __call__ does no setup (ADR-0003/0006);
+    # excluded from equality and repr since both follow from `mode`.
+    safety: SafetyClass = field(init=False, repr=False, compare=False)
+    _apply: Callable[[str], str] = field(init=False, repr=False, compare=False)
+    name: ClassVar[str] = "HandleEmoji"
+
+    def __post_init__(self) -> None:
+        # Coerce a plain string ("strip") to the enum so equality, serialization and dispatch are
+        # stable regardless of how the mode was passed, then resolve the per-call transform once.
+        mode = EmojiMode(self.mode)
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "safety", _EMOJI_SAFETY[mode])
+        if mode is EmojiMode.DEMOJIZE:
+            apply = _load_demojize()
+        elif mode is EmojiMode.STRIP:
+            apply = _strip_emoji
+        else:
+            apply = _keep_emoji
+        object.__setattr__(self, "_apply", apply)
+
+    def __call__(self, s: str, /) -> str:
+        return self._apply(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {"mode": self.mode.value}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "mode" in kwargs:
+            kwargs["mode"] = EmojiMode(kwargs["mode"])
+        return cls(**kwargs)
+
+
+registry.register(HandleEmoji.name, HandleEmoji.from_dict)

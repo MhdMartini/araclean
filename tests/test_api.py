@@ -199,6 +199,13 @@ def test_light_does_not_clean_urls_mentions_or_html() -> None:
     assert normalize(text) == text
 
 
+def test_light_does_not_handle_emoji() -> None:
+    # Stripping/demojizing emoji is opt-in CLEANING (issue 0013); the lossless default keeps the
+    # affective signal. The emoji and its NFC-stable, single-spaced surroundings survive verbatim.
+    text = chr(0x0623) + chr(0x062D) + chr(0x0628) + chr(0x0647) + " " + chr(0x1F60D)  # أحبه 😍
+    assert normalize(text) == text
+
+
 def test_default_profile_is_light() -> None:
     light_pipe = Pipeline.from_profile(LIGHT)
     for text in (DECOMPOSED, COMPOSED, "abc", TATWEEL):

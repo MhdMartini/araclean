@@ -38,7 +38,10 @@ Issues = "https://github.com/MhdMartini/araclean/issues"
 cli = []
 pandas = []
 polars = []
-all = ["araclean[cli]", "araclean[pandas]", "araclean[polars]"]
+# `emoji` powers HandleEmoji's `demojize` mode only (keep/strip are pure-Python). Kept behind an
+# extra so the lean MIT core never pulls it in (ADR-0003, story 4); it is BSD-licensed, not GPL.
+emoji = ["emoji>=2"]
+all = ["araclean[cli]", "araclean[pandas]", "araclean[polars]", "araclean[emoji]"]
 
 # Development tooling (PEP 735). `uv sync` installs this group by default.
 [dependency-groups]
@@ -51,6 +54,8 @@ dev = [
     "syrupy>=4",
     "pre-commit>=3.7",
     "commitizen>=4.16",
+    # The optional `emoji` backend, so HandleEmoji's `demojize` mode is exercised in CI.
+    "emoji>=2",
 ]
 
 [tool.hatch.build.targets.wheel]

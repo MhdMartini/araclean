@@ -1,5 +1,6 @@
 """Behavior of individual normalization steps (the `Step` family)."""
 
+import sys
 import unicodedata
 
 import pytest
@@ -13,11 +14,14 @@ from araclean import (
     CleanURLs,
     CollapseWhitespace,
     DigitTarget,
+    EmojiMode,
+    EmojiSupportNotInstalledError,
     FoldAlef,
     FoldAlefMaqsura,
     FoldHamza,
     FoldPresentationForms,
     FoldTehMarbuta,
+    HandleEmoji,
     MapDigits,
     MapPunctuation,
     MarkClass,
@@ -38,6 +42,7 @@ from araclean import (
     fold_hamza,
     fold_presentation_forms,
     fold_teh_marbuta,
+    handle_emoji,
     map_digits,
     map_punctuation,
     normalize_unicode,
@@ -1332,3 +1337,97 @@ def test_clean_html_is_idempotent_on_realistic_markup() -> None:
 def test_clean_html_never_raises(text: str) -> None:
     for mode in ("delete", "placeholder"):
         clean_html(text, mode=mode)  # type: ignore[arg-type]
+
+
+# --- HandleEmoji (issue 0013, story 35) — keep / strip / demojize ---
+
+# Code points, not glyphs, so the expectation is immune to how this file is saved. "أحبه" (I love
+# it) U+0623 U+062D U+0628 U+0647; 😍 is U+1F60D (smiling face with heart-eyes).
+_LOVE = chr(0x0623) + chr(0x062D) + chr(0x0628) + chr(0x0647)  # أحبه
+_HEART_EYES = chr(0x1F60D)  # 😍
+
+
+def test_handle_emoji_strip_removes_emoji_keeping_surrounding_text() -> None:
+    # The worked example (story 35): the emoji is removed, the text and the space before it stay.
+    assert HandleEmoji(mode=EmojiMode.STRIP)(f"{_LOVE} {_HEART_EYES}") == f"{_LOVE} "
+
+
+def test_handle_emoji_default_mode_is_keep_and_leaves_emoji_untouched() -> None:
+    # Default keeps affective signal: the emoji (and everything else) survives verbatim.
+    text = f"{_LOVE} {_HEART_EYES}"
+    assert HandleEmoji().mode is EmojiMode.KEEP
+    assert HandleEmoji()(text) == text
+    assert HandleEmoji(mode=EmojiMode.KEEP)(text) == text
+
+
+def test_handle_emoji_strip_removes_a_zwj_sequence_whole() -> None:
+    # A ZWJ family sequence (👨‍👩‍👧 = man ZWJ woman ZWJ girl) strips as one unit — no dangling
+    # joiner is left behind (the joiner is consumed only between emoji).
+    family = chr(0x1F468) + chr(0x200D) + chr(0x1F469) + chr(0x200D) + chr(0x1F467)
+    assert HandleEmoji(mode=EmojiMode.STRIP)(f"a{family}b") == "ab"
+
+
+def test_handle_emoji_strip_does_not_touch_arabic_or_digits() -> None:
+    # Soundness: STRIP recognizes only emoji, so Arabic letters and digits pass through untouched.
+    text = f"{_LOVE} {ARABIC_INDIC_123} 42"
+    assert HandleEmoji(mode=EmojiMode.STRIP)(text) == text
+
+
+def test_handle_emoji_keep_safety_is_encoding_repair() -> None:
+    # KEEP is a pure no-op, so it is lossless — safe to classify as ENCODING_REPAIR (ADR-0011).
+    assert HandleEmoji().safety is SafetyClass.ENCODING_REPAIR
+    assert HandleEmoji(mode=EmojiMode.KEEP).safety is SafetyClass.ENCODING_REPAIR
+
+
+def test_handle_emoji_strip_and_demojize_safety_is_cleaning() -> None:
+    # STRIP/DEMOJIZE discard or rewrite non-linguistic noise -> CLEANING, opt-in (not under LIGHT).
+    assert HandleEmoji(mode=EmojiMode.STRIP).safety is SafetyClass.CLEANING
+    assert HandleEmoji(mode=EmojiMode.DEMOJIZE).safety is SafetyClass.CLEANING
+
+
+def test_handle_emoji_demojize_replaces_emoji_with_a_text_alias() -> None:
+    # DEMOJIZE rewrites the emoji to a colon-wrapped text alias (the `emoji` extra is installed in
+    # dev); the literal emoji is gone and readable words take its place.
+    result = HandleEmoji(mode=EmojiMode.DEMOJIZE)(_HEART_EYES)
+    assert _HEART_EYES not in result
+    assert result.startswith(":") and result.endswith(":")
+
+
+def test_handle_emoji_demojize_without_the_extra_raises_a_clear_error() -> None:
+    # With the optional `emoji` backend unavailable, building a DEMOJIZE step fails fast at
+    # construction with an actionable error naming the extra (ADR-0003 lean core).
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setitem(sys.modules, "emoji", None)  # make `import emoji` fail
+        with pytest.raises(EmojiSupportNotInstalledError, match=r"araclean\[emoji\]"):
+            HandleEmoji(mode=EmojiMode.DEMOJIZE)
+        with pytest.raises(EmojiSupportNotInstalledError):
+            handle_emoji(_HEART_EYES, mode=EmojiMode.DEMOJIZE)
+
+
+def test_handle_emoji_serializes_its_mode_and_round_trips() -> None:
+    step = HandleEmoji(mode=EmojiMode.STRIP)
+    assert step.to_dict() == {"name": "HandleEmoji", "config": {"mode": "strip"}}
+    rebuilt = HandleEmoji.from_dict(step.to_dict()["config"])
+    assert rebuilt == step
+    assert rebuilt(f"x{_HEART_EYES}") == "x"
+    # Bare config -> the keep default, reconstructed through the registry.
+    built = registry.build("HandleEmoji", {})
+    assert built == HandleEmoji()
+    assert built(_HEART_EYES) == _HEART_EYES
+
+
+def test_handle_emoji_free_function_agrees_with_step() -> None:
+    text = f"{_LOVE} {_HEART_EYES}"
+    assert handle_emoji(text) == HandleEmoji()(text)
+    assert handle_emoji(text, mode=EmojiMode.STRIP) == HandleEmoji(mode=EmojiMode.STRIP)(text)
+    assert handle_emoji(_HEART_EYES, mode=EmojiMode.DEMOJIZE) == HandleEmoji(
+        mode=EmojiMode.DEMOJIZE
+    )(_HEART_EYES)
+
+
+@given(st.text())
+def test_handle_emoji_keep_and_strip_are_total_and_idempotent(text: str) -> None:
+    # The AC: never raises on arbitrary text in keep/strip, and both are fixed points.
+    for mode in ("keep", "strip"):
+        once = handle_emoji(text, mode=mode)  # type: ignore[arg-type]
+        assert handle_emoji(once, mode=mode) == once  # type: ignore[arg-type]

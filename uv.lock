@@ -23,9 +23,18 @@ dependencies = [
     { name = "pydantic" },
 ]
 
+[package.optional-dependencies]
+all = [
+    { name = "emoji" },
+]
+emoji = [
+    { name = "emoji" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "commitizen" },
+    { name = "emoji" },
     { name = "hypothesis" },
     { name = "mypy" },
     { name = "pre-commit" },
@@ -38,15 +47,18 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "araclean", extras = ["cli"], marker = "extra == 'all'" },
+    { name = "araclean", extras = ["emoji"], marker = "extra == 'all'" },
     { name = "araclean", extras = ["pandas"], marker = "extra == 'all'" },
     { name = "araclean", extras = ["polars"], marker = "extra == 'all'" },
+    { name = "emoji", marker = "extra == 'emoji'", specifier = ">=2" },
     { name = "pydantic", specifier = ">=2" },
 ]
-provides-extras = ["cli", "pandas", "polars", "all"]
+provides-extras = ["cli", "pandas", "polars", "emoji", "all"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "commitizen", specifier = ">=4.16" },
+    { name = "emoji", specifier = ">=2" },
     { name = "hypothesis", specifier = ">=6" },
     { name = "mypy", specifier = ">=1.11" },
     { name = "pre-commit", specifier = ">=3.7" },
@@ -247,6 +259,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/86/b2/d6fc3f2347f43dada79e5ff118493e8109c98400a0e29a1d5264a3aa479b/distlib-0.4.1.tar.gz", hash = "sha256:c3804d0d2d4b5fcd44036eb860cb6660485fcdf5c2aba53dc324d805837ea65b", size = 610526, upload-time = "2026-06-02T11:17:40.691Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/25/18/3497c4fa83a76dcb154923fd2075522e8dd6995ecee4093c00ae18160046/distlib-0.4.1-py2.py3-none-any.whl", hash = "sha256:9c2c552c68cbadc619f2d0ed3a69e27c351a3f4c9baa9ffb7df9e9cdc3d19a97", size = 469216, upload-time = "2026-06-02T11:17:38.779Z" },
+]
+
+[[package]]
+name = "emoji"
+version = "2.15.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a2/78/0d2db9382c92a163d7095fc08efff7800880f830a152cfced40161e7638d/emoji-2.15.0.tar.gz", hash = "sha256:eae4ab7d86456a70a00a985125a03263a5eac54cd55e51d7e184b1ed3b6757e4", size = 615483, upload-time = "2025-09-21T12:13:02.755Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/5e/4b5aaaabddfacfe36ba7768817bd1f71a7a810a43705e531f3ae4c690767/emoji-2.15.0-py3-none-any.whl", hash = "sha256:205296793d66a89d88af4688fa57fd6496732eb48917a87175a023c8138995eb", size = 608433, upload-time = "2025-09-21T12:13:01.197Z" },
 ]
 
 [[package]]

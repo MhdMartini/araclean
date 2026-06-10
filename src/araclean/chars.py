@@ -469,3 +469,53 @@ MENTION: re.Pattern[str] = re.compile(r"@\w+")
 # &amp; in the text becomes '&' while an intentionally escaped &lt;b&gt; stays literal text (it was
 # never markup). The unescape step is always applied; only the tag span is delete-or-placeholder.
 HTML_TAG: re.Pattern[str] = re.compile(r"<[^>]+>")
+
+
+# --- Emoji set (issue 0013, story 35) ---------------------------------------------------------
+#
+# HandleEmoji's STRIP mode recognizes emoji WITHOUT the optional `emoji` library (only DEMOJIZE
+# pulls that in), so the set lives here as a precompiled regex. It is the contiguous emoji /
+# pictographic Unicode blocks below, plus the two emoji-specific combining modifiers (the emoji
+# variation selector U+FE0F, the skin-tone modifiers U+1F3FB-U+1F3FF). The zero-width joiner U+200D
+# is consumed only BETWEEN emoji, so a ZWJ sequence (👨‍👩‍👧) strips whole; a standalone ZWJ is
+# invisible formatting owned by StripBidi, not emoji content, so it is never matched on its own.
+#
+# Stated principle: SOUNDNESS, not completeness (like ELONGATABLE_LETTERS). The chosen blocks are
+# essentially all emoji/pictographs and are disjoint from Arabic letters/marks/digits and ASCII, so
+# STRIP never corrupts Arabic text or a number; a rarer emoji-bearing block left out (Mahjong /
+# Dominoes / Playing Cards, the clock subset of Miscellaneous Technical) only leaves an exotic emoji
+# intact. Two adjacent regional indicators (a flag) are stripped as two separate matches, which for
+# deletion is equivalent to removing the flag.
+_EMOJI_BASE_RANGES: tuple[tuple[int, int], ...] = (
+    (0x1F300, 0x1F5FF),  # Miscellaneous Symbols and Pictographs
+    (0x1F600, 0x1F64F),  # Emoticons
+    (0x1F680, 0x1F6FF),  # Transport and Map Symbols
+    (0x1F900, 0x1F9FF),  # Supplemental Symbols and Pictographs
+    (0x1FA00, 0x1FAFF),  # Symbols and Pictographs Extended-A
+    (0x1F1E6, 0x1F1FF),  # Regional Indicator Symbols (flags)
+    (0x2600, 0x26FF),  # Miscellaneous Symbols
+    (0x2700, 0x27BF),  # Dingbats
+)
+# Modifiers that extend a preceding base emoji: the emoji variation selector and the skin tones.
+_EMOJI_MODIFIER_RANGES: tuple[tuple[int, int], ...] = (
+    (0xFE0F, 0xFE0F),  # Variation Selector-16 (request emoji presentation)
+    (0x1F3FB, 0x1F3FF),  # Emoji modifiers Fitzpatrick types 1-2 .. 6 (skin tone)
+)
+ZERO_WIDTH_JOINER = 0x200D
+
+
+def _char_class_body(ranges: tuple[tuple[int, int], ...]) -> str:
+    """A regex character-class body for the given inclusive code-point ranges, built from code
+    points (so no raw emoji appears in source). Each endpoint is re.escape'd for safety."""
+    return "".join(
+        re.escape(chr(lo)) + (f"-{re.escape(chr(hi))}" if hi != lo else "") for lo, hi in ranges
+    )
+
+
+_EMOJI_BASE_CLASS = _char_class_body(_EMOJI_BASE_RANGES)
+_EMOJI_MODIFIER_CLASS = _char_class_body(_EMOJI_MODIFIER_RANGES)
+# A base emoji with any trailing modifiers, then any number of ZWJ-joined further emoji+modifiers.
+EMOJI: re.Pattern[str] = re.compile(
+    rf"[{_EMOJI_BASE_CLASS}][{_EMOJI_MODIFIER_CLASS}]*"
+    rf"(?:{re.escape(chr(ZERO_WIDTH_JOINER))}[{_EMOJI_BASE_CLASS}][{_EMOJI_MODIFIER_CLASS}]*)*"
+)
