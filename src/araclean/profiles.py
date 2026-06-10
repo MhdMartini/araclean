@@ -66,7 +66,37 @@ LIGHT = Profile(
     ],
 )
 
-_PROFILES: dict[str, Profile] = {LIGHT.name: LIGHT}
+# SEARCH: maximize recall by composing every lossy fold on top of LIGHT's encoding repair, in the
+# PRD ordering contract -- encoding repair -> tashkeel removal -> letter folding ->
+# digit/punctuation mapping -> cleanup. Spelling/vocalization distinctions that split
+# otherwise-identical words are deliberately collapsed (على == علي, مدرسة == مدرسه, ١٢٣ == 123),
+# so every added step is
+# LINGUISTIC_FOLDING -- SEARCH is lossy and opt-in (ADR-0004), never the default.
+#
+# It is defined as LIGHT's steps verbatim plus the folds, so "SEARCH does everything LIGHT does"
+# (search ⊇ light) holds by construction: LIGHT(SEARCH(x)) == SEARCH(x). Each fold uses its step
+# default, which is exactly what SEARCH wants -- RemoveTashkeel removes every mark class, MapDigits
+# targets ASCII, FoldTehMarbuta targets heh, ReduceElongation caps at 1 -- so no config is pinned
+# here. No closing NFC pass is appended: the folds only delete marks or rewrite a base letter to
+# another base letter, and the only NFC-composing Arabic marks (madda U+0653, hamza U+0654/U+0655)
+# are deleted by RemoveTashkeel / FoldHamza, so SEARCH's output is already NFC. That postcondition
+# is pinned by the LIGHT-stability property test rather than asserted by a redundant pass.
+SEARCH = Profile(
+    name="search",
+    steps=[
+        *LIGHT.steps,
+        StepSpec(name="RemoveTashkeel"),  # all mark classes (harakat/tanween/shadda/madda/...)
+        StepSpec(name="FoldAlef"),
+        StepSpec(name="FoldHamza"),
+        StepSpec(name="FoldTehMarbuta"),  # -> heh (default target)
+        StepSpec(name="FoldAlefMaqsura"),
+        StepSpec(name="MapDigits"),  # -> ASCII (default target)
+        StepSpec(name="MapPunctuation"),  # -> Latin , ; ?
+        StepSpec(name="ReduceElongation"),  # cap 1 (default)
+    ],
+)
+
+_PROFILES: dict[str, Profile] = {LIGHT.name: LIGHT, SEARCH.name: SEARCH}
 
 
 def get_profile(name: str) -> Profile:

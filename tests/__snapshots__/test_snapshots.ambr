@@ -20,3 +20,22 @@
     'whitespace': 'a b',
   })
 # ---
+# name: test_search_profile_golden_snapshot
+  dict({
+    'alef-variants': 'ا ا ا ا',
+    'arabizi-untouched': '3arab',
+    'ascii': 'Hello, world!',
+    'dagger-alef': 'هذا',
+    'digits': '123 456',
+    'elongation': 'جميل',
+    'empty': '',
+    'hamza-carriers': 'مومن سيل ء',
+    'lam-alef-then-folded': 'لا',
+    'maqsura': 'علي',
+    'number-separator-preserved': '123،456',
+    'punctuation': 'نعم, لا?',
+    'tatweel': 'محمد',
+    'teh-marbuta': 'مدرسه',
+    'vocalized-msa': 'كتب',
+  })
+# ---
