@@ -46,7 +46,9 @@ cli = ["typer>=0.12"]
 # pandas powers the `.araclean` Series accessor (issue 0021); kept behind an extra so the lean
 # core never imports it (ADR-0003). `import araclean.pandas` registers the accessor and needs this.
 pandas = ["pandas>=2"]
-polars = []
+# polars powers the `.araclean` Series namespace (issue 0022); kept behind an extra so the lean
+# core never imports it (ADR-0003). `import araclean.polars` registers the namespace and needs this.
+polars = ["polars>=1"]
 # `emoji` powers HandleEmoji's `demojize` mode only (keep/strip are pure-Python). Kept behind an
 # extra so the lean MIT core never pulls it in (ADR-0003, story 4); it is BSD-licensed, not GPL.
 emoji = ["emoji>=2"]
@@ -71,6 +73,9 @@ dev = [
     # exercised and type-checked in CI. pandas ships no py.typed; pandas-stubs supplies the types.
     "pandas>=2",
     "pandas-stubs>=2",
+    # The [polars] extra's backend, so the polars accessor (issue 0022) is exercised and
+    # type-checked in CI. polars ships its own py.typed, so no separate stubs are needed.
+    "polars>=1",
     # An independent JSON Schema validator, so tests prove a profile's emitted JSON validates
     # against its emitted JSON Schema (story 40) — the schema is published, not just pydantic-internal.
     "jsonschema>=4",
