@@ -56,6 +56,10 @@ dev = [
     "commitizen>=4.16",
     # The optional `emoji` backend, so HandleEmoji's `demojize` mode is exercised in CI.
     "emoji>=2",
+    # An independent JSON Schema validator, so tests prove a profile's emitted JSON validates
+    # against its emitted JSON Schema (story 40) — the schema is published, not just pydantic-internal.
+    "jsonschema>=4",
+    "types-jsonschema>=4",
 ]
 
 [tool.hatch.build.targets.wheel]

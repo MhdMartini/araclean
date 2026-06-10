@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, TypedDict
 
 from araclean import registry
 from araclean.profiles import Profile, get_profile
+from araclean.safety import SafetyClass, SafetyReport
 from araclean.steps import (
     AlignmentNotSupportedError,
     SerializableStep,
@@ -85,6 +86,22 @@ class Pipeline:
                 )
             chosen.append(matches[0])
         return Pipeline(chosen)
+
+    def audit(self) -> SafetyReport:
+        """Audit this pipeline's safety: is it lossless, and if not, what it loses (story 41).
+
+        Pure in-process computation: it reads each step's declared `safety` (fixed at construction)
+        and buckets the step names by class, so an auditor can verify a pipeline is lossless or
+        enumerate exactly the lossy steps it carries. The buckets preserve pipeline order.
+        """
+        buckets: dict[SafetyClass, list[str]] = {safety_class: [] for safety_class in SafetyClass}
+        for step in self._steps:
+            buckets[step.safety].append(_step_name(step))
+        return SafetyReport(
+            encoding_repair=tuple(buckets[SafetyClass.ENCODING_REPAIR]),
+            linguistic_folding=tuple(buckets[SafetyClass.LINGUISTIC_FOLDING]),
+            cleaning=tuple(buckets[SafetyClass.CLEANING]),
+        )
 
     def apply_aligned(self, text: str, /) -> tuple[str, object]:
         """Reserved offset/alignment entry point — not implemented in v1 (ADR-0005).

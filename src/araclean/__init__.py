@@ -3,9 +3,10 @@
 from importlib.metadata import PackageNotFoundError, version
 
 from araclean.api import normalize
+from araclean.config import NormalizeConfig, ProfileName
 from araclean.pipeline import Pipeline
 from araclean.profiles import CLASSICAL, LIGHT, ML, SEARCH, SOCIAL, Profile
-from araclean.safety import SafetyClass
+from araclean.safety import SafetyClass, SafetyReport
 from araclean.steps import (
     AlignmentNotSupportedError,
     CleanHTML,
@@ -82,13 +83,16 @@ __all__ = [
     "MapDigits",
     "MapPunctuation",
     "MarkClass",
+    "NormalizeConfig",
     "NormalizeUnicode",
     "Pipeline",
     "Profile",
+    "ProfileName",
     "ReduceElongation",
     "RemoveTashkeel",
     "RemoveTatweel",
     "SafetyClass",
+    "SafetyReport",
     "Step",
     "StripBidi",
     "TehMarbutaTarget",
