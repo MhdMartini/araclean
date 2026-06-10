@@ -66,6 +66,31 @@ LIGHT = Profile(
     ],
 )
 
+
+# --- The shared closing tail of the lossy profiles -----------------------------------------------
+#
+# The three lossy profiles below (SEARCH, ML, SOCIAL) each END WITH THE SAME TAIL as LIGHT -- a
+# CollapseWhitespace then an NFC pass -- re-applied AFTER their own folds. It is load-bearing, not
+# redundant: LIGHT's copies of those two steps run mid-pipeline (inside the embedded *LIGHT.steps),
+# and the folds that follow can undo the postcondition each established:
+#
+#   - WHITESPACE. FoldPresentationForms (a per-glyph NFKC fold) expands the isolated-form tashkeel
+#     ligatures to a mark on a SPACE carrier -- NFKC(U+FC5E) = space + dammatan + shadda -- so a
+#     mark can sit between two spaces; RemoveTashkeel / FoldHamza then delete it, and SOCIAL's
+#     cleaning deletes whole spans, each leaving two spaces adjacent. The closing CollapseWhitespace
+#     re-collapses them (reusing LIGHT's line-preserving config, so line structure is unchanged).
+#   - CANONICAL ORDER. Deleting a *blocking* combining mark can EXPOSE a composition the
+#     mid-pipeline NFC already passed: NFC(alef + Qur'anic mark U+06DC + hamza U+0654) keeps the
+#     alef bare (the mark blocks the alef+hamza compose), but RemoveTashkeel strips that blocker and
+#     leaves alef + combining hamza, which is NOT NFC. SEARCH's FoldHamza deletes the hamza too, but
+#     ML/SOCIAL keep it -- so rather than reason per profile about which composable marks each fold
+#     leaves behind (easy to get wrong), every profile simply re-canonicalizes with a closing NFC.
+#
+# The result is one uniform postcondition -- every profile's output is whitespace-collapsed NFC, by
+# construction -- pinned by the idempotence / LIGHT-stability property tests (with the U+FC5E,
+# floating-hamza and exposed-hamza inputs as explicit examples), not by a per-profile argument.
+# -------------------------------------------------------------------------------------------------
+
 # SEARCH: maximize recall by composing every lossy fold on top of LIGHT's encoding repair, in the
 # PRD ordering contract -- encoding repair -> tashkeel removal -> letter folding ->
 # digit/punctuation mapping -> cleanup. Spelling/vocalization distinctions that split
@@ -73,14 +98,11 @@ LIGHT = Profile(
 # so every added step is
 # LINGUISTIC_FOLDING -- SEARCH is lossy and opt-in (ADR-0004), never the default.
 #
-# It is defined as LIGHT's steps verbatim plus the folds, so "SEARCH does everything LIGHT does"
-# (search ⊇ light) holds by construction: LIGHT(SEARCH(x)) == SEARCH(x). Each fold uses its step
-# default, which is exactly what SEARCH wants -- RemoveTashkeel removes every mark class, MapDigits
-# targets ASCII, FoldTehMarbuta targets heh, ReduceElongation caps at 1 -- so no config is pinned
-# here. No closing NFC pass is appended: the folds only delete marks or rewrite a base letter to
-# another base letter, and the only NFC-composing Arabic marks (madda U+0653, hamza U+0654/U+0655)
-# are deleted by RemoveTashkeel / FoldHamza, so SEARCH's output is already NFC. That postcondition
-# is pinned by the LIGHT-stability property test rather than asserted by a redundant pass.
+# It is defined as LIGHT's steps verbatim, then the folds, then the shared closing tail (see the
+# note above). So search ⊇ light -- "SEARCH does everything LIGHT does", LIGHT(SEARCH(x)) ==
+# SEARCH(x). Each fold uses its step default, which is exactly what SEARCH wants -- RemoveTashkeel
+# removes every mark class, MapDigits targets ASCII, FoldTehMarbuta targets heh, ReduceElongation
+# caps at 1 -- so no config is pinned here.
 SEARCH = Profile(
     name="search",
     steps=[
@@ -93,6 +115,10 @@ SEARCH = Profile(
         StepSpec(name="MapDigits"),  # -> ASCII (default target)
         StepSpec(name="MapPunctuation"),  # -> Latin , ; ?
         StepSpec(name="ReduceElongation"),  # cap 1 (default)
+        # Shared closing tail (see the note above): re-collapse whitespace the folds re-expose, then
+        # re-canonicalize. Sits last, after every fold.
+        StepSpec(name="CollapseWhitespace"),
+        StepSpec(name="NormalizeUnicode", config={"form": "NFC"}),
     ],
 )
 
@@ -104,16 +130,15 @@ SEARCH = Profile(
 # of the 0007 letter folds and neither digit nor punctuation map -- it sits strictly between LIGHT
 # and SEARCH (LIGHT ⊆ ML ⊊ SEARCH on what it removes).
 #
-# Like SEARCH, ML is defined as LIGHT's steps verbatim plus its two folds, so "ML does everything
-# LIGHT does" holds by construction: LIGHT(ML(x)) == ML(x). Each fold uses its step default
-# (RemoveTashkeel removes every mark class; ReduceElongation caps at 1 -- the maximal collapse a
-# model-input pipeline wants), so no config is pinned here. Ordering follows the PRD contract:
-# encoding repair -> tashkeel removal -> elongation cleanup. RemoveTashkeel runs BEFORE
-# ReduceElongation so that marks sitting between repeated letters (e.g. a vocalized elongation) are
-# gone first, leaving the letters adjacent for the cap to collapse. No closing NFC is appended: as
-# in SEARCH, the two folds only delete marks or collapse a base letter onto an identical base
-# letter, so the output stays NFC (pinned by the LIGHT-stability property test, not a redundant
-# pass).
+# Like SEARCH, ML is defined as LIGHT's steps verbatim, then its two folds, then the shared closing
+# tail (see the note above), so "ML does everything LIGHT does" (ML ⊇ LIGHT, LIGHT(ML(x)) == ML(x))
+# holds. Each fold uses its step default (RemoveTashkeel removes every mark class; ReduceElongation
+# caps at 1 -- the maximal collapse a model-input pipeline wants), so no config is pinned here.
+# Ordering follows the PRD contract: encoding repair -> tashkeel removal -> elongation cleanup.
+# RemoveTashkeel runs BEFORE ReduceElongation so that marks between repeated letters (e.g. a
+# vocalized elongation) are gone first, leaving the letters adjacent for the cap to collapse. ML
+# keeps combining hamza (it runs no FoldHamza), so the closing NFC of the shared tail is what
+# guarantees its output is canonical -- the CANONICAL ORDER case in the note above is an ML input.
 #
 # The OPTIONAL digit fold (MapDigits) the story names is deliberately OFF by default here so ML's
 # letter-and-distinction-preserving guarantee is the contract; turning it on is a config override,
@@ -125,6 +150,10 @@ ML = Profile(
         *LIGHT.steps,
         StepSpec(name="RemoveTashkeel"),  # all mark classes (dediacritization for model input)
         StepSpec(name="ReduceElongation"),  # cap 1 (default): collapse emphatic lengthening
+        # Shared closing tail (see the note above): re-collapse re-exposed whitespace, then
+        # re-canonicalize (ML keeps hamza, so this NFC is load-bearing). Sits last, after the folds.
+        StepSpec(name="CollapseWhitespace"),
+        StepSpec(name="NormalizeUnicode", config={"form": "NFC"}),
     ],
 )
 
@@ -179,9 +208,16 @@ CLASSICAL = Profile(name="classical", steps=[*LIGHT.steps])
 #      vocalized stretch un-capped. (This is why this profile diverges from the issue's informal
 #      "ReduceElongation + RemoveTashkeel" listing.)
 #
-# HandleEmoji(keep) sits last; it is a no-op here, but keeping it explicit makes emoji a named,
-# overridable SOCIAL knob (strip / demojize, issue 0016) rather than an omission. SOCIAL is lossy
-# (it carries CLEANING + LINGUISTIC_FOLDING steps), so it is never the default and never lossless.
+# HandleEmoji(keep) is a no-op here, but keeping it explicit makes emoji a named, overridable SOCIAL
+# knob (strip / demojize, issue 0016) rather than an omission.
+#
+# SOCIAL then ends with the shared closing tail (see the note above), which earns its keep here more
+# than in any other profile: its cleaning steps delete whole spans (a stripped HTML tag leaves a
+# whitespace gap) and an emoji-strip override deletes emoji from between spaces, both re-exposing
+# whitespace; and like ML it keeps combining hamza, so the closing NFC re-canonicalizes. SOCIAL is
+# lossy (it carries CLEANING + LINGUISTIC_FOLDING steps), so it is never the default and never
+# lossless. (Strict idempotence still holds only on realistic markup -- CleanHTML's html.unescape
+# decodes one level, an unrelated documented limit of that step.)
 SOCIAL = Profile(
     name="social",
     steps=[
@@ -195,6 +231,10 @@ SOCIAL = Profile(
             name="ReduceElongation", config={"cap": 2}
         ),  # keep emphasis up to a doubled letter
         StepSpec(name="HandleEmoji"),  # keep (default): emoji is the affective signal
+        # Shared closing tail (see the note above): re-collapse whitespace the cleaning steps /
+        # emoji-strip re-expose, then re-canonicalize. Sits last, after every step.
+        StepSpec(name="CollapseWhitespace"),
+        StepSpec(name="NormalizeUnicode", config={"form": "NFC"}),
     ],
 )
 

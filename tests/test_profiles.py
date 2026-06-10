@@ -4,7 +4,7 @@ import unicodedata
 from collections import Counter
 
 import pytest
-from hypothesis import given
+from hypothesis import example, given
 from hypothesis import strategies as st
 
 from araclean import LIGHT, Pipeline, Profile, SafetyClass, normalize
@@ -25,6 +25,28 @@ ANY_TEXT = st.text(
 
 # alef + combining hamza (decomposed) so LIGHT's NFC has real work to do; tail = three letters.
 DECOMPOSED = chr(0x0627) + chr(0x0654) + chr(0x062D) + chr(0x0645) + chr(0x062F)
+
+# Whitespace re-exposed AFTER LIGHT's mid-pipeline CollapseWhitespace, the regression these pin.
+# U+FC5E (ARABIC LIGATURE SHADDA WITH DAMMATAN ISOLATED FORM) is a presentation form whose per-glyph
+# NFKC fold carries its marks on a SPACE: NFKC(U+FC5E) = space + dammatan + shadda. So
+# FoldPresentationForms turns "U+FC5E " into " <marks> " (a space, the marks, the trailing space);
+# the lossy profiles' RemoveTashkeel then deletes the marks, leaving two adjacent spaces that the
+# LIGHT block's CollapseWhitespace already passed. Without the profiles' closing CollapseWhitespace
+# this breaks idempotence and LIGHT-stability. Pinned as an explicit example so the regression is
+# caught deterministically, not only when Hypothesis' shared example DB happens to replay it.
+ISOLATED_TASHKEEL_THEN_SPACE = chr(0xFC5E) + " "
+# A bare combining hamza floating between two spaces: SEARCH's FoldHamza deletes U+0654 the same way
+# RemoveTashkeel deletes a mark, re-exposing adjacent whitespace via a different fold (SEARCH only).
+FLOATING_HAMZA = " " + chr(0x0654) + " "
+
+# A composition the lossy profiles' mid-pipeline NFC can't see coming: alef + a Qur'anic mark
+# (U+06DC) + combining hamza (U+0654). The Qur'anic mark BLOCKS the alef+hamza compose, so this is
+# valid NFC; but RemoveTashkeel strips the blocker, exposing alef + hamza, which IS composable.
+# ML/SOCIAL keep the hamza (they run no FoldHamza), so without the profiles' closing NFC their
+# output is the non-NFC decomposed form — breaking the NFC postcondition, LIGHT-stability and
+# idempotence. (SEARCH's FoldHamza deletes the hamza, so it was never affected; the shared closing
+# tail covers every profile uniformly regardless.)
+BLOCKED_HAMZA = unicodedata.normalize("NFC", chr(0x0627) + chr(0x06DC) + chr(0x0654))
 
 
 def test_light_profile_applies_only_nfc() -> None:
@@ -103,16 +125,22 @@ def test_search_facade_equals_explicit_pipeline() -> None:
 
 
 @given(ANY_TEXT)
+@example(ISOLATED_TASHKEEL_THEN_SPACE)  # RemoveTashkeel re-exposes whitespace LIGHT collapsed
+@example(FLOATING_HAMZA)  # FoldHamza does the same on a floating combining hamza
+@example(BLOCKED_HAMZA)  # exposed alef+hamza -> non-NFC without the closing tail's NFC
 def test_search_output_is_light_stable(text: str) -> None:
     # search ⊇ light (AC3): SEARCH does everything LIGHT does, so its output is a LIGHT fixed point.
-    # This also pins the postcondition that SEARCH's output is NFC (the closing pass LIGHT applies
-    # is a no-op on it), justifying that SEARCH needs no trailing NFC of its own.
+    # This also pins that SEARCH's output is NFC and whitespace-collapsed -- the shared closing tail
+    # (CollapseWhitespace + NFC) makes LIGHT a no-op on it. The three explicit examples exercise the
+    # whitespace and canonical-order cases that tail exists to handle.
     light = Pipeline.from_profile(LIGHT)
     searched = normalize(text, profile="search")
     assert light(searched) == searched
 
 
 @given(ANY_TEXT)
+@example(ISOLATED_TASHKEEL_THEN_SPACE)  # was '  ' (two spaces) on the second pass before the fix
+@example(FLOATING_HAMZA)
 def test_search_never_raises_and_is_idempotent(text: str) -> None:
     once = normalize(text, profile="search")  # total over arbitrary text, incl. lone surrogates
     assert normalize(once, profile="search") == once  # idempotent fixed point
@@ -175,16 +203,21 @@ def test_ml_facade_equals_explicit_pipeline() -> None:
 
 
 @given(ANY_TEXT)
+@example(ISOLATED_TASHKEEL_THEN_SPACE)  # RemoveTashkeel re-exposes whitespace LIGHT collapsed
+@example(BLOCKED_HAMZA)  # RemoveTashkeel exposes alef+hamza -> non-NFC without the closing NFC
 def test_ml_output_is_light_stable(text: str) -> None:
     # ML ⊇ LIGHT (AC: LIGHT(ML(x)) == ML(x)): ML does everything LIGHT does, so its output is a
-    # LIGHT fixed point. This also pins that ML's output is NFC (LIGHT's closing pass is a no-op on
-    # it), justifying that ML appends no trailing NFC of its own — exactly as SEARCH does.
+    # LIGHT fixed point. This also pins that ML's output is NFC and whitespace-collapsed -- the
+    # shared closing tail (CollapseWhitespace + NFC) makes LIGHT a no-op on it. The two explicit
+    # examples exercise the whitespace and canonical-order cases that tail exists to handle.
     light = Pipeline.from_profile(LIGHT)
     cleaned = normalize(text, profile="ml")
     assert light(cleaned) == cleaned
 
 
 @given(ANY_TEXT)
+@example(ISOLATED_TASHKEEL_THEN_SPACE)  # was '  ' (two spaces) on the second pass before the fix
+@example(BLOCKED_HAMZA)  # was the non-NFC decomposed alef+hamza on the second pass before the fix
 def test_ml_never_raises_and_is_idempotent(text: str) -> None:
     once = normalize(text, profile="ml")  # total over arbitrary text, incl. lone surrogates
     assert normalize(once, profile="ml") == once  # idempotent fixed point
@@ -537,6 +570,22 @@ def test_social_is_idempotent_on_realistic_noisy_text() -> None:
     text = f"<p>{stretched} {with_tanween}</p> @user &amp; {_HEART_EYES} https://example.com/path"
     once = normalize(text, profile="social")
     assert normalize(once, profile="social") == once
+
+
+def test_social_output_is_idempotent_and_nfc_on_exposed_whitespace_and_composition() -> None:
+    # SOCIAL re-tidies what its lossy folds / cleaning re-expose AFTER LIGHT's own closing tail has
+    # run — the SOCIAL analogue of the SEARCH/ML property tests, which can't run over ARBITRARY text
+    # here (CleanHTML's one-level html.unescape breaks strict idempotence). Three exposures, all
+    # fixed by the shared closing tail (CollapseWhitespace + NFC):
+    #   - RemoveTashkeel deletes a mark the isolated-form presentation fold left on a space;
+    #   - an HTML tag strip leaves two spaces adjacent; and
+    #   - RemoveTashkeel deletes a blocking mark, exposing an alef+hamza the closing NFC composes.
+    tag_gap = "x </b><b> y"  # stripping both tags leaves "x  y" (two spaces) to re-collapse
+    nested_gap = f"<b>{chr(0x0623)}</b>  <b>{chr(0x0628)}</b>"  # two literal spaces between tags
+    for text in (ISOLATED_TASHKEEL_THEN_SPACE, tag_gap, nested_gap, BLOCKED_HAMZA):
+        once = normalize(text, profile="social")
+        assert normalize(once, profile="social") == once  # idempotent fixed point
+        assert unicodedata.is_normalized("NFC", once)  # and the NFC postcondition holds
 
 
 def _social_with(replacements: dict[type, object]) -> Pipeline:
