@@ -33,6 +33,13 @@ invisibles
 precomputes
 configurably
 elongatable
+disjointness
+
+# linguistics vocabulary (stopword handling, issue 0017) the bundled dicts lack
+clitics
+proclitics
+enclitics
+subordinators
 
 # emoji handling (issue 0013) — the `emoji` library's verb and its inflections
 demojize

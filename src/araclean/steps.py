@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar, Literal, Protocol, Self, TypedDict, runtime_checkable
 
-from araclean import chars, registry
+from araclean import chars, registry, stopwords
 from araclean.safety import SafetyClass
 
 type UnicodeForm = Literal["NFC", "NFD", "NFKC", "NFKD"]
@@ -1111,3 +1111,60 @@ class HandleEmoji:
 
 
 registry.register(HandleEmoji.name, HandleEmoji.from_dict)
+
+
+def remove_stopwords(s: str, /) -> str:
+    """Remove the curated Arabic stopwords from `s` — lossy linguistic folding.
+
+    English: *stopword removal*. Deletes each whole-token occurrence of a word in the bundled,
+    versioned list (see `araclean.stopwords`); surrounding whitespace is left as written. The list
+    is flat (not clitic-aware) and negation-safe — ``ما`` / ``لا`` / ``لم`` / ``لن`` / ``ليس`` are
+    kept so sentiment is never silently flipped.
+    """
+    return stopwords.STOPWORD_PATTERN.sub("", s)
+
+
+@dataclass(frozen=True, slots=True)
+class RemoveStopwords:
+    """Remove curated Arabic stopwords — function-word filtering — lossy linguistic folding.
+
+    English: *stopword removal*. Deletes whole-token occurrences of the bundled, versioned Arabic
+    stopword list (`araclean.stopwords`) — prepositions, pronouns, demonstratives, relative
+    pronouns, neutral conjunctions and particles — so high-frequency function words stop drowning
+    out content words (IR/retrieval, bag-of-words features). It discards linguistic content from the
+    Arabic text, so `safety` is `LINGUISTIC_FOLDING`: opt-in via a lossy profile or an explicit
+    step, never under `LIGHT` (it is content removal, not non-linguistic-noise cleaning — ADR-0011).
+
+    Two deliberate properties (story 37): the list is **flat, not clitic-aware** (ADR-0001), so a
+    prefixed/suffixed form like ``والكتاب`` / ``فيها`` is kept — only a standalone token is removed;
+    and it is **negation-safe** — the polarity particles ``ما`` / ``لا`` / ``لم`` / ``لن`` / ``ليس``
+    are excluded so removal can never flip a sentence's polarity. A removed token leaves its
+    whitespace as written (a gap), like the other delete-style steps (CleanURLs); a later
+    `CollapseWhitespace` tidies the gaps. Matching is on surface (NFC) forms, so run it **before**
+    any lossy letter folding. The list version is serialized so a `Profile` pins it reproducibly.
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "RemoveStopwords"
+
+    def __call__(self, s: str, /) -> str:
+        return remove_stopwords(s)
+
+    def to_dict(self) -> StepDict:
+        # Pin the list version so a serialized profile reproduces the exact removal (story 36).
+        return {"name": self.name, "config": {"version": stopwords.STOPWORDS_VERSION}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        version = config.get("version")
+        if version is not None and version != stopwords.STOPWORDS_VERSION:
+            raise ValueError(
+                f"RemoveStopwords was serialized against stopword list version {version!r}, but "
+                f"this araclean ships {stopwords.STOPWORDS_VERSION!r}; the lists differ, so "
+                "removal would not reproduce. Install the matching araclean version instead."
+            )
+        return cls()
+
+
+registry.register(RemoveStopwords.name, RemoveStopwords.from_dict)

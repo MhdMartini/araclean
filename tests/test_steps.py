@@ -26,7 +26,9 @@ from araclean import (
     MapPunctuation,
     MarkClass,
     NormalizeUnicode,
+    Pipeline,
     ReduceElongation,
+    RemoveStopwords,
     RemoveTashkeel,
     RemoveTatweel,
     SafetyClass,
@@ -48,8 +50,10 @@ from araclean import (
     normalize_unicode,
     reduce_elongation,
     registry,
+    remove_stopwords,
     remove_tashkeel,
     remove_tatweel,
+    stopwords,
     strip_bidi,
     unify_lookalikes,
 )
@@ -1431,3 +1435,86 @@ def test_handle_emoji_keep_and_strip_are_total_and_idempotent(text: str) -> None
     for mode in ("keep", "strip"):
         once = handle_emoji(text, mode=mode)  # type: ignore[arg-type]
         assert handle_emoji(once, mode=mode) == once  # type: ignore[arg-type]
+
+
+# --- RemoveStopwords (issue 0017, stories 36/37) — flat curated stopword list ------------------
+
+# الكتاب على الطاولة — "the book on the table". "على" (on) is a listed stopword; the two content
+# words keep their definite-article "ال" prefix (the list is flat, not clitic-aware — ADR-0001).
+_SENTENCE = "الكتاب على الطاولة"
+
+
+def test_remove_stopwords_removes_listed_stopwords_keeping_content() -> None:
+    # The stopword is deleted in place; the surrounding whitespace is left as written (so a gap is
+    # left where "على" was), exactly like the other delete-style cleaning steps (CleanURLs, 0012).
+    assert RemoveStopwords()(_SENTENCE) == "الكتاب  الطاولة"
+
+
+def test_remove_stopwords_keeps_negation_particles() -> None:
+    # Negation safety (story 37): the polarity-bearing particles ما/لا/لم/لن/ليس are excluded from
+    # the list, so a sentence made only of them is returned UNCHANGED — removal can never silently
+    # flip the sentiment by deleting a negation.
+    negations = "ما لا لم لن ليس"
+    assert RemoveStopwords()(negations) == negations
+    # And in a real sentence: "هذا" (a demonstrative stopword) goes, "ليس" (negation) stays.
+    assert "ليس" in RemoveStopwords()("هذا ليس صحيحا")
+
+
+def test_remove_stopwords_is_flat_not_clitic_aware() -> None:
+    # The list is flat (ADR-0001 — no morphology): it only removes a WHOLE-token stopword, never a
+    # clitic glued to a content word. "والكتاب" (and-the-book = و + الكتاب) and "فيها" (in-it =
+    # في + ها) keep their stopword-shaped affixes, because an Arabic letter on the boundary blocks
+    # the whole-word match. A bare standalone "في", by contrast, is removed.
+    assert RemoveStopwords()("والكتاب") == "والكتاب"
+    assert RemoveStopwords()("فيها") == "فيها"
+    assert RemoveStopwords()("في البيت") == " البيت"
+
+
+def test_remove_stopwords_safety_is_linguistic_folding() -> None:
+    # It discards linguistic content from within the Arabic text (function words), so it is lossy
+    # LINGUISTIC_FOLDING — not CLEANING (which is non-linguistic noise: URLs/mentions/HTML/emoji).
+    assert RemoveStopwords().safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_remove_stopwords_free_function_agrees_with_step() -> None:
+    assert remove_stopwords(_SENTENCE) == RemoveStopwords()(_SENTENCE)
+
+
+def test_remove_stopwords_serializes_its_list_version() -> None:
+    # The list version is pinned in the config so a serialized profile reproduces the exact removal
+    # (story 36); it round-trips through to_dict/from_dict and the registry.
+    step = RemoveStopwords()
+    assert step.to_dict() == {
+        "name": "RemoveStopwords",
+        "config": {"version": stopwords.STOPWORDS_VERSION},
+    }
+    assert RemoveStopwords.from_dict(step.to_dict()["config"]) == step
+    built = registry.build("RemoveStopwords", {})  # bare config -> the current bundled list
+    assert isinstance(built, RemoveStopwords)
+    assert built(_SENTENCE) == step(_SENTENCE)
+
+
+def test_remove_stopwords_from_dict_rejects_a_mismatched_list_version() -> None:
+    # A profile pinned to a DIFFERENT list version cannot reproduce removal with this install, so it
+    # fails loudly rather than silently using a different list (the reproducibility footgun the
+    # version pin exists to close).
+    with pytest.raises(ValueError, match="version"):
+        RemoveStopwords.from_dict({"version": "0.0.0-not-a-real-version"})
+
+
+@given(st.text())
+def test_remove_stopwords_is_total_and_idempotent(text: str) -> None:
+    # Never raises on arbitrary text (incl. surrogates) and is a fixed point: removing the same
+    # whole-token stopwords twice changes nothing the second time.
+    once = remove_stopwords(text)
+    assert remove_stopwords(once) == once
+
+
+def test_remove_stopwords_works_end_to_end_in_a_pipeline() -> None:
+    # End-to-end through Pipeline (story 36): the step composes, and a downstream CollapseWhitespace
+    # tidies the gaps a removal leaves, giving clean single-spaced content-word output.
+    pipe = Pipeline([RemoveStopwords(), CollapseWhitespace()])
+    assert pipe(_SENTENCE) == "الكتاب الطاولة"
+    # The pipeline (and so the pinned list version) round-trips through (de)serialization.
+    rebuilt = Pipeline.from_dict(pipe.to_dict())
+    assert rebuilt(_SENTENCE) == pipe(_SENTENCE)

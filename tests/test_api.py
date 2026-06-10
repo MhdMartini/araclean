@@ -206,6 +206,14 @@ def test_light_does_not_handle_emoji() -> None:
     assert normalize(text) == text
 
 
+def test_light_does_not_remove_stopwords() -> None:
+    # Stopword removal discards linguistic content (function words), so it is lossy and opt-in
+    # (issue 0017), never run by the lossless default. The stopword "على" and its NFC-stable,
+    # single-spaced surroundings survive LIGHT verbatim.
+    text = "الكتاب على الطاولة"
+    assert normalize(text) == text
+
+
 def test_default_profile_is_light() -> None:
     light_pipe = Pipeline.from_profile(LIGHT)
     for text in (DECOMPOSED, COMPOSED, "abc", TATWEEL):
