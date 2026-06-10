@@ -43,7 +43,9 @@ araclean = "araclean.cli:main"
 [project.optional-dependencies]
 # Typer (a thin layer over click) powers the CLI; it bundles `rich` for help/error formatting.
 cli = ["typer>=0.12"]
-pandas = []
+# pandas powers the `.araclean` Series accessor (issue 0021); kept behind an extra so the lean
+# core never imports it (ADR-0003). `import araclean.pandas` registers the accessor and needs this.
+pandas = ["pandas>=2"]
 polars = []
 # `emoji` powers HandleEmoji's `demojize` mode only (keep/strip are pure-Python). Kept behind an
 # extra so the lean MIT core never pulls it in (ADR-0003, story 4); it is BSD-licensed, not GPL.
@@ -65,6 +67,10 @@ dev = [
     "emoji>=2",
     # The [cli] extra's backend, so the CLI (issue 0020) is exercised by the test suite in CI.
     "typer>=0.12",
+    # The [pandas] extra's backend + its type stubs, so the pandas accessor (issue 0021) is
+    # exercised and type-checked in CI. pandas ships no py.typed; pandas-stubs supplies the types.
+    "pandas>=2",
+    "pandas-stubs>=2",
     # An independent JSON Schema validator, so tests prove a profile's emitted JSON validates
     # against its emitted JSON Schema (story 40) — the schema is published, not just pydantic-internal.
     "jsonschema>=4",
