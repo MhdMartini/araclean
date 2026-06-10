@@ -1,0 +1,4 @@
+# serializer version: 1
+# name: test_repr_renders_ordered_step_names
+  'Pipeline([NormalizeUnicode, StripBidi, FoldPresentationForms, RemoveTatweel, UnifyLookalikes, CollapseWhitespace, NormalizeUnicode])'
+# ---

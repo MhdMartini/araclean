@@ -19,13 +19,21 @@ from araclean.steps import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterable, Iterator, Mapping, Sequence
 
 
 class PipelineDict(TypedDict):
     """The serialized form of a `Pipeline`: its ordered steps."""
 
     steps: list[dict[str, Any]]
+
+
+def _step_name(step: Step) -> str:
+    """The display/selection name of a step: its registry ``name`` if it has one, else the class
+    name. Built-in steps expose a ``name`` ClassVar equal to their class name; a user `Step`
+    without one is named by its class, so custom steps participate in `repr`/`select` uniformly."""
+    name = getattr(step, "name", None)
+    return name if isinstance(name, str) else type(step).__name__
 
 
 class Pipeline:
@@ -39,10 +47,44 @@ class Pipeline:
         """The ordered steps, for inspection (e.g. the safety-class audit, story 41)."""
         return self._steps
 
+    def __repr__(self) -> str:
+        names = ", ".join(_step_name(step) for step in self._steps)
+        return f"Pipeline([{names}])"
+
     def __call__(self, text: str, /) -> str:
         for step in self._steps:
             text = step(text)
         return text
+
+    def batch(self, texts: Iterable[str]) -> Iterator[str]:
+        """Normalize each text lazily — a streaming generator, so a corpus larger than memory
+        (or an unbounded stream) processes without materializing the input (story 13)."""
+        for text in texts:
+            yield self(text)
+
+    def select(self, *names: str) -> Pipeline:
+        """Build a NEW pipeline holding exactly the named steps, in the order given (story 16).
+
+        One primitive covers both adapting operations: name a subset to *filter*, or name every
+        step in a different order to *reorder*. Steps are addressed by `_step_name` (the registry
+        name, or the class name for a custom step). This pipeline is left unchanged. Raises
+        `KeyError` for an unknown name, or if a name matches more than one step (ambiguous).
+        """
+        by_name: dict[str, list[Step]] = {}
+        for step in self._steps:
+            by_name.setdefault(_step_name(step), []).append(step)
+        chosen: list[Step] = []
+        for name in names:
+            matches = by_name.get(name)
+            if not matches:
+                raise KeyError(f"No step named {name!r} in this pipeline; have {sorted(by_name)}.")
+            if len(matches) > 1:
+                raise KeyError(
+                    f"Step name {name!r} is ambiguous: it matches {len(matches)} steps. "
+                    "select() addresses steps by name, so names must be unique to use it."
+                )
+            chosen.append(matches[0])
+        return Pipeline(chosen)
 
     def apply_aligned(self, text: str, /) -> tuple[str, object]:
         """Reserved offset/alignment entry point — not implemented in v1 (ADR-0005).
