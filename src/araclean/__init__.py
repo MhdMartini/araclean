@@ -4,7 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from araclean.api import normalize
 from araclean.pipeline import Pipeline
-from araclean.profiles import CLASSICAL, LIGHT, ML, SEARCH, Profile
+from araclean.profiles import CLASSICAL, LIGHT, ML, SEARCH, SOCIAL, Profile
 from araclean.safety import SafetyClass
 from araclean.steps import (
     AlignmentNotSupportedError,
@@ -63,6 +63,7 @@ __all__ = [
     "LIGHT",
     "ML",
     "SEARCH",
+    "SOCIAL",
     "AlignmentNotSupportedError",
     "CleanHTML",
     "CleanMentions",

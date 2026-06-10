@@ -231,3 +231,67 @@ CLASSICAL_CORPUS: list[tuple[str, str]] = [
 def test_classical_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
     result = {label: normalize(text, profile="classical") for label, text in CLASSICAL_CORPUS}
     assert result == snapshot
+
+
+# (label, input) pairs for SOCIAL (issue 0014): make noisy user text tractable WITHOUT deleting the
+# affective signal. It cleans the metadata noise (URL/mention -> Arabic placeholder, HTML strip +
+# unescape), removes vocalization, and caps elongation at 2 (emphasis survives), but KEEPS emoji and
+# — like ML — runs none of the 0007 letter folds, so letter distinctions are preserved. This corpus
+# is the regression net for that whole recipe on realistic noisy tweets.
+SOCIAL_CORPUS: list[tuple[str, str]] = [
+    # the full worked example: cap-2 elongation, tashkeel gone, mention/URL -> Arabic token, emoji
+    # kept (جمييييل جدًا يا @user 😍😍 https://example.com)
+    (
+        "worked-example",
+        chr(0x062C)
+        + chr(0x0645)
+        + chr(0x064A) * 4
+        + chr(0x0644)  # جمييييل
+        + " "
+        + chr(0x062C)
+        + chr(0x062F)
+        + chr(0x064B)
+        + chr(0x0627)  # جدًا (tanween fath)
+        + " "
+        + chr(0x064A)
+        + chr(0x0627)  # يا
+        + " @user "
+        + chr(0x1F60D) * 2  # 😍😍
+        + " https://example.com",
+    ),
+    # emphatic elongation is capped at 2, not 1: جمييييل -> جمييل (emphasis retained)
+    ("elongation-cap-2", chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)),
+    # a *vocalized* elongation: tashkeel stripped first (ordering), then the bare run caps to جمييل
+    (
+        "vocalized-elongation",
+        chr(0x062C) + chr(0x0645) + (chr(0x064A) + chr(0x064E)) * 3 + chr(0x0644),
+    ),
+    # vocalization is removed (كَتَبَ -> كتب)
+    (
+        "tashkeel-removed",
+        chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E),
+    ),
+    # @mention -> the Arabic placeholder token [مستخدم]
+    ("mention-arabic-token", "@user"),
+    # a Unicode handle is matched too (@محمد), and the whole handle -> [مستخدم]
+    ("mention-arabic-handle", "@" + chr(0x0645) + chr(0x062D) + chr(0x0645) + chr(0x062F)),
+    # URL -> the Arabic placeholder token [رابط]
+    ("url-arabic-token", "https://example.com"),
+    # HTML: tags stripped, entity unescaped (<b>نص</b> &amp; X -> نص & X)
+    ("html-strip-unescape", "<b>" + chr(0x0646) + chr(0x0635) + "</b> &amp; X"),
+    # emoji is KEPT — the affective signal SOCIAL exists to preserve (أحبه 😍)
+    ("emoji-kept", chr(0x0623) + chr(0x062D) + chr(0x0628) + chr(0x0647) + " " + chr(0x1F60D)),
+    # letter distinctions are PRESERVED (no 0007 fold runs): على stays على, not folded to علي
+    ("maqsura-preserved", chr(0x0639) + chr(0x0644) + chr(0x0649)),
+    # encoding repair still runs: tatweel removed (محـــمد -> محمد)
+    ("tatweel", chr(0x0645) + chr(0x062D) + chr(0x0640) * 3 + chr(0x0645) + chr(0x062F)),
+    # plain ASCII passes through
+    ("ascii", "Hello, world!"),
+    # empty string
+    ("empty", ""),
+]
+
+
+def test_social_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
+    result = {label: normalize(text, profile="social") for label, text in SOCIAL_CORPUS}
+    assert result == snapshot

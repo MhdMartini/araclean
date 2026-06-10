@@ -436,3 +436,166 @@ def test_classical_never_raises_and_is_idempotent(text: str) -> None:
     # AC4: a lossless fixed point — total over arbitrary text (incl. surrogates) and idempotent.
     once = normalize(text, profile="classical")
     assert normalize(once, profile="classical") == once
+
+
+# --- SOCIAL profile (issue 0014, story 7): make noisy user text tractable, keep the signal ---
+#
+# SOCIAL composes LIGHT's encoding repair with cleaning (URL/mention -> Arabic placeholder, HTML
+# strip+unescape) and the lossy folds noisy text wants (tashkeel removal, cap-2 elongation), while
+# KEEPING emoji by default — the emoji *is* the affective signal SOCIAL exists to preserve.
+# Code points, not glyphs, so the corpus is deterministic regardless of how this file is saved.
+_URL_TOKEN = "[" + chr(0x0631) + chr(0x0627) + chr(0x0628) + chr(0x0637) + "]"  # [رابط] = "link"
+_MENTION_TOKEN = (  # [مستخدم] = "user"
+    "[" + chr(0x0645) + chr(0x0633) + chr(0x062A) + chr(0x062E) + chr(0x062F) + chr(0x0645) + "]"
+)
+_HEART_EYES = chr(0x1F60D)  # 😍
+
+
+def test_social_worked_example() -> None:
+    # The golden worked example (AC1): cap-2 elongation, tashkeel removed, mention/URL -> the Arabic
+    # placeholder, emoji kept. جمييييل جدًا يا @user 😍😍 https://example.com
+    stretched = (
+        chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)
+    )  # جمييييل (4 repeated yeh)
+    with_tanween = (
+        chr(0x062C) + chr(0x062F) + chr(0x064B) + chr(0x0627)
+    )  # جدًا (tanween fath on the dal)
+    ya = chr(0x064A) + chr(0x0627)  # يا
+    text = f"{stretched} {with_tanween} {ya} @user {_HEART_EYES * 2} https://example.com"
+
+    capped_two = chr(0x062C) + chr(0x0645) + chr(0x064A) * 2 + chr(0x0644)  # جمييل (capped to 2)
+    tanween_gone = chr(0x062C) + chr(0x062F) + chr(0x0627)  # جدا (tanween removed, alef kept)
+    expected = f"{capped_two} {tanween_gone} {ya} {_MENTION_TOKEN} {_HEART_EYES * 2} {_URL_TOKEN}"
+
+    assert normalize(text, profile="social") == expected
+
+
+def test_social_strips_html_tags_and_unescapes_entities() -> None:
+    # AC3: SOCIAL strips tags and unescapes entities -- <b>نص</b> &amp; X -> نص & X. The inner
+    # text is kept (DELETE/strip mode), and the entity that survives the strip is decoded.
+    inner = chr(0x0646) + chr(0x0635)  # نص ("text")
+    text = f"<b>{inner}</b> &amp; X"
+    assert normalize(text, profile="social") == f"{inner} & X"
+
+
+def test_social_preserves_emoji_by_default() -> None:
+    # AC4: the affective signal is preserved -- SOCIAL keeps emoji by default (it exists to). The
+    # surrounding Arabic is still cleaned (tashkeel removed), so this is not a vacuous identity.
+    love = chr(0x0623) + chr(0x062D) + chr(0x0628) + chr(0x0647)  # أحبه ("I love it"), no marks
+    text = f"{love} {_HEART_EYES}"
+    assert normalize(text, profile="social") == text  # emoji (and text) survive verbatim
+
+
+def test_social_is_lossy_contains_cleaning_and_linguistic_folding_steps() -> None:
+    # The audit complement of LIGHT (story 41): SOCIAL is NOT lossless. It carries CLEANING steps
+    # (URL/mention/HTML noise removal) and LINGUISTIC_FOLDING steps (tashkeel removal, elongation),
+    # so a safety audit must surface both kinds of loss -- and the kept emoji (KEEP) is a no-op, so
+    # it audits as ENCODING_REPAIR, not as loss.
+    from araclean import SOCIAL
+
+    safeties = [step.safety for step in Pipeline.from_profile(SOCIAL).steps]
+    assert SafetyClass.CLEANING in safeties
+    assert SafetyClass.LINGUISTIC_FOLDING in safeties
+    assert not all(safety is SafetyClass.ENCODING_REPAIR for safety in safeties)
+
+
+def test_social_removes_tashkeel_before_capping_a_vocalized_elongation() -> None:
+    # The load-bearing ordering decision: RemoveTashkeel runs BEFORE ReduceElongation. A *vocalized*
+    # elongation interleaves a haraka between the repeated letters (جم + يَيَيَ + ل), so the marks
+    # must be stripped first to leave the yeh adjacent for the cap-2 reducer to collapse to جمييل.
+    # If the two were reversed, the reducer would see non-adjacent yeh (split by the fatha), leave
+    # them, and tashkeel removal would then yield an UN-capped جميييل (3 yeh) — this test would
+    # fail. It is the SOCIAL analogue of ML's tashkeel-before-elongation ordering.
+    vocalized_stretch = chr(0x062C) + chr(0x0645) + (chr(0x064A) + chr(0x064E)) * 3 + chr(0x0644)
+    capped = chr(0x062C) + chr(0x0645) + chr(0x064A) * 2 + chr(0x0644)  # جمييل (2 yeh, no marks)
+    assert normalize(vocalized_stretch, profile="social") == capped
+
+
+def test_social_facade_equals_explicit_pipeline() -> None:
+    # normalize(text, profile="social") is exactly Pipeline.from_profile(SOCIAL): a thin facade.
+    from araclean import SOCIAL
+
+    pipe = Pipeline.from_profile(SOCIAL)
+    stretched = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل
+    for text in (f"@user {_HEART_EYES} https://x.co", stretched, "<b>hi</b> &amp; x", "abc", ""):
+        assert normalize(text, profile="social") == pipe(text)
+    assert normalize(stretched, profile="social") == normalize(stretched, profile=SOCIAL)
+
+
+@given(ANY_TEXT)
+def test_social_never_raises(text: str) -> None:
+    # Total over arbitrary text, incl. lone surrogates (the cleaning regexes + folds never crash).
+    normalize(text, profile="social")
+
+
+def test_social_is_idempotent_on_realistic_noisy_text() -> None:
+    # SOCIAL is a fixed point on realistic noisy text. Strict idempotence cannot hold over ARBITRARY
+    # text because CleanHTML's html.unescape decodes only one level (&amp;amp; -> &amp; -> &), a
+    # documented limit inherited from the step; on realistic single-encoded markup it is stable.
+    stretched = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل
+    with_tanween = chr(0x062C) + chr(0x062F) + chr(0x064B) + chr(0x0627)  # جدًا
+    text = f"<p>{stretched} {with_tanween}</p> @user &amp; {_HEART_EYES} https://example.com/path"
+    once = normalize(text, profile="social")
+    assert normalize(once, profile="social") == once
+
+
+def _social_with(replacements: dict[type, object]) -> Pipeline:
+    """A SOCIAL pipeline with each step of a given type replaced in place by the override instance.
+
+    The override *mechanism* (`normalize(..., profile="social", emoji="strip")`) is the config
+    boundary's surface (issue 0016, which owns per-knob overrides for every profile); this helper
+    pins the override *properties* now — exactly the deferral pattern ML used for its digit fold.
+    """
+    from araclean import SOCIAL
+
+    steps = [replacements.get(type(s), s) for s in Pipeline.from_profile(SOCIAL).steps]
+    return Pipeline(steps)  # type: ignore[arg-type]
+
+
+def test_social_override_properties_each_default_is_a_one_step_swap() -> None:
+    # AC2 (the override *properties*; the kwargs mechanism is deferred to 0016). Each SOCIAL default
+    # flips to the documented alternative by swapping exactly one step, with no other change.
+    from araclean import (
+        CleanMentions,
+        CleanMode,
+        CleanURLs,
+        EmojiMode,
+        HandleEmoji,
+        ReduceElongation,
+    )
+
+    love = chr(0x0623) + chr(0x062D) + chr(0x0628) + chr(0x0647)  # أحبه (no marks)
+    stretched = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل
+    collapsed_one = chr(0x062C) + chr(0x0645) + chr(0x064A) + chr(0x0644)  # جميل (cap 1)
+
+    # emoji="strip" drops the 😍😍 (the default KEEP keeps it).
+    emoji_text = f"{love} {_HEART_EYES * 2}"
+    stripped = _social_with({HandleEmoji: HandleEmoji(mode=EmojiMode.STRIP)})
+    assert normalize(emoji_text, profile="social") == emoji_text  # default keeps
+    assert stripped(emoji_text) == f"{love} "  # override strips, surrounding text intact
+
+    # elongation_cap=1 collapses جمييييل all the way to جميل (the default cap 2 stops at جمييل).
+    capped_one = _social_with({ReduceElongation: ReduceElongation(cap=1)})
+    assert capped_one(stretched) == collapsed_one
+
+    # URL/mention mode="delete" removes them outright (the default replaces with an Arabic token).
+    deleted = _social_with(
+        {
+            CleanURLs: CleanURLs(mode=CleanMode.DELETE),
+            CleanMentions: CleanMentions(mode=CleanMode.DELETE),
+        }
+    )
+    assert _URL_TOKEN not in deleted("see https://x.co") and "https" not in deleted(
+        "see https://x.co"
+    )
+    assert _MENTION_TOKEN not in deleted("hi @user") and "@user" not in deleted("hi @user")
+
+    # English-token mode yields [URL]/[MENTION] instead of the Arabic [رابط]/[مستخدم].
+    english = _social_with(
+        {
+            CleanURLs: CleanURLs(mode=CleanMode.PLACEHOLDER, placeholder="[URL]"),
+            CleanMentions: CleanMentions(mode=CleanMode.PLACEHOLDER, placeholder="[MENTION]"),
+        }
+    )
+    assert "[URL]" in english("see https://x.co")
+    assert "[MENTION]" in english("hi @user")

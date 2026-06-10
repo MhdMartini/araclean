@@ -72,3 +72,20 @@
     'vocalized-msa': 'كتب',
   })
 # ---
+# name: test_social_profile_golden_snapshot
+  dict({
+    'ascii': 'Hello, world!',
+    'elongation-cap-2': 'جمييل',
+    'emoji-kept': 'أحبه 😍',
+    'empty': '',
+    'html-strip-unescape': 'نص & X',
+    'maqsura-preserved': 'على',
+    'mention-arabic-handle': '[مستخدم]',
+    'mention-arabic-token': '[مستخدم]',
+    'tashkeel-removed': 'كتب',
+    'tatweel': 'محمد',
+    'url-arabic-token': '[رابط]',
+    'vocalized-elongation': 'جمييل',
+    'worked-example': 'جمييل جدا يا [مستخدم] 😍😍 [رابط]',
+  })
+# ---
