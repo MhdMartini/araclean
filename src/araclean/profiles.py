@@ -128,10 +128,31 @@ ML = Profile(
     ],
 )
 
+# CLASSICAL: lossless encoding repair that PRESERVES vocalization and Qur'anic annotation marks, so
+# vocalized / Qur'anic text survives intact (story 8). Because LIGHT already removes no marks (it is
+# all ENCODING_REPAIR), CLASSICAL is LIGHT's encoding repair under a distinct name -- a separate,
+# serializable preset whose contract is the explicit *guarantee* that:
+#
+#   1. no vocalization mark is removed -- harakat / tanween / shadda / madda / dagger-alef / the
+#      Qur'anic-annotation block (chars.QURANIC) all ride through untouched (RemoveTashkeel, the
+#      only step that would strip them, is never composed here), and
+#   2. presentation-form / lam-alef folding (FoldPresentationForms) decomposes ligatures WITHOUT
+#      disturbing the surrounding combining marks -- the fold is a per-glyph substitution and the
+#      single source of canonical ordering is the closing NFC (ADR-0009), which never reorders marks
+#      across a base letter.
+#
+# It is defined as LIGHT's steps verbatim, so the two stay behaviorally identical by construction
+# and CLASSICAL inherits any future LIGHT change; the value it adds is the named, paper-citable
+# preset plus the preservation guarantee pinned by its tests. Like every profile, CLASSICAL emits
+# canonical (NFC) order -- it preserves every mark, not the byte-exact ordering of a non-canonical
+# input (ADR-0009).
+CLASSICAL = Profile(name="classical", steps=[*LIGHT.steps])
+
 _PROFILES: dict[str, Profile] = {
     LIGHT.name: LIGHT,
     SEARCH.name: SEARCH,
     ML.name: ML,
+    CLASSICAL.name: CLASSICAL,
 }
 
 

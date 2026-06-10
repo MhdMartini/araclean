@@ -1,4 +1,19 @@
 # serializer version: 1
+# name: test_classical_profile_golden_snapshot
+  dict({
+    'ascii': 'Hello, world!',
+    'dagger-alef-preserved': 'هٰذا',
+    'empty': '',
+    'invisibles': 'اب',
+    'lam-alef-in-vocalized': 'بَلأرِ',
+    'lookalikes': 'كيه',
+    'quranic-annotation-preserved': 'رٰۜ حّۚ',
+    'shadda-fatha-preserved': 'دَّر',
+    'tanween-preserved': 'كتابًا',
+    'tatweel': 'محمد',
+    'vocalized-msa': 'كَتَبَ',
+  })
+# ---
 # name: test_light_profile_golden_snapshot
   dict({
     'ascii': 'Hello, world!',

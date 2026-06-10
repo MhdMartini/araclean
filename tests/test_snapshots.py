@@ -181,3 +181,53 @@ ML_CORPUS: list[tuple[str, str]] = [
 def test_ml_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
     result = {label: normalize(text, profile="ml") for label, text in ML_CORPUS}
     assert result == snapshot
+
+
+# (label, input) pairs for CLASSICAL (issue 0015): the lossless profile for vocalized / Qur'anic
+# text. It repairs encoding exactly as LIGHT does, but its contract is that NO vocalization or
+# Qur'anic annotation mark is ever removed (the exact opposite of SEARCH on the same inputs). This
+# corpus is the regression net for that preservation guarantee: the vocalized / marked rows must
+# survive intact, while the pure encoding-repair rows (tatweel, invisibles, look-alike) are still
+# cleaned.
+CLASSICAL_CORPUS: list[tuple[str, str]] = [
+    # vocalized MSA: every tashkeel mark is KEPT (كَتَبَ stays vocalized) — the SEARCH contrast
+    (
+        "vocalized-msa",
+        chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E),
+    ),
+    # dagger alef is PRESERVED (هٰذا stays هٰذا) — the "dagger alef preserved" golden fixture
+    ("dagger-alef-preserved", chr(0x0647) + chr(0x0670) + chr(0x0630) + chr(0x0627)),
+    # tanween fath rides with its alef and is KEPT (كتابًا stays vocalized)
+    (
+        "tanween-preserved",
+        chr(0x0643) + chr(0x062A) + chr(0x0627) + chr(0x0628) + chr(0x064B) + chr(0x0627),
+    ),
+    # shadda + fatha stack KEPT in canonical order (دّرّس-style gemination survives)
+    ("shadda-fatha-preserved", chr(0x062F) + chr(0x064E) + chr(0x0651) + chr(0x0631)),
+    # Qur'anic annotation KEPT: ر + dagger alef + small high seen; ح + shadda + small high mark
+    (
+        "quranic-annotation-preserved",
+        chr(0x0631) + chr(0x0670) + chr(0x06DC) + " " + chr(0x062D) + chr(0x0651) + chr(0x06DA),
+    ),
+    # lam-alef ligature inside vocalized text decomposes (keeping its alef variant) WITHOUT
+    # disturbing the surrounding marks: بَ + ﻷ + رِ -> بَ + لأ + رِ
+    (
+        "lam-alef-in-vocalized",
+        chr(0x0628) + chr(0x064E) + chr(0xFEF7) + chr(0x0631) + chr(0x0650),
+    ),
+    # encoding repair still runs: tatweel is removed (محـــمد -> محمد)
+    ("tatweel", chr(0x0645) + chr(0x062D) + chr(0x0640) * 3 + chr(0x0645) + chr(0x062F)),
+    # encoding repair still runs: BOM + RLM stripped (BOM + alef + RLM + beh -> alef + beh)
+    ("invisibles", chr(0xFEFF) + chr(0x0627) + chr(0x200F) + chr(0x0628)),
+    # encoding repair still runs: look-alike kaf/yeh/heh unified (keheh+farsi-yeh+heh-goal)
+    ("lookalikes", chr(0x06A9) + chr(0x06CC) + chr(0x06C1)),
+    # plain ASCII passes through
+    ("ascii", "Hello, world!"),
+    # empty string
+    ("empty", ""),
+]
+
+
+def test_classical_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
+    result = {label: normalize(text, profile="classical") for label, text in CLASSICAL_CORPUS}
+    assert result == snapshot

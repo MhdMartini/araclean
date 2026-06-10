@@ -1,10 +1,19 @@
 """Behavior of profiles: the named presets that assemble pipelines."""
 
+import unicodedata
+from collections import Counter
+
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
 from araclean import LIGHT, Pipeline, Profile, SafetyClass, normalize
+
+
+def _combining_marks(text: str) -> Counter[str]:
+    """The count of each combining mark (ccc > 0) in `text` — order-independent mark accounting."""
+    return Counter(c for c in text if unicodedata.combining(c))
+
 
 # Arbitrary text, including lone surrogates, so the total/idempotence properties are real.
 ANY_TEXT = st.text(
@@ -321,3 +330,109 @@ def test_search_end_to_end_respects_the_ordering_contract() -> None:
         )
     )
     assert normalize(sentence, profile="search") == expected
+
+
+# --- CLASSICAL profile (issue 0015, story 8): encoding repair that PRESERVES vocalization ---
+#
+# CLASSICAL is the lossless sibling of LIGHT for vocalized / Qur'anic text: it repairs encoding
+# exactly as LIGHT does, but its contract is the explicit guarantee that no vocalization mark
+# (harakat/tanween/shadda/madda/dagger-alef/Qur'anic annotation) is ever removed and that
+# presentation-form folding never disturbs the surrounding combining marks. The contrast partner is
+# SEARCH, whose RemoveTashkeel strips exactly those marks.
+
+# هٰذا: heh + dagger alef (U+0670) + U+0630 + alef. The "dagger alef preserved" golden fixture.
+DAGGER_WORD = chr(0x0647) + chr(0x0670) + chr(0x0630) + chr(0x0627)
+
+
+def test_classical_preserves_dagger_alef() -> None:
+    # "dagger alef preserved" (AC1): CLASSICAL keeps هٰذا verbatim, where SEARCH folds it to هذا.
+    assert normalize(DAGGER_WORD, profile="classical") == DAGGER_WORD
+    assert normalize(DAGGER_WORD, profile="search") != DAGGER_WORD  # the contrast: SEARCH strips it
+
+
+def test_classical_preserves_quranic_annotation_marks_intact_and_in_order() -> None:
+    # AC2: a vocalized fragment carrying every kind of mark CLASSICAL must keep — harakat (kasra),
+    # sukun, shadda+fatha, dagger alef, and two Qur'anic small-high annotation signs —
+    # round-trips with all marks intact and combining-mark order preserved. The fragment is taken in
+    # its canonical (NFC) form, the order every profile emits (ADR-0009).
+    raw = (
+        chr(0x0628)
+        + chr(0x0650)
+        + chr(0x0633)
+        + chr(0x0652)
+        + chr(0x0645)
+        + chr(0x0650)  # بِسْمِ
+        + " "
+        + chr(0x0631)
+        + chr(0x0670)
+        + chr(0x06DC)  # ر + dagger alef + small high seen
+        + " "
+        + chr(0x062D)
+        + chr(0x0651)
+        + chr(0x064E)
+        + chr(0x06DA)  # ح + shadda + fatha + small high mark (U+06DA)
+    )
+    verse = unicodedata.normalize("NFC", raw)
+
+    # Round-trips byte-exact: no mark removed, canonical mark order preserved.
+    assert normalize(verse, profile="classical") == verse
+    # Every combining mark survives, none added or dropped (order-independent accounting).
+    assert _combining_marks(normalize(verse, profile="classical")) == _combining_marks(verse)
+    # The contrast that gives CLASSICAL its meaning: SEARCH's RemoveTashkeel strips all of them.
+    assert _combining_marks(normalize(verse, profile="search")) == Counter()
+
+
+def test_classical_decomposes_lam_alef_without_disturbing_surrounding_marks() -> None:
+    # AC3: a presentation-form lam-alef ligature embedded in vocalized text decomposes to its base
+    # letters (keeping the alef variant) WITHOUT touching the combining marks on the letters around
+    # it — FoldPresentationForms is a per-glyph substitution, never a mark mover.
+    ligature = chr(0xFEF7)  # ﻷ : lam + alef-with-hamza-above, isolated presentation form
+    text = chr(0x0628) + chr(0x064E) + ligature + chr(0x0631) + chr(0x0650)  # بَ + ﻷ + رِ
+    expected = (
+        chr(0x0628)
+        + chr(0x064E)  # بَ unchanged
+        + chr(0x0644)
+        + chr(0x0623)  # ﻷ -> ل + أ (the alef-hamza-above variant kept, not bare alef)
+        + chr(0x0631)
+        + chr(0x0650)  # رِ unchanged
+    )
+    out = normalize(text, profile="classical")
+    assert out == expected
+    assert ligature not in out  # the ligature is gone
+    assert _combining_marks(out) == _combining_marks(text)  # the surrounding marks are intact
+
+
+def test_classical_is_lossless_all_encoding_repair() -> None:
+    # AC4 (story 41 / ADR-0004): CLASSICAL is a "lossless" profile, so — like LIGHT — every step it
+    # composes must be ENCODING_REPAIR. This is the audit complement of SEARCH/ML (which carry
+    # LINGUISTIC_FOLDING steps); a future edit that slipped a lossy step in would fail here.
+    from araclean import CLASSICAL
+
+    pipe = Pipeline.from_profile(CLASSICAL)
+    assert all(step.safety is SafetyClass.ENCODING_REPAIR for step in pipe.steps)
+
+
+def test_classical_facade_equals_explicit_pipeline() -> None:
+    # normalize(text, profile="classical") is exactly Pipeline.from_profile(CLASSICAL): thin facade.
+    from araclean import CLASSICAL
+
+    pipe = Pipeline.from_profile(CLASSICAL)
+    for text in (DAGGER_WORD, chr(0xFEF7), DECOMPOSED, "Hello, world!", ""):
+        assert normalize(text, profile="classical") == pipe(text)
+    assert normalize(DAGGER_WORD, profile="classical") == normalize(DAGGER_WORD, profile=CLASSICAL)
+
+
+@given(ANY_TEXT)
+def test_classical_equals_light_behavior(text: str) -> None:
+    # CLASSICAL IS LIGHT's encoding repair under a distinct name (the design decision): it composes
+    # exactly LIGHT's steps, so the two produce identical output on arbitrary text. The value
+    # CLASSICAL adds is the named, citable preset plus its preservation guarantee, not different
+    # behavior — and this equivalence buys CLASSICAL LIGHT's totality and NFC-stability for free.
+    assert normalize(text, profile="classical") == normalize(text, profile="light")
+
+
+@given(ANY_TEXT)
+def test_classical_never_raises_and_is_idempotent(text: str) -> None:
+    # AC4: a lossless fixed point — total over arbitrary text (incl. surrogates) and idempotent.
+    once = normalize(text, profile="classical")
+    assert normalize(once, profile="classical") == once
