@@ -7,6 +7,10 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from araclean import (
+    CleanHTML,
+    CleanMentions,
+    CleanMode,
+    CleanURLs,
     CollapseWhitespace,
     DigitTarget,
     FoldAlef,
@@ -25,6 +29,9 @@ from araclean import (
     StripBidi,
     TehMarbutaTarget,
     UnifyLookalikes,
+    clean_html,
+    clean_mentions,
+    clean_urls,
     collapse_whitespace,
     fold_alef,
     fold_alef_maqsura,
@@ -1127,3 +1134,201 @@ def test_reduce_elongation_is_total_and_idempotent(text: str) -> None:
     for cap in (1, 2):
         once = ReduceElongation(cap=cap)(text)
         assert ReduceElongation(cap=cap)(once) == once
+
+
+# --- CleanURLs / CleanMentions / CleanHTML (issue 0012, story 34) — noise removal -------------
+#
+# Cleaning = removal of non-linguistic noise (CONTEXT.md), a sibling of normalization. Each step
+# either deletes the matched noise or replaces it with a configurable placeholder token. Entity
+# unescaping is always part of CleanHTML. None run under LIGHT (safety is CLEANING, never
+# ENCODING_REPAIR).
+
+# Code points, not glyphs, for the bits that surround the noise, so the expectation is immune to
+# how this file is saved. "زوروا" (visit) U+0632 U+0648 U+0631 U+0648 U+0627; "الآن" (now).
+_VISIT = chr(0x0632) + chr(0x0648) + chr(0x0631) + chr(0x0648) + chr(0x0627)  # زوروا
+_NOW = chr(0x0627) + chr(0x0644) + chr(0x0622) + chr(0x0646)  # الآن
+
+
+def test_clean_urls_delete_removes_the_url_leaving_surrounding_text() -> None:
+    text = f"{_VISIT} https://x.co {_NOW}"
+    # Delete mode removes the URL span itself; the spaces that flanked it stay (two now adjacent).
+    assert CleanURLs()(text) == f"{_VISIT}  {_NOW}"
+
+
+def test_clean_urls_placeholder_mode_default_token_is_english() -> None:
+    step = CleanURLs(mode=CleanMode.PLACEHOLDER)
+    assert step("see https://x.co/page now") == "see [URL] now"
+    # www.-prefixed URLs are matched too, case-insensitively.
+    assert step("HTTP://A WWW.b.com") == "[URL] [URL]"
+
+
+def test_clean_urls_placeholder_token_is_configurable() -> None:
+    arabic_token = "[" + chr(0x0631) + chr(0x0627) + chr(0x0628) + chr(0x0637) + "]"  # [رابط]
+    step = CleanURLs(mode=CleanMode.PLACEHOLDER, placeholder=arabic_token)
+    assert step("x https://x.co y") == f"x {arabic_token} y"
+
+
+def test_clean_urls_leaves_non_url_text_untouched() -> None:
+    # No scheme / www. anchor -> nothing is a URL; Arabic prose and a bare dotted word survive.
+    text = f"{_VISIT} {_NOW} example.com"
+    assert CleanURLs()(text) == text
+
+
+def test_clean_urls_safety_is_cleaning() -> None:
+    assert CleanURLs().safety is SafetyClass.CLEANING
+
+
+def test_clean_urls_free_function_agrees_with_step() -> None:
+    text = "a https://x.co b"
+    assert clean_urls(text) == CleanURLs()(text)
+    assert clean_urls(text, mode=CleanMode.PLACEHOLDER) == CleanURLs(mode=CleanMode.PLACEHOLDER)(
+        text
+    )
+
+
+def test_clean_urls_serializes_its_mode_and_token_and_round_trips() -> None:
+    step = CleanURLs(mode=CleanMode.PLACEHOLDER, placeholder="[link]")
+    assert step.to_dict() == {
+        "name": "CleanURLs",
+        "config": {"mode": "placeholder", "placeholder": "[link]"},
+    }
+    rebuilt = CleanURLs.from_dict(step.to_dict()["config"])
+    assert rebuilt == step
+    # Bare config -> the delete default, reconstructed through the registry.
+    built = registry.build("CleanURLs", {})
+    assert built == CleanURLs()
+    assert built("x https://x.co") == "x "
+
+
+@given(st.text())
+def test_clean_urls_is_total_and_idempotent(text: str) -> None:
+    for mode in ("delete", "placeholder"):
+        once = clean_urls(text, mode=mode)  # type: ignore[arg-type]
+        assert clean_urls(once, mode=mode) == once  # type: ignore[arg-type]
+
+
+# "محمد" (Muhammad) as an @-handle target, in code points.
+_HANDLE = chr(0x0645) + chr(0x062D) + chr(0x0645) + chr(0x062F)  # محمد
+
+
+def test_clean_mentions_delete_removes_the_mention() -> None:
+    text = f"hi @user and @{_HANDLE} done"
+    # Both an ASCII handle and an Arabic handle (\w is Unicode-aware) are removed.
+    assert CleanMentions()(text) == "hi  and  done"
+
+
+def test_clean_mentions_placeholder_default_token_is_english() -> None:
+    step = CleanMentions(mode=CleanMode.PLACEHOLDER)
+    assert step("hi @user") == "hi [MENTION]"
+
+
+def test_clean_mentions_placeholder_token_is_configurable() -> None:
+    # [مستخدم] = "user", the SOCIAL Arabic token.
+    arabic_token = (
+        "["
+        + chr(0x0645)
+        + chr(0x0633)
+        + chr(0x062A)
+        + chr(0x062E)
+        + chr(0x062F)
+        + chr(0x0645)
+        + "]"
+    )
+    step = CleanMentions(mode=CleanMode.PLACEHOLDER, placeholder=arabic_token)
+    assert step("@user!") == f"{arabic_token}!"
+
+
+def test_clean_mentions_leaves_a_bare_at_sign_untouched() -> None:
+    # An @ with no following word character is not a mention.
+    assert CleanMentions()("price @ 5") == "price @ 5"
+
+
+def test_clean_mentions_safety_is_cleaning() -> None:
+    assert CleanMentions().safety is SafetyClass.CLEANING
+
+
+def test_clean_mentions_free_function_agrees_with_step() -> None:
+    text = "hey @user"
+    assert clean_mentions(text) == CleanMentions()(text)
+    placeholder_fn = clean_mentions(text, mode=CleanMode.PLACEHOLDER)
+    assert placeholder_fn == CleanMentions(mode=CleanMode.PLACEHOLDER)(text)
+
+
+def test_clean_mentions_serializes_its_mode_and_token_and_round_trips() -> None:
+    step = CleanMentions(mode=CleanMode.PLACEHOLDER, placeholder="[u]")
+    assert step.to_dict() == {
+        "name": "CleanMentions",
+        "config": {"mode": "placeholder", "placeholder": "[u]"},
+    }
+    assert CleanMentions.from_dict(step.to_dict()["config"]) == step
+    assert registry.build("CleanMentions", {}) == CleanMentions()
+
+
+@given(st.text())
+def test_clean_mentions_is_total_and_idempotent(text: str) -> None:
+    for mode in ("delete", "placeholder"):
+        once = clean_mentions(text, mode=mode)  # type: ignore[arg-type]
+        assert clean_mentions(once, mode=mode) == once  # type: ignore[arg-type]
+
+
+# "نص" (text) U+0646 U+0635 and "المزيد" (more), in code points.
+_TEXT = chr(0x0646) + chr(0x0635)  # نص
+_MORE = chr(0x0627) + chr(0x0644) + chr(0x0645) + chr(0x0632) + chr(0x064A) + chr(0x062F)  # المزيد
+
+
+def test_clean_html_strips_tags_and_unescapes_entities() -> None:
+    # The worked example (story 34): tags removed AND &amp; decoded to &.
+    text = f"<b>{_TEXT}</b> &amp; {_MORE}"
+    assert CleanHTML()(text) == f"{_TEXT} & {_MORE}"
+
+
+def test_clean_html_unescapes_entities_even_without_tags() -> None:
+    assert CleanHTML()("a &lt; b &gt; c &amp; d") == "a < b > c & d"
+
+
+def test_clean_html_placeholder_mode_replaces_each_tag() -> None:
+    step = CleanHTML(mode=CleanMode.PLACEHOLDER, placeholder="[HTML]")
+    assert step(f"<b>{_TEXT}</b>") == f"[HTML]{_TEXT}[HTML]"
+
+
+def test_clean_html_strips_tags_before_unescaping_so_escaped_brackets_stay_literal() -> None:
+    # &lt;b&gt; is escaped text, not markup; stripping tags FIRST then unescaping keeps it literal
+    # rather than decoding it into a <b> tag and then deleting it.
+    assert CleanHTML()("&lt;b&gt;") == "<b>"
+
+
+def test_clean_html_safety_is_cleaning() -> None:
+    assert CleanHTML().safety is SafetyClass.CLEANING
+
+
+def test_clean_html_free_function_agrees_with_step() -> None:
+    text = "<i>x</i> &amp; y"
+    assert clean_html(text) == CleanHTML()(text)
+    assert clean_html(text, mode=CleanMode.PLACEHOLDER) == CleanHTML(mode=CleanMode.PLACEHOLDER)(
+        text
+    )
+
+
+def test_clean_html_serializes_its_mode_and_token_and_round_trips() -> None:
+    step = CleanHTML(mode=CleanMode.PLACEHOLDER, placeholder="[tag]")
+    assert step.to_dict() == {
+        "name": "CleanHTML",
+        "config": {"mode": "placeholder", "placeholder": "[tag]"},
+    }
+    assert CleanHTML.from_dict(step.to_dict()["config"]) == step
+    assert registry.build("CleanHTML", {}) == CleanHTML()
+
+
+def test_clean_html_is_idempotent_on_realistic_markup() -> None:
+    # Strict idempotence cannot hold over arbitrary text: html.unescape decodes only one level, so
+    # a multiply-encoded entity (&amp;amp; -> &amp; -> &) changes on each pass — a documented limit.
+    # On realistic single-encoded markup the step is a fixed point.
+    text = f"<p>{_TEXT}</p> &amp; <a href='https://x'>{_MORE}</a>"
+    once = CleanHTML()(text)
+    assert CleanHTML()(once) == once
+
+
+@given(st.text())
+def test_clean_html_never_raises(text: str) -> None:
+    for mode in ("delete", "placeholder"):
+        clean_html(text, mode=mode)  # type: ignore[arg-type]

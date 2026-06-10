@@ -9,6 +9,7 @@ canonical name, so a `Pipeline` can be persisted and rehydrated. The serializati
 fixed here because every later step must follow it.
 """
 
+import html
 import re
 import unicodedata
 from collections.abc import Collection, Mapping
@@ -772,3 +773,211 @@ class ReduceElongation:
 
 
 registry.register(ReduceElongation.name, ReduceElongation.from_dict)
+
+
+class CleanMode(StrEnum):
+    """Whether a cleaning step deletes the matched noise or replaces it with a placeholder token.
+
+    English: *cleaning mode*. `DELETE` (default) removes the span outright; `PLACEHOLDER` swaps in a
+    fixed token (e.g. ``[URL]``) so a model keeps "a link was here" as a feature without a noisy
+    unique value — the entrenched AraBERT expectation, so it is first-class, not just delete.
+    """
+
+    DELETE = "delete"  # remove the matched span (default)
+    PLACEHOLDER = "placeholder"  # replace the matched span with the `placeholder` token
+
+
+def _clean_replacement(mode: CleanMode, placeholder: str) -> str:
+    """The literal string a cleaning step substitutes for a match: the placeholder token in
+    `PLACEHOLDER` mode, the empty string (i.e. deletion) in `DELETE` mode."""
+    return placeholder if CleanMode(mode) is CleanMode.PLACEHOLDER else ""
+
+
+def clean_urls(s: str, /, *, mode: CleanMode = CleanMode.DELETE, placeholder: str = "[URL]") -> str:
+    """Remove URLs, or replace each with a placeholder token (default ``[URL]``) — cleaning.
+
+    English: *URL cleaning*. Scheme- (http/https) or ``www.``-prefixed runs are deleted (default) or
+    swapped for `placeholder`. Use an Arabic token (e.g. ``[رابط]``) by passing it explicitly.
+    """
+    replacement = _clean_replacement(mode, placeholder)
+    return chars.URL.sub(lambda _m: replacement, s)
+
+
+@dataclass(frozen=True, slots=True)
+class CleanURLs:
+    """Remove URLs or replace them with a placeholder token — cleaning (non-linguistic noise).
+
+    English: *URL cleaning*. A scheme- (http/https) or ``www.``-prefixed run is metadata noise, not
+    Arabic content, so it is `DELETE`d (the default) or, in `PLACEHOLDER` mode, replaced by the
+    `placeholder` token — the AraBERT ``[رابط]``/``[URL]`` expectation, kept first-class. The
+    default token is the English ``[URL]``; pass ``placeholder="[رابط]"`` for the Arabic one.
+    Matching is conservative (only http(s):// and ``www.`` anchor it), so ordinary prose is safe.
+
+    `safety` is `CLEANING`: it discards non-linguistic noise, a sibling of linguistic folding, so it
+    never runs under `LIGHT` — opt-in via a lossy profile (SOCIAL) or an explicit step (ADR-0011).
+    """
+
+    mode: CleanMode = CleanMode.DELETE
+    placeholder: str = "[URL]"
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since it is a derived view of `mode`/`placeholder`.
+    _replacement: str = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.CLEANING
+    name: ClassVar[str] = "CleanURLs"
+
+    def __post_init__(self) -> None:
+        # Coerce a plain string ("delete") to the enum so equality and serialization are stable
+        # regardless of how the mode was passed, then precompute the replacement once.
+        mode = CleanMode(self.mode)
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "_replacement", _clean_replacement(mode, self.placeholder))
+
+    def __call__(self, s: str, /) -> str:
+        replacement = self._replacement
+        return chars.URL.sub(lambda _m: replacement, s)
+
+    def to_dict(self) -> StepDict:
+        return {
+            "name": self.name,
+            "config": {"mode": self.mode.value, "placeholder": self.placeholder},
+        }
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "mode" in kwargs:
+            kwargs["mode"] = CleanMode(kwargs["mode"])
+        return cls(**kwargs)
+
+
+registry.register(CleanURLs.name, CleanURLs.from_dict)
+
+
+def clean_mentions(
+    s: str, /, *, mode: CleanMode = CleanMode.DELETE, placeholder: str = "[MENTION]"
+) -> str:
+    """Remove @mentions, or replace each with a placeholder (default ``[MENTION]``) — cleaning.
+
+    English: *mention cleaning*. An ``@`` followed by word characters (Unicode-aware, so an Arabic
+    handle @محمد counts) is deleted (default) or swapped for `placeholder`. Pass an Arabic token
+    (e.g. ``[مستخدم]``) explicitly. Email handling is out of v1 scope, so the host of
+    ``user@example`` reads as a mention.
+    """
+    replacement = _clean_replacement(mode, placeholder)
+    return chars.MENTION.sub(lambda _m: replacement, s)
+
+
+@dataclass(frozen=True, slots=True)
+class CleanMentions:
+    """Remove @mentions or replace them with a placeholder token — cleaning (non-linguistic noise).
+
+    English: *mention cleaning*. An ``@``-handle is metadata noise, so it is `DELETE`d (the default)
+    or, in `PLACEHOLDER` mode, replaced by the `placeholder` token (the AraBERT ``[مستخدم]``/
+    ``[MENTION]`` expectation, kept first-class; the default token is the English ``[MENTION]``). A
+    handle is ``@`` plus Unicode word characters, so an Arabic handle @محمد is matched as readily as
+    @user; a bare ``@`` with no following word character is left alone. Email local-parts are not
+    special-cased (email is out of v1 scope), so ``user@example`` has its host read as a mention.
+
+    `safety` is `CLEANING`: it discards non-linguistic noise, never run under `LIGHT` (ADR-0011).
+    """
+
+    mode: CleanMode = CleanMode.DELETE
+    placeholder: str = "[MENTION]"
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since it is a derived view of `mode`/`placeholder`.
+    _replacement: str = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.CLEANING
+    name: ClassVar[str] = "CleanMentions"
+
+    def __post_init__(self) -> None:
+        mode = CleanMode(self.mode)
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "_replacement", _clean_replacement(mode, self.placeholder))
+
+    def __call__(self, s: str, /) -> str:
+        replacement = self._replacement
+        return chars.MENTION.sub(lambda _m: replacement, s)
+
+    def to_dict(self) -> StepDict:
+        return {
+            "name": self.name,
+            "config": {"mode": self.mode.value, "placeholder": self.placeholder},
+        }
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "mode" in kwargs:
+            kwargs["mode"] = CleanMode(kwargs["mode"])
+        return cls(**kwargs)
+
+
+registry.register(CleanMentions.name, CleanMentions.from_dict)
+
+
+def clean_html(
+    s: str, /, *, mode: CleanMode = CleanMode.DELETE, placeholder: str = "[HTML]"
+) -> str:
+    """Strip HTML tags (or replace each with a placeholder) and unescape entities — cleaning.
+
+    English: *HTML cleaning*. Tags are deleted (default) or swapped for `placeholder`, then HTML
+    entities are unescaped (``&amp;`` → ``&``). Tags are removed BEFORE unescaping, so an escaped
+    ``&lt;b&gt;`` stays literal text rather than being decoded into a tag and then stripped.
+    """
+    replacement = _clean_replacement(mode, placeholder)
+    stripped = chars.HTML_TAG.sub(lambda _m: replacement, s)
+    return html.unescape(stripped)
+
+
+@dataclass(frozen=True, slots=True)
+class CleanHTML:
+    """Strip HTML tags and unescape entities — cleaning (non-linguistic noise).
+
+    English: *HTML cleaning*. Markup is noise around the text: each tag is `DELETE`d (the default,
+    so you keep the inner text) or, in `PLACEHOLDER` mode, replaced by the `placeholder` token, and
+    HTML entities are **always** unescaped (``&amp;`` → ``&``, ``&lt;`` → ``<``), which a tag-only
+    strip would miss. Tags are removed BEFORE unescaping, so an intentionally escaped ``&lt;b&gt;``
+    stays literal text instead of being decoded into a ``<b>`` tag and then stripped.
+
+    `safety` is `CLEANING`: it discards non-linguistic noise, never run under `LIGHT` (ADR-0011).
+    Strict idempotence does not hold over arbitrary text — ``html.unescape`` decodes only one level,
+    so a multiply-encoded entity (``&amp;amp;`` → ``&amp;`` → ``&``) changes on each pass — but on
+    realistic single-encoded markup the step is a fixed point.
+    """
+
+    mode: CleanMode = CleanMode.DELETE
+    placeholder: str = "[HTML]"
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since it is a derived view of `mode`/`placeholder`.
+    _replacement: str = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.CLEANING
+    name: ClassVar[str] = "CleanHTML"
+
+    def __post_init__(self) -> None:
+        mode = CleanMode(self.mode)
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "_replacement", _clean_replacement(mode, self.placeholder))
+
+    def __call__(self, s: str, /) -> str:
+        replacement = self._replacement
+        stripped = chars.HTML_TAG.sub(lambda _m: replacement, s)
+        return html.unescape(stripped)
+
+    def to_dict(self) -> StepDict:
+        return {
+            "name": self.name,
+            "config": {"mode": self.mode.value, "placeholder": self.placeholder},
+        }
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "mode" in kwargs:
+            kwargs["mode"] = CleanMode(kwargs["mode"])
+        return cls(**kwargs)
+
+
+registry.register(CleanHTML.name, CleanHTML.from_dict)

@@ -187,6 +187,18 @@ def test_light_does_not_reduce_elongation() -> None:
     assert normalize(lengthened) == lengthened
 
 
+# --- Cleaning is opt-in (issue 0012, story 34): LIGHT must not remove URLs/mentions/HTML ---
+
+
+def test_light_does_not_clean_urls_mentions_or_html() -> None:
+    # Cleaning removes non-linguistic noise — a sibling of normalization (CONTEXT.md), lossy and
+    # opt-in (safety CLEANING), so it never runs under the lossless default. A URL, an @mention, an
+    # HTML tag, and an HTML entity all survive LIGHT untouched; the surrounding text is NFC-stable
+    # with single spaces, so LIGHT is otherwise a no-op and the whole string is returned verbatim.
+    text = "زر https://x.co و @user و <b>نص</b> &amp;"
+    assert normalize(text) == text
+
+
 def test_default_profile_is_light() -> None:
     light_pipe = Pipeline.from_profile(LIGHT)
     for text in (DECOMPOSED, COMPOSED, "abc", TATWEEL):

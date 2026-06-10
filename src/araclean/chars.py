@@ -441,3 +441,31 @@ ELONGATABLE_LETTERS: frozenset[int] = frozenset(range(0x0621, 0x063B)) | frozens
 # A regex character-class body listing every elongatable letter (built from code points, so no raw
 # Arabic appears in source). Each letter is re.escape'd for safety though none are regex-special.
 ELONGATABLE_CLASS: str = "".join(re.escape(chr(cp)) for cp in sorted(ELONGATABLE_LETTERS))
+
+
+# --- Cleaning patterns (issue 0012, story 34) -------------------------------------------------
+#
+# Cleaning = removal of non-linguistic noise (CONTEXT.md), a sibling concern of normalization. Each
+# pattern matches a span of noise that a step then deletes or replaces with a placeholder. These are
+# CONTEXTUAL rules (a span -> "" or a token), so precompiled regexes rather than str.translate
+# tables (ADR-0006); they never join the 0018 fused engine. The transforms are lossy and opt-in
+# (safety CLEANING), so they never run under LIGHT.
+
+# A URL: a scheme- or www-prefixed run of non-space characters, case-insensitive (HTTP://, WWW.
+# match too). Conservative on purpose -- only http(s):// and www. anchor a match, so ordinary Arabic
+# (or Latin) prose is never mistaken for a URL. `\S+` stops at whitespace, so the text flanking the
+# URL is left untouched. A bare "https://" or "www." with nothing after it is not matched.
+URL: re.Pattern[str] = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
+
+# A mention: an @ followed by one or more word characters. `\w` is Unicode-aware, so @محمد is a
+# mention as readily as @user. Plain @\w+ with NO lookbehind is deliberate: it keeps the step
+# idempotent (a lookbehind on the preceding character would flip a second pass on abutting mentions
+# like @a@b, since deletion changes that neighbor). Consequence: an @token anywhere matches, so the
+# host of an address like user@example reads as a mention -- email handling is out of v1 scope.
+MENTION: re.Pattern[str] = re.compile(r"@\w+")
+
+# An HTML/XML tag: an angle-bracketed run with no interior '>'. A lone '<' with no closing '>' is
+# not a tag and is left in place. CleanHTML strips tags FIRST and then runs html.unescape, so a real
+# &amp; in the text becomes '&' while an intentionally escaped &lt;b&gt; stays literal text (it was
+# never markup). The unescape step is always applied; only the tag span is delete-or-placeholder.
+HTML_TAG: re.Pattern[str] = re.compile(r"<[^>]+>")
