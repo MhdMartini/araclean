@@ -127,3 +127,57 @@ SEARCH_CORPUS: list[tuple[str, str]] = [
 def test_search_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
     result = {label: normalize(text, profile="search") for label, text in SEARCH_CORPUS}
     assert result == snapshot
+
+
+# (label, input) pairs for ML (issue 0011): the conservative-on-letters profile. It removes what
+# only hurts a tokenizer (vocalization, emphatic elongation) but PRESERVES every alef/hamza/maqsura/
+# teh-marbuta distinction, every digit and every Arabic mark. This corpus is the contrast net to
+# SEARCH: same inputs, but the letter-fold / digit / punctuation rows stay untouched here.
+ML_CORPUS: list[tuple[str, str]] = [
+    # vocalized MSA: every tashkeel mark is stripped (كَتَبَ -> كتب) — like SEARCH
+    (
+        "vocalized-msa",
+        chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E),
+    ),
+    # dagger alef is a vocalization mark, so RemoveTashkeel drops it too (هٰذا -> هذا)
+    ("dagger-alef", chr(0x0647) + chr(0x0670) + chr(0x0630) + chr(0x0627)),
+    # emphatic elongation collapses to a single letter (جمييييل -> جميل) — like SEARCH
+    ("elongation", chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)),
+    # alef maqsura is PRESERVED (على stays على) — the headline contrast with SEARCH
+    ("maqsura-preserved", chr(0x0639) + chr(0x0644) + chr(0x0649)),
+    # alef variants are PRESERVED (أ إ آ ٱ unchanged) — none of the 0007 folds run
+    ("alef-variants-preserved", " ".join((chr(0x0623), chr(0x0625), chr(0x0622), chr(0x0671)))),
+    # hamza carriers are PRESERVED (مؤمن keeps its ؤ)
+    ("hamza-preserved", chr(0x0645) + chr(0x0624) + chr(0x0645) + chr(0x0646)),
+    # teh marbuta is PRESERVED (مدرسة stays مدرسة)
+    ("teh-marbuta-preserved", chr(0x0645) + chr(0x062F) + chr(0x0631) + chr(0x0633) + chr(0x0629)),
+    # digits are PRESERVED (Arabic-Indic ١٢٣ stays as written)
+    ("digits-preserved", chr(0x0661) + chr(0x0662) + chr(0x0663)),
+    # Arabic sentence punctuation is PRESERVED (نعم، لا؟ keeps its Arabic marks)
+    (
+        "punctuation-preserved",
+        chr(0x0646)
+        + chr(0x0639)
+        + chr(0x0645)
+        + chr(0x060C)
+        + " "
+        + chr(0x0644)
+        + chr(0x0627)
+        + chr(0x061F),
+    ),
+    # ML ⊊ SEARCH on lam-alef: LIGHT folds ﻷ -> لأ and ML stops there (SEARCH would fold -> لا)
+    ("lam-alef-kept-variant", chr(0xFEF7)),
+    # encoding repair still runs: tatweel is removed (محـــمد -> محمد)
+    ("tatweel", chr(0x0645) + chr(0x062D) + chr(0x0640) * 3 + chr(0x0645) + chr(0x062F)),
+    # Arabizi hazard respected: ASCII digits next to Latin letters are never touched
+    ("arabizi-untouched", "3arab"),
+    # plain ASCII passes through
+    ("ascii", "Hello, world!"),
+    # empty string
+    ("empty", ""),
+]
+
+
+def test_ml_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
+    result = {label: normalize(text, profile="ml") for label, text in ML_CORPUS}
+    assert result == snapshot

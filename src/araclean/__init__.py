@@ -4,7 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from araclean.api import normalize
 from araclean.pipeline import Pipeline
-from araclean.profiles import LIGHT, SEARCH, Profile
+from araclean.profiles import LIGHT, ML, SEARCH, Profile
 from araclean.safety import SafetyClass
 from araclean.steps import (
     AlignmentNotSupportedError,
@@ -49,6 +49,7 @@ except PackageNotFoundError:  # pragma: no cover - source tree without install m
 
 __all__ = [
     "LIGHT",
+    "ML",
     "SEARCH",
     "AlignmentNotSupportedError",
     "CollapseWhitespace",

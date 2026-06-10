@@ -109,6 +109,187 @@ def test_search_never_raises_and_is_idempotent(text: str) -> None:
     assert normalize(once, profile="search") == once  # idempotent fixed point
 
 
+# --- ML profile (issue 0011, story 6): conservative-on-letters cleaning for model input ---
+
+# كَتَبَ fully vocalized: every letter carries a fatha.
+VOCALIZED = chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E)
+
+
+def test_ml_removes_tashkeel() -> None:
+    # ML is lossy where LIGHT is not: it strips vocalization, so كَتَبَ -> كتب.
+    assert normalize(VOCALIZED, profile="ml") == chr(0x0643) + chr(0x062A) + chr(0x0628)
+
+
+def test_ml_reduces_elongation() -> None:
+    # Emphatic word-lengthening is collapsed to the cap-1 default (جمييييل -> جميل), so a model's
+    # vocabulary does not explode on stretched spellings.
+    lengthened = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل
+    assert normalize(lengthened, profile="ml") == chr(0x062C) + chr(0x0645) + chr(0x064A) + chr(
+        0x0644
+    )  # جميل
+
+
+def test_ml_preserves_letter_distinctions() -> None:
+    # ML's thesis (the AraToken finding): the alef/hamza/alef-maqsura/teh-marbuta variants are
+    # disambiguating, so ML keeps them all — unlike SEARCH, none of the 0007 letter folds run.
+    ala_maqsura = chr(0x0639) + chr(0x0644) + chr(0x0649)  # على (alef maqsura)
+    ala_yeh = chr(0x0639) + chr(0x0644) + chr(0x064A)  # علي (yeh)
+    assert normalize(ala_maqsura, profile="ml") == ala_maqsura
+    assert normalize(ala_yeh, profile="ml") == ala_yeh
+    assert normalize(ala_maqsura, profile="ml") != normalize(ala_yeh, profile="ml")  # stay distinct
+
+    ahmad = chr(0x0623) + chr(0x062D) + chr(0x0645) + chr(0x062F)  # أحمد keeps its hamza-alef
+    assert normalize(ahmad, profile="ml") == ahmad
+    marbuta_word = chr(0x0645) + chr(0x062F) + chr(0x0631) + chr(0x0633) + chr(0x0629)  # مدرسة
+    assert normalize(marbuta_word, profile="ml") == marbuta_word  # teh marbuta kept
+
+
+def test_ml_is_lossy_contains_linguistic_folding_steps() -> None:
+    # The audit complement of LIGHT (story 41): ML is NOT lossless — it carries RemoveTashkeel and
+    # ReduceElongation, so a safety audit must surface that it loses information.
+    from araclean import ML
+
+    safeties = [step.safety for step in Pipeline.from_profile(ML).steps]
+    assert SafetyClass.LINGUISTIC_FOLDING in safeties
+    assert not all(safety is SafetyClass.ENCODING_REPAIR for safety in safeties)
+
+
+def test_ml_facade_equals_explicit_pipeline() -> None:
+    # normalize(text, profile="ml") is exactly Pipeline.from_profile(ML) (the facade is thin).
+    from araclean import ML
+
+    pipe = Pipeline.from_profile(ML)
+    lengthened = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل
+    for text in (VOCALIZED, lengthened, ALA_MAQSURA, "abc", ""):
+        assert normalize(text, profile="ml") == pipe(text)
+    assert normalize(VOCALIZED, profile="ml") == normalize(VOCALIZED, profile=ML)
+
+
+@given(ANY_TEXT)
+def test_ml_output_is_light_stable(text: str) -> None:
+    # ML ⊇ LIGHT (AC: LIGHT(ML(x)) == ML(x)): ML does everything LIGHT does, so its output is a
+    # LIGHT fixed point. This also pins that ML's output is NFC (LIGHT's closing pass is a no-op on
+    # it), justifying that ML appends no trailing NFC of its own — exactly as SEARCH does.
+    light = Pipeline.from_profile(LIGHT)
+    cleaned = normalize(text, profile="ml")
+    assert light(cleaned) == cleaned
+
+
+@given(ANY_TEXT)
+def test_ml_never_raises_and_is_idempotent(text: str) -> None:
+    once = normalize(text, profile="ml")  # total over arbitrary text, incl. lone surrogates
+    assert normalize(once, profile="ml") == once  # idempotent fixed point
+
+
+# Shared fixture pinning where ML and SEARCH agree vs diverge (AC: ML differs from SEARCH exactly
+# on the letter-folding / digit / punctuation steps). Each row is (input, ml_out, search_out):
+# both strip tashkeel and reduce elongation identically; only the letter-fold / digit / punctuation
+# rows differ, because ML runs none of those steps. Words are double-free so the cap-1 elongation
+# reducer leaves the non-elongated ones alone.
+_ML_VS_SEARCH: list[tuple[str, str, str]] = [
+    # vocalized, no fold target: both -> bare كتب (agree)
+    (
+        chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E),
+        chr(0x0643) + chr(0x062A) + chr(0x0628),
+        chr(0x0643) + chr(0x062A) + chr(0x0628),
+    ),
+    # elongation, no fold target: both collapse the yeh run -> جميل (agree)
+    (
+        chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644),
+        chr(0x062C) + chr(0x0645) + chr(0x064A) + chr(0x0644),
+        chr(0x062C) + chr(0x0645) + chr(0x064A) + chr(0x0644),
+    ),
+    # alef maqsura: ML keeps على, SEARCH folds -> علي (DIFFER — letter folding)
+    (
+        chr(0x0639) + chr(0x0644) + chr(0x0649),
+        chr(0x0639) + chr(0x0644) + chr(0x0649),
+        chr(0x0639) + chr(0x0644) + chr(0x064A),
+    ),
+    # teh marbuta: ML keeps مدرسة, SEARCH folds -> مدرسه (DIFFER — letter folding)
+    (
+        chr(0x0645) + chr(0x062F) + chr(0x0631) + chr(0x0633) + chr(0x0629),
+        chr(0x0645) + chr(0x062F) + chr(0x0631) + chr(0x0633) + chr(0x0629),
+        chr(0x0645) + chr(0x062F) + chr(0x0631) + chr(0x0633) + chr(0x0647),
+    ),
+    # Arabic-Indic digits: ML keeps ١٢٣, SEARCH maps -> 123 (DIFFER — digit mapping)
+    (
+        chr(0x0661) + chr(0x0662) + chr(0x0663),
+        chr(0x0661) + chr(0x0662) + chr(0x0663),
+        "123",
+    ),
+    # Arabic question mark: ML keeps ؟, SEARCH maps -> ? (DIFFER — punctuation mapping)
+    (chr(0x061F), chr(0x061F), "?"),
+]
+
+
+def test_ml_differs_from_search_exactly_on_folds_digits_punctuation() -> None:
+    from araclean import ML, SEARCH
+
+    ml = Pipeline.from_profile(ML)
+    search = Pipeline.from_profile(SEARCH)
+    for text, ml_out, search_out in _ML_VS_SEARCH:
+        assert ml(text) == ml_out
+        assert search(text) == search_out
+    # Where ML == SEARCH the row carries no fold/digit/punctuation target (encoding/tashkeel/
+    # elongation only); where they differ it is exactly a letter-fold / digit / punctuation row.
+    agree = [text for text, m, s in _ML_VS_SEARCH if m == s]
+    differ = [text for text, m, s in _ML_VS_SEARCH if m != s]
+    assert agree and differ  # the fixture exercises both halves of the contrast
+
+
+def test_ml_optional_digit_fold_does_not_affect_letter_distinctions() -> None:
+    # The story's optional MapDigits fold is OFF by default (preserving distinctions is ML's
+    # contract); the config *mechanism* to switch it on belongs to the config boundary (0016). The
+    # property that makes the toggle safe is pinned here: folding digits maps the digits but leaves
+    # every letter distinction exactly as plain ML leaves it — digit folding never touches a letter.
+    from araclean import ML, MapDigits
+
+    ml = Pipeline.from_profile(ML)
+    ml_with_digits = Pipeline([*ml.steps, MapDigits()])
+
+    arabic_indic_123 = chr(0x0661) + chr(0x0662) + chr(0x0663)  # ١٢٣
+    assert ml(arabic_indic_123) == arabic_indic_123  # default: digits kept
+    assert ml_with_digits(arabic_indic_123) == "123"  # toggled on: digits folded
+
+    # Every letter/distinction is identical with the fold on vs off (it only touches digits).
+    for word in (
+        chr(0x0639) + chr(0x0644) + chr(0x0649),  # على (maqsura)
+        chr(0x0623) + chr(0x062D) + chr(0x0645) + chr(0x062F),  # أحمد (hamza)
+        chr(0x0645) + chr(0x062F) + chr(0x0631) + chr(0x0633) + chr(0x0629),  # مدرسة (teh marbuta)
+    ):
+        assert ml_with_digits(word) == ml(word) == word
+
+
+def test_ml_end_to_end_respects_the_ordering_contract() -> None:
+    # One string crossing ML's bands — encoding repair -> tashkeel removal -> elongation cleanup —
+    # matched to a hand-composed result. The mirror image of the SEARCH end-to-end test: the hamza
+    # alef, the alef maqsura, the digits and the Arabic comma all SURVIVE, because ML runs no letter
+    # fold and no digit/punctuation map.
+    bom = chr(0xFEFF)  # leading BOM (StripBidi removes it)
+    ahmad = (
+        chr(0x0623) + chr(0x062D) + chr(0x0645) + chr(0x0640) * 2 + chr(0x062F)
+    )  # أحمــد (tatweel)
+    vocalized = (
+        chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E)
+    )  # كَتَبَ
+    elongated = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل
+    maqsura_word = chr(0x0639) + chr(0x0644) + chr(0x0649)  # على (kept by ML)
+    digits = chr(0x0661) + chr(0x0662) + chr(0x0663) + chr(0x060C)  # ١٢٣، (kept by ML)
+    # A double space after أحمــد exercises the whitespace collapse; single spaces elsewhere.
+    sentence = f"{bom}{ahmad}  {vocalized} {elongated} {maqsura_word} {digits}"
+
+    expected = " ".join(
+        (
+            chr(0x0623) + chr(0x062D) + chr(0x0645) + chr(0x062F),  # أحمد: tatweel gone, hamza kept
+            chr(0x0643) + chr(0x062A) + chr(0x0628),  # كتب (tashkeel removed)
+            chr(0x062C) + chr(0x0645) + chr(0x064A) + chr(0x0644),  # جميل (elongation capped to 1)
+            chr(0x0639) + chr(0x0644) + chr(0x0649),  # على (maqsura NOT folded)
+            chr(0x0661) + chr(0x0662) + chr(0x0663) + chr(0x060C),  # ١٢٣، (digits & comma KEPT)
+        )
+    )
+    assert normalize(sentence, profile="ml") == expected
+
+
 def test_search_end_to_end_respects_the_ordering_contract() -> None:
     # One string crossing every band of the ordering contract, matched to a hand-composed result:
     #   encoding repair -> tashkeel removal -> letter folding -> digit/punctuation -> cleanup.

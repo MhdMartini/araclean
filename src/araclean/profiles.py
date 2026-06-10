@@ -96,7 +96,43 @@ SEARCH = Profile(
     ],
 )
 
-_PROFILES: dict[str, Profile] = {LIGHT.name: LIGHT, SEARCH.name: SEARCH}
+# ML: clean text for model input while staying CONSERVATIVE ON LETTERS. It strips noise that only
+# hurts a tokenizer -- vocalization (RemoveTashkeel) and emphatic word-lengthening
+# (ReduceElongation) -- but, unlike SEARCH, it PRESERVES every alef/hamza/alef-maqsura/teh-marbuta
+# distinction, because those variants are disambiguating: the AraToken finding is that aggressive
+# letter folding raises language-model loss (على != علي carries real signal). So ML composes none
+# of the 0007 letter folds and neither digit nor punctuation map -- it sits strictly between LIGHT
+# and SEARCH (LIGHT ⊆ ML ⊊ SEARCH on what it removes).
+#
+# Like SEARCH, ML is defined as LIGHT's steps verbatim plus its two folds, so "ML does everything
+# LIGHT does" holds by construction: LIGHT(ML(x)) == ML(x). Each fold uses its step default
+# (RemoveTashkeel removes every mark class; ReduceElongation caps at 1 -- the maximal collapse a
+# model-input pipeline wants), so no config is pinned here. Ordering follows the PRD contract:
+# encoding repair -> tashkeel removal -> elongation cleanup. RemoveTashkeel runs BEFORE
+# ReduceElongation so that marks sitting between repeated letters (e.g. a vocalized elongation) are
+# gone first, leaving the letters adjacent for the cap to collapse. No closing NFC is appended: as
+# in SEARCH, the two folds only delete marks or collapse a base letter onto an identical base
+# letter, so the output stays NFC (pinned by the LIGHT-stability property test, not a redundant
+# pass).
+#
+# The OPTIONAL digit fold (MapDigits) the story names is deliberately OFF by default here so ML's
+# letter-and-distinction-preserving guarantee is the contract; turning it on is a config override,
+# which the config boundary (issue 0016) owns for every profile. Folding digits never touches a
+# letter, so the toggle cannot affect any distinction -- pinned by a property test below.
+ML = Profile(
+    name="ml",
+    steps=[
+        *LIGHT.steps,
+        StepSpec(name="RemoveTashkeel"),  # all mark classes (dediacritization for model input)
+        StepSpec(name="ReduceElongation"),  # cap 1 (default): collapse emphatic lengthening
+    ],
+)
+
+_PROFILES: dict[str, Profile] = {
+    LIGHT.name: LIGHT,
+    SEARCH.name: SEARCH,
+    ML.name: ML,
+}
 
 
 def get_profile(name: str) -> Profile:

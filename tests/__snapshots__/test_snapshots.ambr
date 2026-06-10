@@ -20,6 +20,24 @@
     'whitespace': 'a b',
   })
 # ---
+# name: test_ml_profile_golden_snapshot
+  dict({
+    'alef-variants-preserved': 'أ إ آ ٱ',
+    'arabizi-untouched': '3arab',
+    'ascii': 'Hello, world!',
+    'dagger-alef': 'هذا',
+    'digits-preserved': '١٢٣',
+    'elongation': 'جميل',
+    'empty': '',
+    'hamza-preserved': 'مؤمن',
+    'lam-alef-kept-variant': 'لأ',
+    'maqsura-preserved': 'على',
+    'punctuation-preserved': 'نعم، لا؟',
+    'tatweel': 'محمد',
+    'teh-marbuta-preserved': 'مدرسة',
+    'vocalized-msa': 'كتب',
+  })
+# ---
 # name: test_search_profile_golden_snapshot
   dict({
     'alef-variants': 'ا ا ا ا',
