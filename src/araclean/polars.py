@@ -24,8 +24,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from araclean.config import NormalizeConfig, ProfileName
-from araclean.pipeline import Pipeline
+from araclean.api import build_pipeline
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -61,19 +60,6 @@ def _load_polars() -> ModuleType:
     return polars
 
 
-def _build_pipeline(profile: str | None, overrides: dict[str, object]) -> Pipeline:
-    """Validate the profile + overrides at the trust boundary and assemble the effective pipeline.
-
-    The same path the `normalize` facade, the CLI, and the pandas accessor take, assembled once
-    (not per row): a bad option value raises `ValidationError`, an override that does not apply to
-    the profile raises `ValueError` (from `resolve()`). Building once keeps the per-row hot path
-    validation-free.
-    """
-    name = profile if profile is not None else ProfileName.LIGHT.value
-    config = NormalizeConfig.model_validate({"profile": name, **overrides})
-    return Pipeline.from_profile(config.resolve())
-
-
 class AracleanNamespace:
     """The ``.araclean`` Series namespace: ``series.araclean.normalize(profile=..., **overrides)``.
 
@@ -95,7 +81,7 @@ class AracleanNamespace:
         """
         import polars as pl
 
-        pipe = _build_pipeline(profile, overrides)
+        pipe = build_pipeline(profile, overrides)
         return self._series.map_elements(pipe, return_dtype=pl.String)
 
 

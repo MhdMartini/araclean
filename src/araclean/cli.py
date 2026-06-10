@@ -23,7 +23,8 @@ from typing import TYPE_CHECKING, cast
 
 from pydantic import ValidationError
 
-from araclean.config import NormalizeConfig, ProfileName
+from araclean.api import build_pipeline
+from araclean.config import ProfileName
 from araclean.pipeline import Pipeline
 from araclean.steps import CleanMode, EmojiMode, EmojiSupportNotInstalledError
 
@@ -51,18 +52,6 @@ class CLIExtraNotInstalledError(ImportError):
 class _CLIRunError(Exception):
     """An expected, user-facing failure while streaming (bad JSON, a missing field): the command
     turns it into a clear stderr message and a non-zero exit, not a traceback."""
-
-
-def _build_pipeline(profile: str, overrides: dict[str, object]) -> Pipeline:
-    """Validate the profile + overrides at the trust boundary and assemble the effective pipeline.
-
-    The same path the `normalize` facade takes, but assembled once (not per line): a bad option
-    value raises `ValidationError`, an override that does not apply to the profile raises
-    `ValueError` (from `resolve()`), and ``--emoji demojize`` without the ``[emoji]`` extra raises
-    `EmojiSupportNotInstalledError`. The command catches all three and exits non-zero.
-    """
-    config = NormalizeConfig.model_validate({"profile": profile, **overrides})
-    return Pipeline.from_profile(config.resolve())
 
 
 def _normalize_text_line(line: str, pipe: Pipeline) -> str:
@@ -199,7 +188,7 @@ def build_app() -> typer.Typer:
                 overrides[key] = value
 
         try:
-            pipe = _build_pipeline(profile.value, overrides)
+            pipe = build_pipeline(profile.value, overrides)
         except (ValidationError, ValueError, EmojiSupportNotInstalledError) as exc:
             typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
             raise typer.Exit(code=2) from exc

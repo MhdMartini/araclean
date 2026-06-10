@@ -36,18 +36,34 @@ def normalize(
     if config is not None:
         if profile is not None or overrides:
             raise TypeError("normalize(): pass either `config=` or `profile=`/overrides, not both.")
-        effective: Profile = config.resolve()
-    elif isinstance(profile, Profile):
+        return Pipeline.from_profile(config.resolve())(text)
+    if isinstance(profile, Profile):
         if overrides:
             raise TypeError(
                 "normalize(): **overrides require a profile name (a str), not a Profile object; "
                 "build the Profile with the steps you want instead."
             )
-        effective = profile
-    else:
-        # profile is a name (or None -> LIGHT). model_validate runs the full pydantic boundary over
-        # the untrusted name + overrides (rejecting an unknown name, knob, or value), so the
-        # validation-free core never sees an invalid option.
-        data: dict[str, object] = {"profile": profile or LIGHT.name, **overrides}
-        effective = NormalizeConfig.model_validate(data).resolve()
-    return Pipeline.from_profile(effective)(text)
+        return Pipeline.from_profile(profile)(text)
+    # profile is a name (or None -> LIGHT): build_pipeline runs the full pydantic boundary over the
+    # untrusted name + overrides (rejecting an unknown name, knob, or value) before any work, so the
+    # validation-free core never sees an invalid option.
+    return build_pipeline(profile, overrides)(text)
+
+
+def build_pipeline(profile: str | None, overrides: dict[str, object]) -> Pipeline:
+    """Validate a profile name + overrides at the trust boundary and assemble the pipeline once.
+
+    The single source of truth behind the `normalize` facade's name-branch and the CLI/pandas/polars
+    adapters (ADR-0003): `model_validate` runs the full pydantic boundary over the untrusted name +
+    overrides before any work happens, so the validation-free core (`pipe(text)`, the bare step
+    functions) never sees an invalid option. `profile=None` selects `LIGHT`. Assembling once (not
+    per line/row/string) keeps the hot path validation-free.
+
+    Raises `ValidationError` for a bad option value (or an empty/unknown profile name), `ValueError`
+    for an override that does not apply to the profile (from `resolve()`), and
+    `EmojiSupportNotInstalledError` for ``emoji="demojize"`` without the ``[emoji]`` extra — each
+    caller catches what it needs to.
+    """
+    name = profile if profile is not None else LIGHT.name
+    config = NormalizeConfig.model_validate({"profile": name, **overrides})
+    return Pipeline.from_profile(config.resolve())
