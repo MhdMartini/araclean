@@ -14,5 +14,10 @@ build/
 dist/
 *.egg-info/
 
+# Benchmark outputs: asv's envs/results/html (issue 0019) and pytest-benchmark's saved runs. The
+# benchmark *suites* (benchmarks/, asv.conf.json) are tracked; only their generated timings are not.
+.asv/
+.benchmarks/
+
 # Node (cspell runs via npx)
 node_modules/

@@ -84,6 +84,21 @@ dev = [
     # against its emitted JSON Schema (story 40) — the schema is published, not just pydantic-internal.
     "jsonschema>=4",
     "types-jsonschema>=4",
+    # pyarabic is a DEV-ONLY DIFFERENTIAL ORACLE (issue 0019, ADR-0002): the cross-tool agreement
+    # tests and the throughput comparison import it. It is GPL-3.0, so it must NEVER appear in
+    # [project.dependencies] or any [project.optional-dependencies] extra — `pip install araclean`
+    # (and `araclean[all]`) pull none of it, keeping the distributed MIT core clean. As a
+    # never-distributed test dependency it does not affect araclean's license. It is pure-Python and
+    # tiny, so installing it in the CI matrix is cheap. (The heavier oracle, CAMeL Tools, is
+    # opt-in-only — it drags in torch + the full GPU runtime stack and downgrades typer — so it is
+    # left out of every group; differential tests `pytest.importorskip("camel_tools")` and skip unless a
+    # developer installs it explicitly. See benchmarks/README.md.)
+    "pyarabic>=0.6",
+    # asv (airspeed velocity) runs the benchmarks/ suite as regression-over-time so a future
+    # throughput regression is detectable across commits (issue 0019, ADR-0006). Pure-Python and
+    # light; `uv run asv check` validates the suite, `uv run asv run` records timings. The
+    # snapshot-in-time cross-tool comparison lives in the pytest-benchmark tests instead.
+    "asv>=0.6",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -135,6 +150,12 @@ pythonVersion = "3.12"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+filterwarnings = [
+    # The pyarabic differential oracle (issue 0019, dev-only) emits SyntaxWarnings from its own
+    # source at import time (unescaped regex sequences in an old release). It is a third-party test
+    # oracle we do not control, so silence only that to keep our own warning surface meaningful.
+    "ignore:invalid escape sequence:SyntaxWarning:pyarabic.araby",
+]
 
 # Commit-driven versioning (ADR-0008). One tool both enforces Conventional
 # Commits (the commit-msg hook + CI `cz check`) and derives the SemVer bump from
