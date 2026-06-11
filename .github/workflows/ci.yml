@@ -46,6 +46,24 @@ jobs:
       - name: commitizen check
         run: uv run cz check --rev-range ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
 
+  docs:
+    # Build the docs site under --strict (issue 0023), so a broken link, a page missing from the
+    # nav, or a stale generated page fails CI. The `docs` dependency group is separate from `dev`,
+    # so only this job installs mkdocs-material; the docs guard tests (drift/cross-check/doctest/
+    # tooltips) run here with mkdocs present (they skip in the lean `gate`/`test` jobs).
+    name: docs site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --group docs
+      - name: mkdocs build --strict
+        run: uv run mkdocs build --strict
+      - name: docs guards (drift, cross-check, doctest, tooltips, search)
+        run: uv run pytest tests/test_docs.py
+
   test:
     # Behavior + types across the supported Python and OS matrix.
     name: test (py${{ matrix.python }} · ${{ matrix.os }})

@@ -27,6 +27,7 @@ addopts
 testpaths
 excinfo
 capsys
+optionflags
 
 # Typer / CLI vocabulary (issue 0020): Typer's styled-echo helper
 secho
@@ -61,3 +62,11 @@ vectorizer
 maturin
 pypa
 arabicstopwords
+
+# mkdocs / docs-site tooling (issue 0023): mkdocs-material + pymdownx config keys and the
+# pygments lexer name for an interactive-session ("pycon") code block.
+pymdownx
+superfences
+linenums
+crossrefs
+pycon

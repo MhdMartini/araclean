@@ -100,6 +100,16 @@ dev = [
     # snapshot-in-time cross-tool comparison lives in the pytest-benchmark tests instead.
     "asv>=0.6",
 ]
+# The docs site (issue 0023): mkdocs-material + mkdocstrings (Google docstrings). Kept in its OWN
+# group, NOT in `dev`, so the default `uv sync` and the test matrix stay lean — these are not needed
+# to run the suite. The drift/cross-check/doctest guards in tests/test_docs.py need only `araclean`,
+# so they run in the normal gate; only the live `mkdocs build --strict` needs this group, and it
+# runs in a dedicated `docs` CI job (the test skips cleanly when mkdocs is absent).
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-material>=9.7.6",
+    "mkdocstrings[python]>=1.0.4",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/araclean"]
@@ -149,6 +159,11 @@ pythonVersion = "3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# `docs_gen.py` (the docs-site generator, issue 0023) lives at the repo root, outside the `src`
+# package, because it is build-time tooling that must never ship in the wheel. Putting the root on
+# the path lets the docs guard tests `import docs_gen` to cross-check the generated docs against the
+# source of truth without packaging it.
+pythonpath = ["."]
 addopts = "-ra"
 filterwarnings = [
     # The pyarabic differential oracle (issue 0019, dev-only) emits SyntaxWarnings from its own

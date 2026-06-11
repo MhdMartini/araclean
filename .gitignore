@@ -19,5 +19,9 @@ dist/
 .asv/
 .benchmarks/
 
+# Docs site build output (issue 0023): `mkdocs build` writes to site/. The source pages (docs/) and
+# the generated, committed pages are tracked; only the rendered HTML is not.
+site/
+
 # Node (cspell runs via npx)
 node_modules/
