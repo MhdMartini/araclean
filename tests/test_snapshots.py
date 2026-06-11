@@ -115,6 +115,9 @@ SEARCH_CORPUS: list[tuple[str, str]] = [
     ("lam-alef-then-folded", chr(0xFEF7)),
     # encoding repair still runs: tatweel is removed (محـــمد -> محمد)
     ("tatweel", chr(0x0645) + chr(0x062D) + chr(0x0640) * 3 + chr(0x0645) + chr(0x062F)),
+    # line breaks are FLATTENED for SEARCH (ADR-0010, collapse_lines=True): unlike LIGHT, which
+    # keeps the blank-line run as one newline, SEARCH flattens it to one space for recall
+    ("line-breaks", "a  \n\n  b"),
     # Arabizi hazard respected: an ASCII digit next to Latin letters is never corrupted
     ("arabizi-untouched", "3arab"),
     # plain ASCII passes through (its comma/question are already Latin)

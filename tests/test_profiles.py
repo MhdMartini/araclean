@@ -48,6 +48,10 @@ FLOATING_HAMZA = " " + chr(0x0654) + " "
 # tail covers every profile uniformly regardless.)
 BLOCKED_HAMZA = unicodedata.normalize("NFC", chr(0x0627) + chr(0x06DC) + chr(0x0654))
 
+# A blank-line run between two letters: SEARCH's trailing collapse_lines=True flattens it to one
+# space (ADR-0010), and that flattened, newline-free output must stay idempotent and LIGHT-stable.
+MULTILINE = "a\n\nb"
+
 
 def test_light_profile_applies_only_nfc() -> None:
     pipe = Pipeline.from_profile(LIGHT)
@@ -124,15 +128,30 @@ def test_search_facade_equals_explicit_pipeline() -> None:
     assert normalize(ALA_MAQSURA, profile="search") == normalize(ALA_MAQSURA, profile=SEARCH)
 
 
+def test_search_flattens_newlines() -> None:
+    # SEARCH is the recall/IR profile, so line layout is noise: a blank-line run flattens to one
+    # space, so "line1\nline2" matches "line1 line2" for bag-of-words / index matching. This is
+    # ADR-0010's explicit, thrice-stated intent (collapse_lines=True), which only SEARCH sets.
+    assert normalize("a\n\nb", profile="search") == "a b"
+
+
+@pytest.mark.parametrize("profile", ["light", "ml", "social", "classical"])
+def test_non_search_profiles_preserve_line_breaks(profile: str) -> None:
+    # ADR-0010 names SEARCH ALONE as flattening: every other profile keeps the structure-preserving
+    # default, so a blank-line run collapses to a single newline (not a space) for them.
+    assert normalize("a\n\nb", profile=profile) == "a\nb"
+
+
 @given(ANY_TEXT)
 @example(ISOLATED_TASHKEEL_THEN_SPACE)  # RemoveTashkeel re-exposes whitespace LIGHT collapsed
 @example(FLOATING_HAMZA)  # FoldHamza does the same on a floating combining hamza
 @example(BLOCKED_HAMZA)  # exposed alef+hamza -> non-NFC without the closing tail's NFC
+@example(MULTILINE)  # flattened to one space (collapse_lines=True), so LIGHT's line-collapse no-ops
 def test_search_output_is_light_stable(text: str) -> None:
     # search ⊇ light (AC3): SEARCH does everything LIGHT does, so its output is a LIGHT fixed point.
     # This also pins that SEARCH's output is NFC and whitespace-collapsed -- the shared closing tail
-    # (CollapseWhitespace + NFC) makes LIGHT a no-op on it. The three explicit examples exercise the
-    # whitespace and canonical-order cases that tail exists to handle.
+    # (CollapseWhitespace + NFC) makes LIGHT a no-op on it. The explicit examples exercise the
+    # whitespace, canonical-order and line-flattening cases that tail exists to handle.
     light = Pipeline.from_profile(LIGHT)
     searched = normalize(text, profile="search")
     assert light(searched) == searched
@@ -141,6 +160,7 @@ def test_search_output_is_light_stable(text: str) -> None:
 @given(ANY_TEXT)
 @example(ISOLATED_TASHKEEL_THEN_SPACE)  # was '  ' (two spaces) on the second pass before the fix
 @example(FLOATING_HAMZA)
+@example(MULTILINE)  # SEARCH flattens lines (ADR-0010); the flattened output is its own fixed point
 def test_search_never_raises_and_is_idempotent(text: str) -> None:
     once = normalize(text, profile="search")  # total over arbitrary text, incl. lone surrogates
     assert normalize(once, profile="search") == once  # idempotent fixed point

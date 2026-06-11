@@ -78,7 +78,8 @@ LIGHT = Profile(
 #     ligatures to a mark on a SPACE carrier -- NFKC(U+FC5E) = space + dammatan + shadda -- so a
 #     mark can sit between two spaces; RemoveTashkeel / FoldHamza then delete it, and SOCIAL's
 #     cleaning deletes whole spans, each leaving two spaces adjacent. The closing CollapseWhitespace
-#     re-collapses them (reusing LIGHT's line-preserving config, so line structure is unchanged).
+#     re-collapses them. ML/SOCIAL reuse LIGHT's line-preserving config so line structure is
+#     unchanged; SEARCH alone flattens lines here (collapse_lines=True, ADR-0010) -- see its note.
 #   - CANONICAL ORDER. Deleting a *blocking* combining mark can EXPOSE a composition the
 #     mid-pipeline NFC already passed: NFC(alef + Qur'anic mark U+06DC + hamza U+0654) keeps the
 #     alef bare (the mark blocks the alef+hamza compose), but RemoveTashkeel strips that blocker and
@@ -117,7 +118,16 @@ SEARCH = Profile(
         StepSpec(name="ReduceElongation"),  # cap 1 (default)
         # Shared closing tail (see the note above): re-collapse whitespace the folds re-expose, then
         # re-canonicalize. Sits last, after every fold.
-        StepSpec(name="CollapseWhitespace"),
+        #
+        # SEARCH ALONE sets collapse_lines=True here (ADR-0010): the recall/IR profile flattens
+        # line breaks to spaces so "line1\nline2" matches "line1 line2" for bag-of-words matching.
+        # This trailing flatten subsumes the line-preserving CollapseWhitespace inherited mid-
+        # pipeline from *LIGHT.steps (no fold between them introduces a newline), so SEARCH stays
+        # idempotent and LIGHT-stable -- a flattened, newline-free output is a no-op for LIGHT's
+        # line-preserving collapse. Only SEARCH flattens; LIGHT/ML/SOCIAL/CLASSICAL keep the
+        # structure-preserving default. (If this ever drifts from ADR-0010 again, that ADR's
+        # line-flattening clause is the spec.)
+        StepSpec(name="CollapseWhitespace", config={"collapse_lines": True}),
         StepSpec(name="NormalizeUnicode", config={"form": "NFC"}),
     ],
 )

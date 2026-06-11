@@ -64,6 +64,7 @@
     'empty': '',
     'hamza-carriers': 'مومن سيل ء',
     'lam-alef-then-folded': 'لا',
+    'line-breaks': 'a b',
     'maqsura': 'علي',
     'number-separator-preserved': '123،456',
     'punctuation': 'نعم, لا?',
