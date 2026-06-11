@@ -8,6 +8,10 @@
     "environment_type": "virtualenv",
     "show_commit_url": "https://github.com/MhdMartini/araclean/commit/",
     "benchmark_dir": "benchmarks",
+    "// build": "araclean builds with hatchling (PEP 517). asv's default install command references a {wheel_file} produced by a separate build step; we skip that and let pip build+install straight from the checked-out source tree, so there is no wheel to substitute. Keeps the asv setup independent of any wheel-staging dance.",
+    "build_command": [],
+    "install_command": ["in-dir={env_dir} python -m pip install {build_dir}"],
+    "uninstall_command": ["return-code=any python -m pip uninstall -y {project}"],
     "env_dir": ".asv/env",
     "results_dir": ".asv/results",
     "html_dir": ".asv/html"
