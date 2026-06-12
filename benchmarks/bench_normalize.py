@@ -1,4 +1,4 @@
-"""Throughput benchmarks for the normalization engine (issue 0019, ADR-0006).
+"""Throughput benchmarks for the normalization engine (ADR-0006).
 
 Run over time by asv so a regression in throughput is detectable across commits. Each class is an
 asv benchmark: ``setup`` (excluded from timing) builds the pipeline and corpus once, and every
@@ -71,7 +71,7 @@ class NormalizeProfiles:
 
 
 class FusedCharEngine:
-    """The fused char-level engine (issue 0018): the whole run of single-char folds, one pass."""
+    """The fused char-level engine: the whole run of single-char folds, one pass."""
 
     fused: Callable[[str], str]
     corpus: list[str]

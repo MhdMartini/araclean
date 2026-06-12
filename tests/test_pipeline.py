@@ -60,7 +60,7 @@ def test_fold_presentation_forms_round_trips_through_registry() -> None:
 
 
 def test_to_dict_is_json_serializable() -> None:
-    # Reproducible profiles must serialize to plain JSON (story 14 / 40).
+    # Reproducible profiles must serialize to plain JSON.
     import json
 
     data = Pipeline([NormalizeUnicode("NFC")]).to_dict()
@@ -69,7 +69,7 @@ def test_to_dict_is_json_serializable() -> None:
 
 @given(st.lists(st.text()))
 def test_batch_agrees_with_calling_the_pipeline(texts: list[str]) -> None:
-    # batch(xs) is exactly [pipe(x) for x in xs] (0005 story 13).
+    # batch(xs) is exactly [pipe(x) for x in xs].
     pipe = Pipeline.from_profile(LIGHT)
     assert list(pipe.batch(texts)) == [pipe(t) for t in texts]
 
@@ -83,7 +83,7 @@ def test_batch_is_lazy_over_an_unbounded_stream() -> None:
 
 
 def test_repr_renders_ordered_step_names(snapshot: SnapshotAssertion) -> None:
-    # repr shows the steps in application order, readably (story 15).
+    # repr shows the steps in application order, readably.
     assert repr(Pipeline([NormalizeUnicode("NFC"), StripBidi()])) == (
         "Pipeline([NormalizeUnicode, StripBidi])"
     )
@@ -105,7 +105,7 @@ def test_repr_names_a_custom_step_by_its_class() -> None:
 
 def test_select_subsets_and_reorders_leaving_the_original_unchanged() -> None:
     # select(*names) yields a NEW pipeline with exactly those steps, in the order named -- covering
-    # both subset (a filtered selection) and reorder (the same steps in a new order) (story 16).
+    # both subset (a filtered selection) and reorder (the same steps in a new order).
     pipe = Pipeline([NormalizeUnicode("NFC"), StripBidi(), CollapseWhitespace()])
     samples = [*CORPUS, "a  b", chr(0x200F) + "x  y"]
 
@@ -185,7 +185,7 @@ def test_drop_removes_every_match_and_rejects_unknown_names() -> None:
 
 
 def test_custom_step_runs_inside_pipeline() -> None:
-    # A user-defined Step (safety + __call__) composes with built-ins (story 47).
+    # A user-defined Step (safety + __call__) composes with built-ins.
     class Shout:
         safety = SafetyClass.LINGUISTIC_FOLDING
 

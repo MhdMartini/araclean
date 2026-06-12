@@ -1,4 +1,4 @@
-"""Docs-site guards (issue 0023).
+"""Docs-site guards.
 
 The docs site's two machine-checkable invariants live here so they cannot rot:
 

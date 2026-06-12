@@ -25,8 +25,7 @@ The reason to name the loss `CLEANING` rather than fold it into `LINGUISTIC_FOLD
 
 So `LINGUISTIC_FOLDING` is, by definition, a subset of **Normalization**; stripping a URL is
 **Cleaning**, a sibling concern. Labeling a URL strip `LINGUISTIC_FOLDING` would contradict the
-project's own vocabulary. The distinction is also load-bearing for the story-41 audit
-([`0016`](../../issues/0016-config-reproducibility.md)): a researcher reproducing a paper asks two
+project's own vocabulary. The distinction is also load-bearing for the safety audit: a researcher reproducing a paper asks two
 different questions — *"did this touch my Arabic letters?"* (`LINGUISTIC_FOLDING`) and *"did this
 remove surrounding noise?"* (`CLEANING`) — and a precise audit must answer them separately, not
 collapse both into "lossy".
@@ -39,7 +38,7 @@ one extra enum value (ADR-0007 applies the same principle to terminology).
 - A `LIGHT`/`CLASSICAL` pipeline is lossless under exactly the same rule as before — *"all steps are
   `ENCODING_REPAIR`"* — so adding `CLEANING` changes no lossless assertion. The registry-driven invariant
   (`test_lossless_step_is_identity_on_clean_arabic`) excludes `CLEANING` steps automatically.
-- The safety audit (story 41 / issue 0016) reports a pipeline as lossless, or enumerates its lossy
+- The safety audit reports a pipeline as lossless, or enumerates its lossy
   steps split by **kind** — `LINGUISTIC_FOLDING` vs `CLEANING` — which is strictly more useful than a
   single lossy bucket.
 - `SafetyClass` is now a three-value `StrEnum`. Any code that exhaustively matched two values must

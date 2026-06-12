@@ -1,4 +1,4 @@
-"""Behavior of the pandas Series accessor (issue 0021) — a thin adapter at the facade seam.
+"""Behavior of the pandas Series accessor — a thin adapter at the facade seam.
 
 The accessor holds no normalization logic: it validates the profile + overrides once, builds the
 effective pipeline, and maps it over the Series. So these tests build real Series, call the
@@ -32,7 +32,7 @@ def _araclean(s: pd.Series[Any]) -> pandas_accessor.AracleanAccessor:
 
 
 def test_normalize_equals_mapping_the_facade() -> None:
-    # The headline ergonomic (story 43): one call on a Series == mapping `normalize` element-wise.
+    # The headline ergonomic: one call on a Series == mapping `normalize` element-wise.
     s = pd.Series([TATWEEL_WORD, "على", "abc"])
     result = _araclean(s).normalize(profile="light")
     # `str(value)` is identity on real strings; it only widens pandas-stubs' `str | NAType` to the

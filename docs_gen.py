@@ -1,4 +1,4 @@
-"""Generate the parts of the docs site that must never drift from the source of truth (0023).
+"""Generate the parts of the docs site that must never drift from the source of truth.
 
 This is **build-time tooling, not part of the shipped package** — it lives at the repo root, outside
 `src/araclean`, so it never enters the wheel. It renders four kinds of artifact from their single
@@ -12,7 +12,7 @@ source of truth and writes them under `docs/`:
     the rendered glossary cannot drift from the canonical terminology (ADR-0007);
   - the **CLI reference** (`docs/reference/cli.md`) — from the Typer/click command the `araclean`
     entry point actually executes, so the published flags, accepted values, defaults and help text
-    cannot drift from the installed CLI (issue 0020's adapter, same discipline as the profiles).
+    cannot drift from the installed CLI (the CLI adapter, same discipline as the profiles).
 
 The generated files are committed; `tests/test_docs.py` regenerates in memory and fails if the
 committed copy is stale, the same commit-the-output-and-test-it discipline the syrupy snapshots use.

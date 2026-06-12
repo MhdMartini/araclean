@@ -8,7 +8,7 @@ from syrupy.assertion import SnapshotAssertion
 
 from araclean import normalize
 
-# (label, input) pairs covering what LIGHT (now complete, 0002-0004) must and must not touch.
+# (label, input) pairs covering what LIGHT (now complete) must and must not touch.
 CORPUS: list[tuple[str, str]] = [
     # decomposed alef + combining hamza -> composes to alef-with-hamza ("Ahmad")
     ("decomposed-hamza", chr(0x0627) + chr(0x0654) + chr(0x062D) + chr(0x0645) + chr(0x062F)),
@@ -17,7 +17,7 @@ CORPUS: list[tuple[str, str]] = [
     # multi-mark in NON-canonical order is reordered to canonical NFC by LIGHT's closing pass
     # (ADR-0009): beh + shadda (ccc 33) + fatha (ccc 30) -> beh + fatha + shadda
     ("canonicalized-marks", chr(0x0628) + chr(0x0651) + chr(0x064E)),
-    # tatweel is now removed (RemoveTatweel, 0004): a letter + tatweel + a letter -> the two letters
+    # tatweel is now removed (RemoveTatweel): a letter + tatweel + a letter -> the two letters
     ("tatweel", chr(0x0645) + chr(0x0640) + chr(0x062D)),
     # plain lam-alef ligature -> lam + bare alef
     ("lam-alef-plain", chr(0xFEFB)),
@@ -25,9 +25,9 @@ CORPUS: list[tuple[str, str]] = [
     ("lam-alef-hamza", chr(0xFEF7)),
     # a word as presentation-form glyphs (beh-initial + heh-final) -> base letters
     ("presentation-letters", chr(0xFE91) + chr(0xFEEA)),
-    # bidi/zero-width/BOM stripped (StripBidi, 0004): BOM + alef + RLM + beh -> alef + beh
+    # bidi/zero-width/BOM stripped (StripBidi): BOM + alef + RLM + beh -> alef + beh
     ("invisibles", chr(0xFEFF) + chr(0x0627) + chr(0x200F) + chr(0x0628)),
-    # look-alike kaf/yeh/heh unified for Arabic (UnifyLookalikes, 0004): keheh+farsi-yeh+heh-goal
+    # look-alike kaf/yeh/heh unified for Arabic (UnifyLookalikes): keheh+farsi-yeh+heh-goal
     ("lookalikes", chr(0x06A9) + chr(0x06CC) + chr(0x06C1)),
     # the one accepted residual: a Persian-keyboard yeh merges علی -> علي
     ("maqsura-residual", chr(0x0639) + chr(0x0644) + chr(0x06CC)),
@@ -37,7 +37,7 @@ CORPUS: list[tuple[str, str]] = [
         "emoji-zwj-sequence",
         chr(0x1F468) + chr(0x200D) + chr(0x1F469) + " " + chr(0x0645) + chr(0x200D) + chr(0x062D),
     ),
-    # whitespace runs (NBSP + double space) collapse to one ASCII space (CollapseWhitespace, 0004)
+    # whitespace runs (NBSP + double space) collapse to one ASCII space (CollapseWhitespace)
     ("whitespace", "a" + chr(0x00A0) + chr(0x0020) + "b"),
     # line breaks are preserved (ADR-0010): a blank-line run collapses to a single newline, while
     # the horizontal whitespace on each side is absorbed into it
@@ -54,7 +54,7 @@ def test_light_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
     assert result == snapshot
 
 
-# (label, input) pairs over realistic Arabic spanning what SEARCH (issue 0010) folds for recall —
+# (label, input) pairs over realistic Arabic spanning what SEARCH folds for recall —
 # vocalized MSA, dialectal/noisy, digits, punctuation — plus the encoding repair it inherits from
 # LIGHT. SEARCH is the maximal lossy profile, so this is the regression net for every fold at once.
 SEARCH_CORPUS: list[tuple[str, str]] = [
@@ -145,7 +145,7 @@ def test_search_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
     assert result == snapshot
 
 
-# (label, input) pairs for ML (issue 0011): the conservative-on-letters profile. It removes what
+# (label, input) pairs for ML: the conservative-on-letters profile. It removes what
 # only hurts a tokenizer (vocalization, emphatic elongation) but PRESERVES every alef/hamza/maqsura/
 # teh-marbuta distinction, every digit and every Arabic mark. This corpus is the contrast net to
 # SEARCH: same inputs, but the letter-fold / digit / punctuation rows stay untouched here.
@@ -180,7 +180,7 @@ ML_CORPUS: list[tuple[str, str]] = [
     ),
     # alef maqsura is PRESERVED (على stays على) — the headline contrast with SEARCH
     ("maqsura-preserved", chr(0x0639) + chr(0x0644) + chr(0x0649)),
-    # alef variants are PRESERVED (أ إ آ ٱ unchanged) — none of the 0007 folds run
+    # alef variants are PRESERVED (أ إ آ ٱ unchanged) — none of the letter folds run
     ("alef-variants-preserved", " ".join((chr(0x0623), chr(0x0625), chr(0x0622), chr(0x0671)))),
     # hamza carriers are PRESERVED (مؤمن keeps its ؤ)
     ("hamza-preserved", chr(0x0645) + chr(0x0624) + chr(0x0645) + chr(0x0646)),
@@ -218,7 +218,7 @@ def test_ml_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
     assert result == snapshot
 
 
-# (label, input) pairs for CLASSICAL (issue 0015): the lossless profile for vocalized / Qur'anic
+# (label, input) pairs for CLASSICAL: the lossless profile for vocalized / Qur'anic
 # text. It repairs encoding exactly as LIGHT does, but its contract is that NO vocalization or
 # Qur'anic annotation mark is ever removed (the exact opposite of SEARCH on the same inputs). This
 # corpus is the regression net for that preservation guarantee: the vocalized / marked rows must
@@ -268,10 +268,10 @@ def test_classical_profile_golden_snapshot(snapshot: SnapshotAssertion) -> None:
     assert result == snapshot
 
 
-# (label, input) pairs for SOCIAL (issue 0014): make noisy user text tractable WITHOUT deleting the
+# (label, input) pairs for SOCIAL: make noisy user text tractable WITHOUT deleting the
 # affective signal. It cleans the metadata noise (URL/mention -> Arabic placeholder, HTML strip +
 # unescape), removes vocalization, and caps elongation at 2 (emphasis survives), but KEEPS emoji and
-# — like ML — runs none of the 0007 letter folds, so letter distinctions are preserved. This corpus
+# — like ML — runs none of the letter folds, so letter distinctions are preserved. This corpus
 # is the regression net for that whole recipe on realistic noisy tweets.
 SOCIAL_CORPUS: list[tuple[str, str]] = [
     # the full worked example: cap-2 elongation, tashkeel gone, mention/URL -> Arabic token, emoji
@@ -335,7 +335,7 @@ SOCIAL_CORPUS: list[tuple[str, str]] = [
     ("html-strip-unescape", "<b>" + chr(0x0646) + chr(0x0635) + "</b> &amp; X"),
     # emoji is KEPT — the affective signal SOCIAL exists to preserve (أحبه 😍)
     ("emoji-kept", chr(0x0623) + chr(0x062D) + chr(0x0628) + chr(0x0647) + " " + chr(0x1F60D)),
-    # letter distinctions are PRESERVED (no 0007 fold runs): على stays على, not folded to علي
+    # letter distinctions are PRESERVED (no letter fold runs): على stays على, not folded to علي
     ("maqsura-preserved", chr(0x0639) + chr(0x0644) + chr(0x0649)),
     # encoding repair still runs: tatweel removed (محـــمد -> محمد)
     ("tatweel", chr(0x0645) + chr(0x062D) + chr(0x0640) * 3 + chr(0x0645) + chr(0x062F)),

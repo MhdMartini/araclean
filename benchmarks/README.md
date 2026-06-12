@@ -1,7 +1,5 @@
 # Benchmarks & differential oracles
 
-Issue [0019](../issues/0019-benchmarks-differential-oracles.md) — PRD story 46, ADR-0002, ADR-0006.
-
 araclean's performance claim (ADR-0006) is that fusing a profile's single-char `str.translate`
 folds into **one** C-level pass beats applying each fold as its own scan. These benchmarks make
 that claim measurable, and the differential tests keep araclean honest against an independent

@@ -1,4 +1,4 @@
-# Quality gate (issue 0001). Every hook runs the project's pinned tool via
+# Quality gate. Every hook runs the project's pinned tool via
 # `uv run` so there is a single source of tool versions (the uv lockfile);
 # cSpell runs via npx against the project dictionary (cspell.json).
 #

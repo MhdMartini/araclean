@@ -31,7 +31,7 @@ def test_already_nfc_text_is_unchanged() -> None:
     assert normalize(COMPOSED) == COMPOSED
 
 
-# Each lam-alef ligature folds under LIGHT to lam + its MATCHING alef variant (story 20).
+# Each lam-alef ligature folds under LIGHT to lam + its MATCHING alef variant.
 LAM = chr(0x0644)
 LAM_ALEF_UNDER_LIGHT = [
     (chr(0xFEFB), LAM + chr(0x0627)),  # ﻻ -> ل + alef
@@ -60,7 +60,7 @@ def test_normalize_equals_nfc_when_only_nfc_applies(text: str) -> None:
     assert normalize(text) == unicodedata.normalize("NFC", text)
 
 
-# --- LIGHT now completes (issue 0004): tatweel / invisibles / look-alike / whitespace ---
+# --- LIGHT now completes: tatweel / invisibles / look-alike / whitespace ---
 
 
 def test_light_removes_tatweel() -> None:
@@ -117,7 +117,7 @@ def test_light_is_a_lossless_fixed_point() -> None:
     assert once == chr(0x0645) + chr(0x062D) + " " + chr(0x0643) + chr(0x0628)
 
 
-# --- Tashkeel removal is opt-in (issue 0006, story 25): LIGHT must never strip vocalization ---
+# --- Tashkeel removal is opt-in: LIGHT must never strip vocalization ---
 
 # كَتَبَ fully vocalized: every letter carries a fatha.
 VOCALIZED = chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E)
@@ -137,7 +137,7 @@ def test_tashkeel_is_removed_only_via_an_explicit_step() -> None:
     assert Pipeline([*Pipeline.from_profile(LIGHT).steps, RemoveTashkeel()])(VOCALIZED) == bare
 
 
-# --- Letter folds are opt-in (issue 0007, stories 27-30): LIGHT must never fold letters ---
+# --- Letter folds are opt-in: LIGHT must never fold letters ---
 
 
 def test_light_does_not_fold_letters() -> None:
@@ -156,7 +156,7 @@ def test_light_does_not_fold_letters() -> None:
 
 def test_light_does_not_fold_alef_maqsura() -> None:
     # "maqsura not folded by default": على keeps its alef maqsura and علي keeps its yeh, so the two
-    # stay distinct words under LIGHT — the fold that would merge them is opt-in (issue 0007).
+    # stay distinct words under LIGHT — the fold that would merge them is opt-in.
     ala_maqsura = chr(0x0639) + chr(0x0644) + chr(0x0649)  # على
     ala_yeh = chr(0x0639) + chr(0x0644) + chr(0x064A)  # علي
     assert normalize(ala_maqsura) == ala_maqsura
@@ -164,30 +164,30 @@ def test_light_does_not_fold_alef_maqsura() -> None:
     assert normalize(ala_maqsura) != normalize(ala_yeh)  # still distinct
 
 
-# --- Digit & punctuation mapping is opt-in (issue 0008, stories 31-32): LIGHT must not map them ---
+# --- Digit & punctuation mapping is opt-in: LIGHT must not map them ---
 
 
 def test_light_does_not_map_digits() -> None:
-    # Arabic-Indic digits survive LIGHT unchanged — converting digit systems is lossy/opt-in (0008),
+    # Arabic-Indic digits survive LIGHT unchanged — converting digit systems is lossy/opt-in,
     # and the parking-lot default for LIGHT is to keep digits as written.
     arabic_indic_123 = chr(0x0661) + chr(0x0662) + chr(0x0663)  # ١٢٣
     assert normalize(arabic_indic_123) == arabic_indic_123
 
 
 def test_light_does_not_map_punctuation() -> None:
-    # The Arabic comma/semicolon/question survive LIGHT — mapping them to Latin is opt-in (0008).
+    # The Arabic comma/semicolon/question survive LIGHT — mapping them to Latin is opt-in.
     punctuated = "نعم" + chr(0x060C) + " لا" + chr(0x061F)  # نعم، لا؟
     assert normalize(punctuated) == punctuated
 
 
 def test_light_does_not_reduce_elongation() -> None:
     # Emphatic word-lengthening survives LIGHT unchanged — collapsing a repeated-letter run discards
-    # the emphasis, so it is lossy/opt-in (issue 0009), never run by the lossless default.
+    # the emphasis, so it is lossy/opt-in, never run by the lossless default.
     lengthened = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل
     assert normalize(lengthened) == lengthened
 
 
-# --- Cleaning is opt-in (issue 0012, story 34): LIGHT must not remove URLs/mentions/HTML ---
+# --- Cleaning is opt-in: LIGHT must not remove URLs/mentions/HTML ---
 
 
 def test_light_does_not_clean_urls_mentions_or_html() -> None:
@@ -200,15 +200,15 @@ def test_light_does_not_clean_urls_mentions_or_html() -> None:
 
 
 def test_light_does_not_handle_emoji() -> None:
-    # Stripping/demojizing emoji is opt-in CLEANING (issue 0013); the lossless default keeps the
+    # Stripping/demojizing emoji is opt-in CLEANING; the lossless default keeps the
     # affective signal. The emoji and its NFC-stable, single-spaced surroundings survive verbatim.
     text = chr(0x0623) + chr(0x062D) + chr(0x0628) + chr(0x0647) + " " + chr(0x1F60D)  # أحبه 😍
     assert normalize(text) == text
 
 
 def test_light_does_not_remove_stopwords() -> None:
-    # Stopword removal discards linguistic content (function words), so it is lossy and opt-in
-    # (issue 0017), never run by the lossless default. The stopword "على" and its NFC-stable,
+    # Stopword removal discards linguistic content (function words), so it is lossy and opt-in,
+    # never run by the lossless default. The stopword "على" and its NFC-stable,
     # single-spaced surroundings survive LIGHT verbatim.
     text = "الكتاب على الطاولة"
     assert normalize(text) == text

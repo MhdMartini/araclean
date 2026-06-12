@@ -1,7 +1,7 @@
 """The `Step` family — pure `str -> str` transforms, the extension seam of the library.
 
 A `Step` is the minimal contract (a `safety` class + `__call__`), so a user can drop in their
-own `str -> str` callable (story 47). Each built-in step's behavior is also exported as a free
+own `str -> str` callable. Each built-in step's behavior is also exported as a free
 function for standalone use (Layer 1, ADR-0003).
 
 Built-in steps additionally serialize themselves (`to_dict`/`from_dict`) and register under a
@@ -25,7 +25,7 @@ from araclean.safety import SafetyClass
 type UnicodeForm = Literal["NFC", "NFD", "NFKC", "NFKD"]
 
 # The shape of a `str.translate` table: each Unicode code point maps to a replacement string, a
-# replacement ordinal, or ``None`` (delete). The fused engine (issue 0018) reads such tables off
+# replacement ordinal, or ``None`` (delete). The fused engine reads such tables off
 # the fusible steps and composes a run of them into one.
 type TranslateTable = Mapping[int, str | int | None]
 
@@ -169,7 +169,7 @@ def _aligned_html_unescape(s: str) -> tuple[str, OffsetMap]:
 class SupportsTranslate(Step, Protocol):
     """A `Step` whose entire behavior is one `str.translate` over a static table — *fusible*.
 
-    The fused engine (`araclean.fusion`, issue 0018 / ADR-0006) collapses a run of consecutive
+    The fused engine (`araclean.fusion`, ADR-0006) collapses a run of consecutive
     `SupportsTranslate` steps into a single combined table applied in one C-level pass. This is
     exact because `str.translate` is a context-free, single-pass, per-character map — it never
     re-scans its own output — so composing the run per code point reproduces applying the steps in
@@ -252,7 +252,7 @@ class FoldPresentationForms:
 
     @property
     def translate_table(self) -> dict[int, str]:
-        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        """The static `str.translate` table this step applies — the fused-engine seam."""
         return chars.PRESENTATION_FORMS
 
     def to_dict(self) -> StepDict:
@@ -292,7 +292,7 @@ class RemoveTatweel:
 
     @property
     def translate_table(self) -> dict[int, None]:
-        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        """The static `str.translate` table this step applies — the fused-engine seam."""
         return chars.REMOVE_TATWEEL
 
     def to_dict(self) -> StepDict:
@@ -324,7 +324,7 @@ class StripBidi:
     (and alter what a later `HandleEmoji` sees), so a ZWJ flanked by emoji is KEPT and every other
     ZWJ is stripped. Residual: a joiner between an emoji and an Arabic letter still goes. That one
     rule is a regex pass, so unlike the other LIGHT repairs this step is contextual and stays its
-    own pass — it does not join the 0018 fused-translate engine (ADR-0006).
+    own pass — it does not join the fused-translate engine (ADR-0006).
     """
 
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
@@ -379,7 +379,7 @@ class UnifyLookalikes:
 
     @property
     def translate_table(self) -> dict[int, str]:
-        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        """The static `str.translate` table this step applies — the fused-engine seam."""
         return chars.UNIFY_LOOKALIKES
 
     def to_dict(self) -> StepDict:
@@ -451,7 +451,7 @@ registry.register(CollapseWhitespace.name, CollapseWhitespace.from_dict)
 
 
 class MarkClass(StrEnum):
-    """A class of tashkeel marks `RemoveTashkeel` can remove independently (story 26).
+    """A class of tashkeel marks `RemoveTashkeel` can remove independently.
 
     English: *diacritic class*. The vocalization-mark taxonomy (GLOSSARY: Tashkeel) split into the
     units a caller selects between. `SUKUN` is not a member — it is the vowelless mark (the
@@ -530,7 +530,7 @@ class RemoveTashkeel:
     """Remove tashkeel — diacritics / vocalization marks — by class — lossy linguistic folding.
 
     English: *dediacritization*. The first lossy step and araclean's headline differentiator: which
-    mark classes to remove is chosen *independently* (story 26), so a caller can strip harakat while
+    mark classes to remove is chosen *independently*, so a caller can strip harakat while
     keeping a meaningful shadda, drop only tanween, etc. Removal deletes the marks alone and never a
     carrier letter (a tanween over an alef goes; the alef stays). `safety` is `LINGUISTIC_FOLDING`,
     so it never runs under `LIGHT`: it is opt-in via a lossy profile or an explicit step (ADR-0004).
@@ -538,14 +538,14 @@ class RemoveTashkeel:
     `classes` defaults to every `MarkClass`. Sukun rides with `HARAKAT` (it is the *absence* of a
     vowel, not a haraka, but stripping the vowels while leaving a bare sukun is never wanted). The
     orthographic combining madda U+0653 is removed with `MADDA`; the alef-with-madda letter آ U+0622
-    is letter folding (issue 0007), kept here.
+    is letter folding, kept here.
 
     `position` selects WHERE the chosen marks are removed: ``"all"`` (the default) everywhere via
     one `str.translate` pass; ``"final"`` only a WORD-FINAL run of them — the i3rab fold (drop the
     case vowel, keep the word-internal vocalization: كِتَابٌ → كِتَاب), PyArabic's
     ``strip_lastharaka`` parity. A trailing run followed by an *unselected* mark counts as
     word-internal and is kept. ``"final"`` is a contextual regex rule, so in that mode the step
-    stays its own pass and does not join the 0018 fused-translate engine (its `translate_table`
+    stays its own pass and does not join the fused-translate engine (its `translate_table`
     raises `AttributeError`, which the planner reads as "not fusible").
     """
 
@@ -595,7 +595,7 @@ class RemoveTashkeel:
 
     @property
     def translate_table(self) -> dict[int, None]:
-        """The precomputed `str.translate` deletion table — the fused-engine seam (0018).
+        """The precomputed `str.translate` deletion table — the fused-engine seam.
 
         Only ``position="all"`` IS one translate pass; ``"final"`` is contextual, so this raises
         `AttributeError` and the fusion planner leaves the step as its own pass.
@@ -655,7 +655,7 @@ class FoldAlef:
 
     @property
     def translate_table(self) -> dict[int, str]:
-        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        """The static `str.translate` table this step applies — the fused-engine seam."""
         return chars.FOLD_ALEF
 
     def to_dict(self) -> StepDict:
@@ -695,7 +695,7 @@ class FoldAlefMaqsura:
 
     @property
     def translate_table(self) -> dict[int, str]:
-        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        """The static `str.translate` table this step applies — the fused-engine seam."""
         return chars.FOLD_ALEF_MAQSURA
 
     def to_dict(self) -> StepDict:
@@ -733,7 +733,7 @@ class FoldHamza:
     English: *hamza folding*. A toggle kept separate from `FoldAlef` so hamza can be neutralized on
     the waw/yeh carriers (ؤ→و, ئ→ي) without folding alef. Folding *lightly* (the default) folds the
     carriers and deletes the combining hamza marks U+0654/U+0655 (hamza seated on a carrier — the
-    letter content issue 0006 routes here, not to `RemoveTashkeel`). Folding *heavily*
+    letter content the mark partition routes here, not to `RemoveTashkeel`). Folding *heavily*
     (``drop_standalone_hamza=True``) also drops the standalone hamza ء U+0621 and the high hamza
     ٴ U+0674. The precomposed alef-hamza letters أ/إ are alef variants, left to `FoldAlef`.
     `safety` is `LINGUISTIC_FOLDING`.
@@ -760,7 +760,7 @@ class FoldHamza:
 
     @property
     def translate_table(self) -> dict[int, str | None]:
-        """The precomputed `str.translate` table — the fused-engine seam (0018)."""
+        """The precomputed `str.translate` table — the fused-engine seam."""
         return self._table
 
     def to_dict(self) -> StepDict:
@@ -775,7 +775,7 @@ registry.register(FoldHamza.name, FoldHamza.from_dict)
 
 
 class TehMarbutaTarget(StrEnum):
-    """What `FoldTehMarbuta` rewrites the teh marbuta ة to (story 29).
+    """What `FoldTehMarbuta` rewrites the teh marbuta ة to.
 
     English: *teh-marbuta target*. `HEH` (the common search fold, default) and `TEH` (its underlying
     value) are the standard targets; `KEEP` leaves ة in place so a profile can pin "do not fold".
@@ -840,7 +840,7 @@ class FoldTehMarbuta:
 
     @property
     def translate_table(self) -> dict[int, str]:
-        """The precomputed `str.translate` table (empty for ``KEEP``) — fused-engine seam (0018)."""
+        """The precomputed `str.translate` table (empty for ``KEEP``) — fused-engine seam."""
         return self._table
 
     def to_dict(self) -> StepDict:
@@ -858,7 +858,7 @@ registry.register(FoldTehMarbuta.name, FoldTehMarbuta.from_dict)
 
 
 class DigitTarget(StrEnum):
-    """Which digit system `MapDigits` converts every digit to (story 31).
+    """Which digit system `MapDigits` converts every digit to.
 
     English: *digit target*. `ASCII` (default) makes numbers parse and match consistently; the two
     Arabic systems are `ARABIC_INDIC` (Eastern ٠-٩) and `EXTENDED_ARABIC_INDIC` (Persian/Urdu ۰-۹).
@@ -914,7 +914,7 @@ class MapDigits:
 
     English: *digit mapping*. Every digit — Arabic-Indic ٠-٩, Extended (Persian/Urdu) ۰-۹, or ASCII
     0-9 — is rewritten to the chosen `DigitTarget` by numeric value, so numbers parse and match
-    consistently regardless of how they were typed (story 31). The default target is `ASCII`. The
+    consistently regardless of how they were typed. The default target is `ASCII`. The
     map erases which script a digit was written in, so `safety` is `LINGUISTIC_FOLDING`: opt-in via
     a lossy profile or an explicit step, never under `LIGHT`.
 
@@ -923,7 +923,7 @@ class MapDigits:
     ``map_separators=True`` also rewrites a separator when digit-flanked on BOTH sides (٫ → ``.``,
     ٬ → ``,``; the inverse of `MapPunctuation`'s guard), giving 12.5; a stray separator outside a
     number is never touched. That guard is a contextual regex, so with the knob on the step stays
-    its own pass and does not join the 0018 fused-translate engine (its `translate_table` raises
+    its own pass and does not join the fused-translate engine (its `translate_table` raises
     `AttributeError`, which the planner reads as "not fusible").
     """
 
@@ -962,7 +962,7 @@ class MapDigits:
 
     @property
     def translate_table(self) -> dict[int, str]:
-        """The precomputed `str.translate` table this step applies — fused-engine seam (0018).
+        """The precomputed `str.translate` table this step applies — fused-engine seam.
 
         Only the pure digit map IS one translate pass; with ``map_separators=True`` the
         digit-flanked guard is contextual, so this raises `AttributeError` and the fusion planner
@@ -1001,7 +1001,7 @@ class MapPunctuation:
     """Map Arabic punctuation ، ؛ ؟ to Latin , ; ? — number-separator-safe — lossy folding.
 
     English: *punctuation mapping*. The Arabic comma ،, semicolon ؛ and question mark ؟ fold to
-    their Latin equivalents so one tokenizer/sentence-splitter works on Arabic text (story 32). A
+    their Latin equivalents so one tokenizer/sentence-splitter works on Arabic text. A
     mark sitting between two digits is a numeric separator (e.g. a thousands-grouped number) and is
     preserved, not turned into sentence punctuation; the dedicated decimal/thousands/date separators
     are never touched. The fold erases the script of the punctuation, so `safety` is
@@ -1095,7 +1095,7 @@ class ReduceElongation:
     number, not emphasis, so 1000 stays 1000), nor are tashkeel marks or tatweel. The fold discards
     the emphasis, so `safety` is `LINGUISTIC_FOLDING`: opt-in via a lossy profile or an explicit
     step, never under `LIGHT`. It is a contextual `re` rule, so it stays its own pass and is not a
-    candidate for the 0018 fused-translate engine (ADR-0006).
+    candidate for the fused-translate engine (ADR-0006).
     """
 
     cap: int = 1
@@ -1382,7 +1382,7 @@ registry.register(CleanHTML.name, CleanHTML.from_dict)
 
 
 class EmojiMode(StrEnum):
-    """How `HandleEmoji` treats emoji (story 35).
+    """How `HandleEmoji` treats emoji.
 
     English: *emoji handling*. `KEEP` (default) leaves emoji in place so affective signal survives;
     `STRIP` removes them; `DEMOJIZE` replaces each with its text alias (😍 → ``:heart_eyes:``),
@@ -1546,7 +1546,7 @@ class RemoveStopwords:
     Arabic text, so `safety` is `LINGUISTIC_FOLDING`: opt-in via a lossy profile or an explicit
     step, never under `LIGHT` (it is content removal, not non-linguistic-noise cleaning — ADR-0011).
 
-    Two deliberate properties (story 37): the list is **flat, not clitic-aware** (ADR-0001), so a
+    Two deliberate properties: the list is **flat, not clitic-aware** (ADR-0001), so a
     prefixed/suffixed form like ``والكتاب`` / ``فيها`` is kept — only a standalone token is removed;
     and it is **negation-safe** — the polarity particles ``ما`` / ``لا`` / ``لم`` / ``لن`` / ``ليس``
     are excluded so removal can never flip a sentence's polarity. A removed token leaves its
@@ -1584,7 +1584,7 @@ class RemoveStopwords:
         return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
 
     def to_dict(self) -> StepDict:
-        # Pin the list version so a serialized profile reproduces the exact removal (story 36).
+        # Pin the list version so a serialized profile reproduces the exact removal.
         return {"name": self.name, "config": {"version": stopwords.STOPWORDS_VERSION}}
 
     @classmethod
@@ -1759,7 +1759,7 @@ class RemovePunctuation:
     equivalents for tokenizer uniformity): this step DELETES, so the two compose — map first if
     you want the Latin marks, or just remove everything. Deleting sentence structure is lossy, so
     `safety` is `LINGUISTIC_FOLDING`: opt-in, never under `LIGHT`. The whole behavior is one
-    `str.translate`, so it is fusible (0018).
+    `str.translate`, so it is fusible.
     """
 
     keep: Collection[str] = ()
@@ -1786,7 +1786,7 @@ class RemovePunctuation:
 
     @property
     def translate_table(self) -> dict[int, None]:
-        """The precomputed `str.translate` deletion table — the fused-engine seam (0018)."""
+        """The precomputed `str.translate` deletion table — the fused-engine seam."""
         return self._table
 
     def to_dict(self) -> StepDict:
@@ -1822,7 +1822,7 @@ class FoldTanweenAlef:
 
     It discards a real grammatical ending, so `safety` is `LINGUISTIC_FOLDING`: opt-in via SEARCH
     or an explicit step, never under `LIGHT`. A contextual `re` rule (word-final anchoring), so it
-    stays its own pass and is not a candidate for the 0018 fused-translate engine (ADR-0006).
+    stays its own pass and is not a candidate for the fused-translate engine (ADR-0006).
     """
 
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
@@ -1939,7 +1939,7 @@ class Trim:
     keeping both contracts clean: collapse stays a fixed point, trim is its own idempotent
     operation a caller composes when wanted. Edge whitespace carries no linguistic signal, so
     `safety` is `ENCODING_REPAIR`. Positional (start/end), hence contextual — its own pass, not a
-    0018 fusion candidate.
+    fusion candidate.
     """
 
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
@@ -1984,7 +1984,7 @@ class MapQuotes:
     emit the curly/low-9 variants; folding them all to ``"`` / ``'`` (by visual family — double
     to double, single to single) gives a tokenizer one quote vocabulary. It erases the quote
     style, so `safety` is `LINGUISTIC_FOLDING`: opt-in via an explicit step, never under `LIGHT`
-    and in no built-in profile. One `str.translate` pass, so it is fusible (0018).
+    and in no built-in profile. One `str.translate` pass, so it is fusible.
     """
 
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
@@ -1999,7 +1999,7 @@ class MapQuotes:
 
     @property
     def translate_table(self) -> dict[int, str]:
-        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        """The static `str.translate` table this step applies — the fused-engine seam."""
         return chars.MAP_QUOTES
 
     def to_dict(self) -> StepDict:

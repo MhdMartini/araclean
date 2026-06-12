@@ -7,7 +7,7 @@ value is rejected here with a clear pydantic error and never reaches the per-str
 
 `resolve()` turns a validated config into an effective `Profile` (the named preset with its
 overrides applied), so the same config both *runs* and *serializes* — a paper can publish the
-exact preprocessing it used (story 40) including the overrides, and others reproduce it.
+exact preprocessing it used including the overrides, and others reproduce it.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class ProfileName(StrEnum):
-    """The closed set of named profiles `normalize` accepts (story 39).
+    """The closed set of named profiles `normalize` accepts.
 
     A `StrEnum` so an unknown profile name is rejected at the config boundary with a clear error,
     rather than only when the pipeline is assembled.
@@ -72,7 +72,7 @@ def _config_value(value: object) -> object:
 
 
 class NormalizeConfig(BaseModel):
-    """A validated `normalize` call: a profile plus optional per-knob overrides (stories 39/40).
+    """A validated `normalize` call: a profile plus optional per-knob overrides.
 
     Frozen and `extra="forbid"`, so a typo'd knob (`map_digit=` for `map_digits=`) or an unknown
     option value fails loudly at construction instead of silently doing nothing — a reproducibility
@@ -80,8 +80,8 @@ class NormalizeConfig(BaseModel):
     profile's own default for that step"; setting one rewrites exactly that step when `resolve()`
     assembles the effective `Profile`.
 
-    The override surface is the profile name **plus** per-knob scalars (the shape issue 0016 fixes):
-    `map_digits` is ML's optional digit fold (story 6) and is valid ONLY with ML — it appends a
+    The override surface is the profile name **plus** per-knob scalars:
+    `map_digits` is ML's optional digit fold and is valid ONLY with ML — it appends a
     lossy step, which on any other profile would silently break that profile's contract (LIGHT/
     CLASSICAL are lossless; SEARCH already folds digits). `remove_stopwords` is SEARCH's optional
     stopword removal — valid only there, because the folded list requires exactly SEARCH's letter
@@ -94,7 +94,7 @@ class NormalizeConfig(BaseModel):
 
     profile: ProfileName = ProfileName.LIGHT
 
-    # ML (story 6): the optional digit fold, OFF by default so ML keeps every letter distinction.
+    # ML: the optional digit fold, OFF by default so ML keeps every letter distinction.
     # When True it APPENDS MapDigits (→ ASCII, its default target) to the resolved pipeline.
     # ML-only: on any other profile it would be a silent contract change (or a no-op), so it is
     # rejected by resolve().
@@ -105,7 +105,7 @@ class NormalizeConfig(BaseModel):
     # SEARCH-only: the folded stopword list requires exactly the folds SEARCH applies.
     remove_stopwords: bool = False
 
-    # SOCIAL (story 7): each rewrites one step's config when set; left None, the step keeps its
+    # SOCIAL: each rewrites one step's config when set; left None, the step keeps its
     # profile default. `elongation_cap` reuses ReduceElongation's own >= 1 constraint.
     emoji: EmojiMode | None = None
     elongation_cap: Annotated[int, Field(ge=1)] | None = None

@@ -77,7 +77,7 @@ def test_unknown_profile_name_raises_clear_error() -> None:
 
 
 def test_light_is_lossless_all_encoding_repair() -> None:
-    # A "lossless" profile must contain only ENCODING_REPAIR steps (story 41 / ADR-0004).
+    # A "lossless" profile must contain only ENCODING_REPAIR steps (ADR-0004).
     pipe = Pipeline.from_profile(LIGHT)
     assert all(step.safety is SafetyClass.ENCODING_REPAIR for step in pipe.steps)
 
@@ -90,7 +90,7 @@ def test_profile_is_a_pydantic_model_validated_on_construction() -> None:
         Profile.model_validate({"name": "bad", "steps": [{"name": 123}]})
 
 
-# --- SEARCH profile (issue 0010, story 5): aggressive recall via the lossy folds ---
+# --- SEARCH profile: aggressive recall via the lossy folds ---
 
 # على: ain + lam + alef maqsura. SEARCH folds the maqsura to yeh, merging it with علي.
 ALA_MAQSURA = chr(0x0639) + chr(0x0644) + chr(0x0649)
@@ -109,7 +109,7 @@ def test_search_removes_dagger_alef_to_standard_spelling() -> None:
 
 
 def test_search_is_lossy_contains_linguistic_folding_steps() -> None:
-    # The audit complement of LIGHT (story 41): SEARCH is NOT lossless -- it carries the opt-in
+    # The audit complement of LIGHT: SEARCH is NOT lossless -- it carries the opt-in
     # LINGUISTIC_FOLDING folds, so a safety audit must surface that it loses information.
     from araclean import SEARCH
 
@@ -119,7 +119,7 @@ def test_search_is_lossy_contains_linguistic_folding_steps() -> None:
 
 
 def test_search_facade_equals_explicit_pipeline() -> None:
-    # normalize(text, profile="search") is exactly Pipeline.from_profile(SEARCH) (story 5 / AC6).
+    # normalize(text, profile="search") is exactly Pipeline.from_profile(SEARCH) (AC6).
     from araclean import SEARCH
 
     pipe = Pipeline.from_profile(SEARCH)
@@ -166,7 +166,7 @@ def test_search_never_raises_and_is_idempotent(text: str) -> None:
     assert normalize(once, profile="search") == once  # idempotent fixed point
 
 
-# --- ML profile (issue 0011, story 6): conservative-on-letters cleaning for model input ---
+# --- ML profile: conservative-on-letters cleaning for model input ---
 
 # كَتَبَ fully vocalized: every letter carries a fatha.
 VOCALIZED = chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E) + chr(0x0628) + chr(0x064E)
@@ -188,7 +188,7 @@ def test_ml_reduces_elongation() -> None:
 
 def test_ml_preserves_letter_distinctions() -> None:
     # ML's thesis (the AraToken finding): the alef/hamza/alef-maqsura/teh-marbuta variants are
-    # disambiguating, so ML keeps them all — unlike SEARCH, none of the 0007 letter folds run.
+    # disambiguating, so ML keeps them all — unlike SEARCH, none of the letter folds run.
     ala_maqsura = chr(0x0639) + chr(0x0644) + chr(0x0649)  # على (alef maqsura)
     ala_yeh = chr(0x0639) + chr(0x0644) + chr(0x064A)  # علي (yeh)
     assert normalize(ala_maqsura, profile="ml") == ala_maqsura
@@ -202,7 +202,7 @@ def test_ml_preserves_letter_distinctions() -> None:
 
 
 def test_ml_is_lossy_contains_linguistic_folding_steps() -> None:
-    # The audit complement of LIGHT (story 41): ML is NOT lossless — it carries RemoveTashkeel and
+    # The audit complement of LIGHT: ML is NOT lossless — it carries RemoveTashkeel and
     # ReduceElongation, so a safety audit must surface that it loses information.
     from araclean import ML
 
@@ -301,7 +301,7 @@ def test_ml_differs_from_search_exactly_on_folds_digits_punctuation() -> None:
 
 def test_ml_optional_digit_fold_does_not_affect_letter_distinctions() -> None:
     # The story's optional MapDigits fold is OFF by default (preserving distinctions is ML's
-    # contract); the config *mechanism* to switch it on belongs to the config boundary (0016). The
+    # contract); the config *mechanism* to switch it on belongs to the config boundary. The
     # property that makes the toggle safe is pinned here: folding digits maps the digits but leaves
     # every letter distinction exactly as plain ML leaves it — digit folding never touches a letter.
     from araclean import ML, MapDigits
@@ -385,7 +385,7 @@ def test_search_end_to_end_respects_the_ordering_contract() -> None:
     assert normalize(sentence, profile="search") == expected
 
 
-# --- CLASSICAL profile (issue 0015, story 8): encoding repair that PRESERVES vocalization ---
+# --- CLASSICAL profile: encoding repair that PRESERVES vocalization ---
 #
 # CLASSICAL is the lossless sibling of LIGHT for vocalized / Qur'anic text: it repairs encoding
 # exactly as LIGHT does, but its contract is the explicit guarantee that no vocalization mark
@@ -456,7 +456,7 @@ def test_classical_decomposes_lam_alef_without_disturbing_surrounding_marks() ->
 
 
 def test_classical_is_lossless_all_encoding_repair() -> None:
-    # AC4 (story 41 / ADR-0004): CLASSICAL is a "lossless" profile, so — like LIGHT — every step it
+    # AC4 (ADR-0004): CLASSICAL is a "lossless" profile, so — like LIGHT — every step it
     # composes must be ENCODING_REPAIR. This is the audit complement of SEARCH/ML (which carry
     # LINGUISTIC_FOLDING steps); a future edit that slipped a lossy step in would fail here.
     from araclean import CLASSICAL
@@ -491,7 +491,7 @@ def test_classical_never_raises_and_is_idempotent(text: str) -> None:
     assert normalize(once, profile="classical") == once
 
 
-# --- SOCIAL profile (issue 0014, story 7): make noisy user text tractable, keep the signal ---
+# --- SOCIAL profile: make noisy user text tractable, keep the signal ---
 #
 # SOCIAL composes LIGHT's encoding repair with cleaning (URL/mention -> Arabic placeholder, HTML
 # strip+unescape) and the lossy folds noisy text wants (tashkeel removal, cap-2 elongation), while
@@ -540,7 +540,7 @@ def test_social_preserves_emoji_by_default() -> None:
 
 
 def test_social_is_lossy_contains_cleaning_and_linguistic_folding_steps() -> None:
-    # The audit complement of LIGHT (story 41): SOCIAL is NOT lossless. It carries CLEANING steps
+    # The audit complement of LIGHT: SOCIAL is NOT lossless. It carries CLEANING steps
     # (URL/mention/HTML noise removal) and LINGUISTIC_FOLDING steps (tashkeel removal, elongation),
     # so a safety audit must surface both kinds of loss -- and the kept emoji (KEEP) is a no-op, so
     # it audits as ENCODING_REPAIR, not as loss.
@@ -612,7 +612,7 @@ def _social_with(replacements: dict[type, object]) -> Pipeline:
     """A SOCIAL pipeline with each step of a given type replaced in place by the override instance.
 
     The override *mechanism* (`normalize(..., profile="social", emoji="strip")`) is the config
-    boundary's surface (issue 0016, which owns per-knob overrides for every profile); this helper
+    boundary's surface (which owns per-knob overrides for every profile); this helper
     pins the override *properties* now — exactly the deferral pattern ML used for its digit fold.
     """
     from araclean import SOCIAL
@@ -622,7 +622,7 @@ def _social_with(replacements: dict[type, object]) -> Pipeline:
 
 
 def test_social_override_properties_each_default_is_a_one_step_swap() -> None:
-    # AC2 (the override *properties*; the kwargs mechanism is deferred to 0016). Each SOCIAL default
+    # AC2 (the override *properties*; the kwargs mechanism is deferred). Each SOCIAL default
     # flips to the documented alternative by swapping exactly one step, with no other change.
     from araclean import (
         CleanMentions,

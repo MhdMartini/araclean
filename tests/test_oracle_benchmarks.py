@@ -1,4 +1,4 @@
-"""Cross-tool benchmark — araclean's fused engine vs pyarabic (issue 0019, story 46, ADR-0006).
+"""Cross-tool benchmark — araclean's fused engine vs pyarabic (ADR-0006).
 
 ADR-0006's central performance claim is that fusing a profile's single-char `str.translate` steps
 into one C-level pass beats a tool that applies each fold as its own scan. pyarabic is exactly that
@@ -65,7 +65,7 @@ _CORPUS = [
 ] * 250
 
 # araclean's char-level normalization: every fusible single-char `str.translate` fold. The engine
-# (issue 0018) composes the whole run into ONE combined table applied in a single pass.
+# composes the whole run into ONE combined table applied in a single pass.
 _CHAR_STEPS: list[Step] = [
     RemoveTatweel(),
     FoldPresentationForms(),
@@ -148,7 +148,7 @@ def test_benchmark_araclean_fused_char_pass(benchmark: BenchmarkFixture) -> None
 
 def test_benchmark_pyarabic_char_normalization(benchmark: BenchmarkFixture) -> None:
     # Emits pyarabic's throughput row in the same group, so the CI benchmark table reports the two
-    # side by side — the published "vs pyarabic" comparison (story 46).
+    # side by side — the published "vs pyarabic" comparison.
     benchmark.group = "char-normalization"
 
     def run() -> list[str]:

@@ -1,4 +1,4 @@
-"""The fused `str.translate` engine (issue 0018): a profile's compatible single-char translate
+"""The fused `str.translate` engine: a profile's compatible single-char translate
 steps collapse into ONE combined table applied in a single C-level pass, with no change in output.
 
 The engine is invisible to the `Pipeline` interface (repr/select/audit/to_dict are unchanged); the
@@ -146,7 +146,7 @@ _BENCH_CORPUS = [
 
 
 def test_fused_search_profile_throughput(benchmark: BenchmarkFixture) -> None:
-    # The pytest-benchmark micro-benchmark (issue 0018; its numbers feed 0019). It times the fused
+    # The pytest-benchmark micro-benchmark. It times the fused
     # SEARCH pipeline over the representative corpus and asserts the benchmarked output still equals
     # the unfused composition — the optimization is timed AND proven correct in one place.
     pipe = Pipeline.from_profile(SEARCH)

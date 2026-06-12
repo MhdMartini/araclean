@@ -1,4 +1,4 @@
-"""Differential-oracle tests — araclean vs pyarabic (issue 0019, story 46, ADR-0002).
+"""Differential-oracle tests — araclean vs pyarabic (ADR-0002).
 
 pyarabic is a **reference oracle, never a dependency** (ADR-0002): it is GPL-3.0 and is installed
 only in the dev group, so ``pip install araclean`` pulls none of it. These tests
@@ -124,7 +124,7 @@ def test_default_dediacritization_strips_marks_pyarabic_keeps(
     # araclean's dediacritization is more complete than pyarabic's strip_tashkeel, which removes
     # only the contiguous U+064B-U+0652 block: the dagger alef, the combining madda and the Qur'anic
     # annotation marks are *also* vocalization and araclean strips them by default. Because removal
-    # is per mark *class* (story 26), selecting just that class strips the mark too — and pyarabic
+    # is per mark *class*, selecting just that class strips the mark too — and pyarabic
     # leaves it. The divergence is intentional (fuller coverage), so it is asserted, not glossed.
     word = "ب" + mark
     assert remove_tashkeel(word) == "ب"  # default: every mark class

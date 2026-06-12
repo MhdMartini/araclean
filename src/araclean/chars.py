@@ -2,7 +2,7 @@
 
 The single source of truth for the code points each `Step` maps, built once at import. This is
 **not** a public interface -- every step is tested through its `str -> str` behavior, so a table
-here can later be fused into the single-pass engine (0018) without touching a test.
+here can later be fused into the single-pass engine without touching a test.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ import sys
 import unicodedata
 from collections.abc import Iterable
 
-# --- FoldPresentationForms table (issue 0003) -------------------------------------------------
+# --- FoldPresentationForms table --------------------------------------------------------------
 #
 # The two Arabic *presentation-form* blocks of the Unicode Standard:
 #   - Arabic Presentation Forms-A  U+FB50-U+FDFF
@@ -41,7 +41,7 @@ from collections.abc import Iterable
 #      per-glyph substitution that never itself reshuffles a caller's tashkeel. Canonical ordering
 #      is applied exactly once, by the pipeline's *closing* NormalizeUnicode, so the final output
 #      is still NFC -- the fold simply isn't where it happens (ADR-0009).
-# Net effect for vocalized/Qur'anic text (CLASSICAL, 0015): marks are folded in place here and put
+# Net effect for vocalized/Qur'anic text (CLASSICAL): marks are folded in place here and put
 # into canonical order once at the end; no mark is dropped and no compatibility character is
 # silently expanded. This step's own no-reorder behavior is pinned by
 # tests/test_steps.py::test_fold_presentation_forms_preserves_combining_mark_order.
@@ -50,7 +50,7 @@ from collections.abc import Iterable
 # them no compatibility mapping and NFKC returns them unchanged):
 #   - unassigned code points, and the 32 Unicode *noncharacters* U+FDD0-U+FDEF;
 #   - the BOM / ZERO WIDTH NO-BREAK SPACE U+FEFF -- a format char, not a letter glyph (stripping
-#     invisibles is StripBidi's job, issue 0004);
+#     invisibles is StripBidi's job);
 #   - atomic Arabic *symbols* and honorific/phrase ligatures the UCD treats as standalone glyphs
 #     rather than letter sequences (general category Sk / So / Lo): the modifier marks
 #     U+FBB2-U+FBC2, the ornate parentheses U+FD3E/U+FD3F, and the phrase ligatures U+FD40-U+FD4F,
@@ -77,17 +77,17 @@ def _build_presentation_forms() -> dict[int, str]:
 PRESENTATION_FORMS: dict[int, str] = _build_presentation_forms()
 
 
-# --- RemoveTatweel table (issue 0004, story 21) -----------------------------------------------
+# --- RemoveTatweel table ----------------------------------------------------------------------
 #
 # Tatweel / kashida U+0640 stretches a word horizontally for justification and carries no meaning
-# (GLOSSARY: Tatweel). FoldPresentationForms (0003) can itself emit a tatweel -- the *medial*-form
+# (GLOSSARY: Tatweel). FoldPresentationForms can itself emit a tatweel -- the *medial*-form
 # tashkeel glyphs (e.g. U+FE77 FATHA MEDIAL FORM) decompose under NFKC to tatweel + the mark -- so
 # this step runs after the fold in LIGHT to clean up those carriers too.
 TATWEEL = 0x0640
 REMOVE_TATWEEL: dict[int, None] = {TATWEEL: None}
 
 
-# --- StripBidi table (issue 0004, story 22) ---------------------------------------------------
+# --- StripBidi table --------------------------------------------------------------------------
 #
 # Delete the invisible format characters that carry no Arabic letter content but silently break
 # string equality and tokenization: the Unicode bidi controls plus the zero-width / BOM formatters.
@@ -110,8 +110,8 @@ REMOVE_TATWEEL: dict[int, None] = {TATWEEL: None}
 # letter still goes — only emoji-internal joiners survive.
 #
 # ZWNJ (U+200C) is stripped by default; a keep/space option for Persian-mixed text is deferred to
-# the config boundary (issue 0016). U+FEFF is handled HERE, not by the presentation-form fold
-# (0003): it is a format char, not a letter glyph, so 0003 deliberately leaves it for this step.
+# the config boundary. U+FEFF is handled HERE, not by the presentation-form fold
+# it is a format char, not a letter glyph, so that fold deliberately leaves it for this step.
 _BIDI_CONTROLS: tuple[int, ...] = (
     0x061C,
     0x200E,
@@ -130,7 +130,7 @@ _ZERO_WIDTH: tuple[int, ...] = (0x200B, 0x200C, 0x2060, 0xFEFF)
 STRIP_BIDI: dict[int, None] = {cp: None for cp in (*_BIDI_CONTROLS, *_ZERO_WIDTH)}
 
 
-# --- UnifyLookalikes table (issue 0004, story 23) ---------------------------------------------
+# --- UnifyLookalikes table --------------------------------------------------------------------
 #
 # araclean assumes its input is Arabic (the Arabic-language assumption). Letters borrowed by other
 # Arabic-script orthographies (Persian, Urdu, Kurdish, ...) are visually identical to an Arabic
@@ -159,7 +159,7 @@ STRIP_BIDI: dict[int, None] = {cp: None for cp in (*_BIDI_CONTROLS, *_ZERO_WIDTH
 #   - U+06C0 ۀ / U+06C2 ۂ (heh carrying a yeh/hamza above) -- folding to bare heh would DROP the
 #     combining mark, so it is not lossless; left untouched (U+06C0 is also governed by NFC).
 #   - teh marbuta ة U+0629 (and its goal form ۃ U+06C3) -> heh -- a real Arabic letter; that fold
-#     is *lossy* and belongs to the opt-in FoldTehMarbuta (issue 0007), not to encoding repair.
+#     is *lossy* and belongs to the opt-in FoldTehMarbuta, not to encoding repair.
 UNIFY_LOOKALIKES: dict[int, str] = {
     0x06A9: chr(0x0643),  # keheh -> kaf
     0x06CC: chr(0x064A),  # farsi yeh -> yeh
@@ -169,7 +169,7 @@ UNIFY_LOOKALIKES: dict[int, str] = {
 }
 
 
-# --- CollapseWhitespace pattern + line-break set (issue 0004, story 24) ------------------------
+# --- CollapseWhitespace pattern + line-break set ----------------------------------------------
 #
 # A *contextual* rule (a whitespace run -> one character), so a precompiled regex rather than a
 # str.translate table (ADR-0006). `\s` already covers ASCII whitespace plus every Unicode space
@@ -191,10 +191,10 @@ WHITESPACE_RUN: re.Pattern[str] = re.compile(r"\s+")
 LINE_BREAKS: frozenset[str] = frozenset("\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029")
 
 
-# --- RemoveTashkeel mark-class code points (issue 0006, stories 25 & 26) -----------------------
+# --- RemoveTashkeel mark-class code points -----------------------------------------------------
 #
 # The vocalization-mark taxonomy (GLOSSARY: Tashkeel): one frozenset of code points per removable
-# class, so RemoveTashkeel deletes the union of the *selected* classes (story 26). This is the
+# class, so RemoveTashkeel deletes the union of the *selected* classes. This is the
 # internal seam -- a step is tested through its str -> str behavior, so a class can be re-tabulated
 # here without touching a test.
 #
@@ -216,16 +216,16 @@ LINE_BREAKS: frozenset[str] = frozenset("\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029")
 #   - The named classes are pure BY FUNCTION, not by name. HARAKAT / TANWEEN gather every
 #     TYPOGRAPHIC variant of the short vowels / nunation (small, curly, open, dotted), but not the
 #     generic "vowel sign" marks coined for non-Arabic languages. MADDA is the orthographic
-#     combining madda U+0653 alone (the LETTER alef-madda U+0622 is letter folding, issue 0007);
+#     combining madda U+0653 alone (the LETTER alef-madda U+0622 is letter folding);
 #     DAGGER_ALEF is the standard superscript alef U+0670 alone. Their Qur'anic-recitation
 #     namesakes -- small high madda, madda waajib, superscript alef mokhassas, subscript alef, the
 #     tajweed signs -- are recitation annotation, not orthographic vocalization, ride in QURANIC.
 #   - Two hamza marks are EXCLUDED outright: U+0654 HAMZA ABOVE and U+0655 HAMZA BELOW. Under NFC
 #     they (re)compose with their carrier into a distinct letter (alef-hamza, waw-hamza, ...), i.e.
-#     letter content owned by letter folding (issue 0007), not free-standing vocalization. This is
+#     letter content owned by letter folding, not free-standing vocalization. This is
 #     the NFC-composing pair specifically; non-composing hamza marks (e.g. U+065F wavy hamza below)
 #     are ordinary annotation and ride in QURANIC. A stray U+0654 on a non-composing carrier is left
-#     for 0007 to fold, not stripped here.
+#     for the letter folds to handle, not stripped here.
 #   - QURANIC is intentionally HETEROGENEOUS -- Qur'anic recitation/annotation signs (small high
 #     letters, pause/sajda/end-of-verse marks, tajweed signs), extended non-Arabic vocalization
 #     marks, and a few non-Mn structural signs. It is the umbrella SEARCH removes as one block and
@@ -298,11 +298,11 @@ QURANIC: frozenset[int] = frozenset(
 )
 
 
-# --- Letter-fold tables (issue 0007, stories 27-30) -------------------------------------------
+# --- Letter-fold tables -----------------------------------------------------------------------
 #
 # The opt-in LINGUISTIC_FOLDING letter folds: lossy collapses of letter *spelling* distinctions
-# that boost search recall (SEARCH, 0010) but destroy a real contrast, so none run under LIGHT.
-# Each is a single-character str.translate map (internal seam) -- fusion candidates for 0018.
+# that boost search recall (SEARCH) but destroy a real contrast, so none run under LIGHT.
+# Each is a single-character str.translate map (internal seam) -- fusion candidates.
 #
 # These steps operate on the PRECOMPOSED (NFC) letters. In any profile NFC runs first, so a
 # combining hamza/madda on an alef is already composed into the precomposed letter (alef + hamza
@@ -347,8 +347,8 @@ FOLD_ALEF_MAQSURA: dict[int, str] = {0x0649: chr(YEH)}
 #   - CARRIERS: the precomposed waw-/yeh-hamza letters ؤ/ئ -> bare waw/yeh. Always folded (light).
 #   - COMBINING marks U+0654/U+0655: hamza seated ON a carrier as a standalone combining mark. NFC
 #     composes these into a precomposed letter (ا+ٔ→أ, و+ٔ→ؤ, ي+ٔ→ئ, ا+ٕ→إ), so in normalized text
-#     they are gone; a *stray* one on a non-composing carrier is letter content that issue 0006
-#     routes here (it is NOT tashkeel, so RemoveTashkeel leaves it). Deleting the mark folds
+#     they are gone; a *stray* one on a non-composing carrier is letter content handled
+#     here (it is NOT tashkeel, so RemoveTashkeel leaves it). Deleting the mark folds
 #     carrier+hamza to the bare carrier -- the same neutralization as folding ؤ/ئ -- so it is part
 #     of the always-on carrier fold, in BOTH modes. The precomposed alef-hamza LETTERS أ/إ are NOT
 #     here: they are alef variants owned by FoldAlef.
@@ -362,7 +362,7 @@ FOLD_ALEF_MAQSURA: dict[int, str] = {0x0649: chr(YEH)}
 # it is folded here or DELIBERATELY EXCLUDED as non-Arabic: the high-hamza waw/u/yeh U+0676-U+0678,
 # the foreign hamza carriers hah U+0681, heh-goal U+06C2, yeh-barree U+06D3, reh U+076C, beh U+08A1
 # and yeh-with-two-dots U+08A8, and the tatweel-hamza element U+0883. (The combining hamza marks
-# U+0654/U+0655 are letter content guarded by the 0006 mark-partition test, not here.)
+# U+0654/U+0655 are letter content guarded by the mark-partition test, not here.)
 WAW: int = 0x0648
 FOLD_HAMZA_CARRIERS: dict[int, str] = {
     0x0624: chr(WAW),  # ؤ waw with hamza above -> waw
@@ -374,7 +374,7 @@ HIGH_HAMZA: int = 0x0674  # ٴ the high hamza spacing letter (heavy-mode standal
 
 # FoldTehMarbuta -- the word-final "tied taa" ة U+0629 (GLOSSARY: Teh marbuta) folded to a
 # configurable target. ة marks a real grammatical ending, so the fold is lossy and opt-in. Its
-# goal-form variant ۃ U+06C3 folds with it (issue 0004 routed it here, not to look-alike repair).
+# goal-form variant ۃ U+06C3 folds with it (encoding repair routed it here, not look-alike repair).
 # The two standard search/morphology targets are heh (default, the common search fold) and teh
 # (its underlying value); `keep` is the no-op target a profile can pin to leave ة in place.
 TEH_MARBUTA: frozenset[int] = frozenset((0x0629, 0x06C3))  # teh marbuta + its goal form
@@ -382,14 +382,14 @@ HEH: int = 0x0647  # ه target
 TEH: int = 0x062A  # ت target
 
 
-# --- MapDigits digit systems (issue 0008, story 31) -------------------------------------------
+# --- MapDigits digit systems ------------------------------------------------------------------
 #
 # The three digit systems araclean converts among (GLOSSARY: Arabic-Indic / Extended Arabic-Indic
 # digits). Each is a CONTIGUOUS 0-9 run in the Unicode Standard, so a system is fully described by
 # its "zero" code point and a +offset: MapDigits maps every source digit to the same position in the
 # target system (by numeric value). Only these three Arabic-relevant systems are in scope — folding
-# arbitrary Unicode digit scripts (Devanagari, ...) is not story 31's concern. The mapping is a 1:1
-# char translate (a fusion candidate for 0018); the target makes it lossy/opt-in, never in LIGHT.
+# arbitrary Unicode digit scripts (Devanagari, ...) is not MapDigits's concern. The mapping is a 1:1
+# char translate (a fusion candidate); the target makes it lossy/opt-in, never in LIGHT.
 ASCII_DIGIT_ZERO: int = 0x0030  # 0-9
 ARABIC_INDIC_DIGIT_ZERO: int = 0x0660  # ٠-٩ (Eastern Arabic)
 EXTENDED_ARABIC_INDIC_DIGIT_ZERO: int = 0x06F0  # ۰-۹ (Persian/Urdu)
@@ -400,18 +400,18 @@ DIGIT_ZEROS: tuple[int, ...] = (
 )
 
 
-# --- MapPunctuation table + pattern (issue 0008, story 32) ------------------------------------
+# --- MapPunctuation table + pattern -----------------------------------------------------------
 #
 # Arabic sentence/clause punctuation -> its Latin equivalent, so one tokenizer/sentence-splitter
 # works on Arabic text. Only the three marks with an unambiguous Latin sentence equivalent are in
-# scope (story 32): the comma, semicolon and question mark. The mapping is lossy/opt-in (it erases
+# scope: the comma, semicolon and question mark. The mapping is lossy/opt-in (it erases
 # the script of the punctuation), so it never runs under LIGHT.
 #
-# NUMBER-SEPARATOR SAFETY (story 32). The Arabic comma ، doubles as a digit-grouping separator
+# NUMBER-SEPARATOR SAFETY. The Arabic comma ، doubles as a digit-grouping separator
 # (١٬٢٣٤). A mark sitting BETWEEN two digits is therefore a numeric separator, not sentence
 # punctuation, and is preserved — only a mark that is not digit-flanked on both sides is mapped.
 # This is a CONTEXTUAL rule, so a precompiled regex rather than a str.translate table (ADR-0006),
-# which also keeps MapPunctuation out of the 0018 fused-translate engine. `\d` matches the
+# which also keeps MapPunctuation out of the fused-translate engine. `\d` matches the
 # Arabic-Indic / Extended digits too, so the guard holds whether or not MapDigits ran first. The
 # DEDICATED number separators — decimal U+066B, thousands U+066C, date U+060D — are out of scope
 # entirely (never mapped), so they are safe by construction.
@@ -429,11 +429,11 @@ ARABIC_PUNCTUATION_RUN: re.Pattern[str] = re.compile(
 )
 
 
-# --- ReduceElongation letter class (issue 0009, story 33) --------------------------------------
+# --- ReduceElongation letter class -------------------------------------------------------------
 #
 # Word-lengthening (جمييييل, راااائع) repeats a LETTER for emphasis; ReduceElongation caps such a
 # run. This is a *contextual* rule (a run -> at most `cap` copies), so a precompiled regex rather
-# than a str.translate table (ADR-0006) — which also keeps ReduceElongation out of the 0018 fused
+# than a str.translate table (ADR-0006) — which also keeps ReduceElongation out of the fused
 # engine. The quantifier depends on the cap, so steps.py compiles the cap-specific pattern; the
 # letter class it draws from is the single source of truth here.
 #
@@ -444,14 +444,14 @@ ARABIC_PUNCTUATION_RUN: re.Pattern[str] = re.compile(
 #   - DIGITS are excluded by construction. A repeated digit is a NUMBER, not emphasis: collapsing it
 #     would turn 1000 into 1. The Arabic-Indic/Extended/ASCII digit runs all sit outside this range.
 #   - TASHKEEL and the other combining marks (U+064B onward) are excluded: they are vocalization,
-#     not lengthened letters, and dediacritization (issue 0006) owns them.
+#     not lengthened letters, and dediacritization owns them.
 #   - TATWEEL U+0640 is excluded: a visual stretch character, not a letter, owned by RemoveTatweel.
 #   - The rare extended/non-Arabic letters (U+063B-U+063F and the Arabic Supplement/Extended blocks)
-#     are out of scope. They are encoding artifacts that UnifyLookalikes (issue 0004) folds to their
+#     are out of scope. They are encoding artifacts that UnifyLookalikes folds to their
 #     Arabic form before this step runs in any profile, so an elongated keheh/Farsi-yeh is already
 #     the Arabic letter by the time ReduceElongation sees it; a missed obscure letter only means a
 #     vanishingly rare elongation is left intact, never a corrupted number — soundness, not
-#     completeness, is the contract here (unlike the 0006 mark partition).
+#     completeness, is the contract here (unlike the mark partition).
 ELONGATABLE_LETTERS: frozenset[int] = frozenset(range(0x0621, 0x063B)) | frozenset(
     range(0x0641, 0x064B)
 )
@@ -460,12 +460,12 @@ ELONGATABLE_LETTERS: frozenset[int] = frozenset(range(0x0621, 0x063B)) | frozens
 ELONGATABLE_CLASS: str = "".join(re.escape(chr(cp)) for cp in sorted(ELONGATABLE_LETTERS))
 
 
-# --- Cleaning patterns (issue 0012, story 34) -------------------------------------------------
+# --- Cleaning patterns ------------------------------------------------------------------------
 #
 # Cleaning = removal of non-linguistic noise (CONTEXT.md), a sibling concern of normalization. Each
 # pattern matches a span of noise that a step then deletes or replaces with a placeholder. These are
 # CONTEXTUAL rules (a span -> "" or a token), so precompiled regexes rather than str.translate
-# tables (ADR-0006); they never join the 0018 fused engine. The transforms are lossy and opt-in
+# tables (ADR-0006); they never join the fused engine. The transforms are lossy and opt-in
 # (safety CLEANING), so they never run under LIGHT.
 
 # A URL: a scheme- or www-prefixed run of non-space characters, case-insensitive (HTTP://, WWW.
@@ -495,7 +495,7 @@ MENTION_OR_EMAIL: re.Pattern[str] = re.compile(rf"(?P<email>{EMAIL.pattern})|(?:
 HTML_TAG: re.Pattern[str] = re.compile(r"<[^>]+>")
 
 
-# --- Emoji set (issue 0013, story 35) ---------------------------------------------------------
+# --- Emoji set --------------------------------------------------------------------------------
 #
 # HandleEmoji's STRIP mode recognizes emoji WITHOUT the optional `emoji` library (only DEMOJIZE
 # pulls that in), so the set lives here as a precompiled regex. It is the contiguous emoji /
@@ -602,7 +602,7 @@ HASHTAG: re.Pattern[str] = re.compile(r"#(\w+)")
 # a tashkeel mark is not `\w`), so a vocalized word would read as ending early. This class is the
 # explicit answer: every code point in the Arabic-script blocks whose general category is a letter
 # (L*) or a combining mark (M*), re-derived from the live UCD at import so it tracks Unicode
-# releases (the 0006 discipline). A character outside this class — whitespace, punctuation, a
+# releases (the live-UCD discipline). A character outside this class — whitespace, punctuation, a
 # digit, a Latin letter, end of text — ends the Arabic word.
 _ARABIC_SCRIPT_BLOCKS: tuple[tuple[int, int], ...] = (
     (0x0600, 0x06FF),  # Arabic

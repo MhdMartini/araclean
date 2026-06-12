@@ -1,4 +1,4 @@
-"""Config & reproducibility (issue 0016): the validation boundary, JSON Schema, safety audit."""
+"""Config & reproducibility: the validation boundary, JSON Schema, safety audit."""
 
 import pytest
 
@@ -13,13 +13,13 @@ _MADRASA = chr(0x0645) + chr(0x062F) + chr(0x0631) + chr(0x0633) + chr(0x0629)
 
 
 def test_audit_reports_light_and_classical_as_lossless() -> None:
-    # Story 41: a "lossless" profile contains only ENCODING_REPAIR steps; the audit says so.
+    # A "lossless" profile contains only ENCODING_REPAIR steps; the audit says so.
     assert Pipeline.from_profile(LIGHT).audit().lossless
     assert Pipeline.from_profile(CLASSICAL).audit().lossless
 
 
 def test_audit_enumerates_the_linguistic_folding_steps_in_search_and_ml() -> None:
-    # Story 41: a lossy profile is NOT lossless, and the audit names exactly which folds it carries
+    # A lossy profile is NOT lossless, and the audit names exactly which folds it carries
     # (not merely "it is lossy") — the auditability the safety contract promises.
     search = Pipeline.from_profile(SEARCH).audit()
     assert not search.lossless
@@ -54,7 +54,7 @@ def test_audit_separates_cleaning_from_linguistic_folding_in_social() -> None:
     assert set(social.lossy_steps) == set(social.cleaning) | set(social.linguistic_folding)
 
 
-# --- NormalizeConfig: the validation trust boundary (story 39) ---
+# --- NormalizeConfig: the validation trust boundary ---
 
 
 def test_normalize_config_accepts_a_known_profile_and_defaults_to_light() -> None:
@@ -94,7 +94,7 @@ def test_normalize_config_rejects_an_unknown_override_key() -> None:
         NormalizeConfig.model_validate({"profile": "ml", "map_digit": True})  # typo for map_digits
 
 
-# --- ML digit-fold override via the facade (closes issue 0011's deferred [~] criterion) ---
+# --- ML digit-fold override via the facade (closes the deferred [~] criterion) ---
 
 
 def test_normalize_ml_map_digits_override_folds_digits_off_by_default() -> None:
@@ -105,7 +105,7 @@ def test_normalize_ml_map_digits_override_folds_digits_off_by_default() -> None:
 
 def test_normalize_ml_map_digits_override_leaves_letter_distinctions_intact() -> None:
     # The override only touches digits: every alef/hamza/maqsura/teh-marbuta distinction ML
-    # preserves is still preserved with the fold on (the property 0011 pinned, now via the facade).
+    # preserves is still preserved with the fold on (the property ML pinned, now via the facade).
     for word in (_ALA_MAQSURA, _AHMAD, _MADRASA):
         assert normalize(word, profile="ml", map_digits=True) == normalize(word, profile="ml")
 
@@ -117,7 +117,7 @@ def test_normalize_ml_map_digits_rejects_a_non_boolean() -> None:
         normalize(_ARABIC_INDIC_123, profile="ml", map_digits="yes-please")
 
 
-# --- SOCIAL overrides via the facade (closes issue 0014's deferred [~] criterion) ---
+# --- SOCIAL overrides via the facade (closes the deferred [~] criterion) ---
 
 _LOVE = chr(0x0623) + chr(0x062D) + chr(0x0628) + chr(0x0647)  # أحبه (no marks)
 _HEART_EYES = chr(0x1F60D)  # 😍
@@ -154,7 +154,7 @@ def test_override_naming_an_absent_step_is_rejected_not_a_silent_noop() -> None:
         normalize(_LOVE, profile="light", emoji="strip")
 
 
-# --- JSON Schema emit + validate: paper-reproducible preprocessing (story 40) ---
+# --- JSON Schema emit + validate: paper-reproducible preprocessing ---
 
 _JSON_CORPUS = (
     _ALA_MAQSURA,
@@ -214,7 +214,7 @@ def test_malformed_profile_fails_the_published_json_schema() -> None:
         jsonschema.validate({"name": "x", "steps": "not-a-list"}, schema)
 
 
-# --- A prebuilt NormalizeConfig can drive the facade (the JSON/kwargs adapter, story 40) ---
+# --- A prebuilt NormalizeConfig can drive the facade (the JSON/kwargs adapter) ---
 
 
 def test_a_prebuilt_config_object_drives_the_facade() -> None:

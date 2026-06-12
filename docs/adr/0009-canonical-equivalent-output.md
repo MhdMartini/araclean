@@ -40,7 +40,7 @@ Canonical reordering is loss*less* (it changes encoding, never signal), so nothi
 - `FoldPresentationForms` stays a pure per-glyph substitution; the single source of canonical ordering
   is the closing `NormalizeUnicode`. Do not remove either NFC pass from a profile — they do different
   jobs (see the comment on `LIGHT` in `profiles.py`).
-- **CLASSICAL (issue 0015)** preserves *vocalization* (it keeps every tashkeel/Qur'anic mark) but,
+- **CLASSICAL** preserves *vocalization* (it keeps every tashkeel/Qur'anic mark) but,
   like every profile, emits canonical order — it does **not** promise byte-exact preservation of a
   non-canonical input ordering. If a future use case genuinely needs byte-exact round-tripping, that
   is a new, explicitly-opted-in mode, not the default.

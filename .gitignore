@@ -1,6 +1,8 @@
 .ralph
+.claude/settings.local.json
 issues/
 docs/competitive-landscape.md
+.ROADMAP.md
 
 # Python
 .venv/
@@ -14,12 +16,12 @@ build/
 dist/
 *.egg-info/
 
-# Benchmark outputs: asv's envs/results/html (issue 0019) and pytest-benchmark's saved runs. The
+# Benchmark outputs: asv's envs/results/html and pytest-benchmark's saved runs. The
 # benchmark *suites* (benchmarks/, asv.conf.json) are tracked; only their generated timings are not.
 .asv/
 .benchmarks/
 
-# Docs site build output (issue 0023): `mkdocs build` writes to site/. The source pages (docs/) and
+# Docs site build output: `mkdocs build` writes to site/. The source pages (docs/) and
 # the generated, committed pages are tracked; only the rendered HTML is not.
 site/
 

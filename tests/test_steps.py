@@ -98,11 +98,11 @@ def test_free_function_agrees_with_step() -> None:
 
 
 def test_step_declares_encoding_repair_safety() -> None:
-    # NFC is lossless encoding repair (story 41 / ADR-0004).
+    # NFC is lossless encoding repair (ADR-0004).
     assert NormalizeUnicode().safety is SafetyClass.ENCODING_REPAIR
 
 
-# --- FoldPresentationForms (issue 0003, stories 19 & 20) ---
+# --- FoldPresentationForms ---
 
 # Each lam-alef ligature must decompose to lam + its MATCHING alef variant — not collapse to bare
 # لا. Built from code points so the expectation is immune to how this file is saved.
@@ -154,7 +154,7 @@ def test_fold_presentation_forms_preserves_combining_mark_order() -> None:
 
 
 def test_fold_presentation_forms_safety_is_encoding_repair() -> None:
-    # Folding a glyph to its base letter is lossless (story 41 / ADR-0004).
+    # Folding a glyph to its base letter is lossless (ADR-0004).
     assert FoldPresentationForms().safety is SafetyClass.ENCODING_REPAIR
 
 
@@ -176,7 +176,7 @@ def test_fold_presentation_forms_is_total_and_idempotent(text: str) -> None:
     assert FoldPresentationForms()(once) == once
 
 
-# --- RemoveTatweel (issue 0004, story 21) ---
+# --- RemoveTatweel ---
 
 TATWEEL = chr(0x0640)  # ـ ARABIC TATWEEL / kashida
 
@@ -207,7 +207,7 @@ def test_remove_tatweel_is_total_and_idempotent(text: str) -> None:
     assert RemoveTatweel()(once) == once
 
 
-# --- StripBidi (issue 0004, story 22) ---
+# --- StripBidi ---
 
 # Invisible code points that carry no letter content: bidi controls, zero-width formatters, BOM.
 INVISIBLES = [
@@ -261,7 +261,7 @@ def test_strip_bidi_is_total_and_idempotent(text: str) -> None:
     assert StripBidi()(once) == once
 
 
-# --- UnifyLookalikes (issue 0004, story 23) ---
+# --- UnifyLookalikes ---
 
 # Letters from other Arabic-script orthographies that are visually identical to an Arabic letter;
 # under the Arabic-language assumption they fold to the Arabic form. Built from code points.
@@ -307,7 +307,7 @@ def test_unify_lookalikes_is_total_and_idempotent(text: str) -> None:
     assert UnifyLookalikes()(once) == once
 
 
-# --- CollapseWhitespace (issue 0004, story 24) ---
+# --- CollapseWhitespace ---
 
 
 def test_collapse_whitespace_collapses_a_run_to_a_single_space() -> None:
@@ -375,7 +375,7 @@ def test_collapse_whitespace_collapse_lines_is_total_and_idempotent(text: str) -
     assert CollapseWhitespace(collapse_lines=True)(once) == once
 
 
-# --- RemoveTashkeel (issue 0006, stories 25 & 26) — the first LOSSY step ---
+# --- RemoveTashkeel — the first LOSSY step ---
 
 # Code points so the vocalization is pinned regardless of how this file is saved.
 FATHA, DAMMA, KASRA, SUKUN = chr(0x064E), chr(0x064F), chr(0x0650), chr(0x0652)
@@ -407,7 +407,7 @@ def test_remove_tashkeel_default_strips_every_class() -> None:
 
 
 def test_remove_tashkeel_selective_harakat_keeps_shadda() -> None:
-    # دَرَّس with *remove harakat, keep shadda* -> درّس (the doubling survives), NOT درس (story 26).
+    # دَرَّس with *remove harakat, keep shadda* -> درّس (the doubling survives), NOT درس.
     word = chr(0x062F) + FATHA + chr(0x0631) + SHADDA + FATHA + chr(0x0633)
     out = RemoveTashkeel(classes={MarkClass.HARAKAT})(word)
     assert out == chr(0x062F) + chr(0x0631) + SHADDA + chr(0x0633)
@@ -458,7 +458,7 @@ def test_remove_tashkeel_sukun_rides_only_with_harakat() -> None:
 
 def test_remove_tashkeel_madda_removes_combining_mark_not_the_letter() -> None:
     # The COMBINING madda U+0653 is removed with MADDA; the alef-with-madda LETTER آ U+0622 is a
-    # real alef variant (letter folding, issue 0007) and must be left untouched here.
+    # real alef variant (letter folding) and must be left untouched here.
     waw_with_madda = chr(0x0648) + MADDA  # waw carrying a combining madda
     assert RemoveTashkeel(classes={MarkClass.MADDA})(waw_with_madda) == chr(0x0648)
     alef_madda = chr(0x0622)  # the standalone letter آ
@@ -466,7 +466,7 @@ def test_remove_tashkeel_madda_removes_combining_mark_not_the_letter() -> None:
 
 
 def test_remove_tashkeel_safety_is_linguistic_folding() -> None:
-    # Dediacritization discards information, so it is the LOSSY class (story 41 / ADR-0004); the
+    # Dediacritization discards information, so it is the LOSSY class (ADR-0004); the
     # selection does not change the safety class.
     assert RemoveTashkeel().safety is SafetyClass.LINGUISTIC_FOLDING
     assert RemoveTashkeel(classes={MarkClass.SHADDA}).safety is SafetyClass.LINGUISTIC_FOLDING
@@ -482,7 +482,7 @@ def test_remove_tashkeel_free_function_agrees_with_step() -> None:
 
 
 def test_remove_tashkeel_serializes_its_selection() -> None:
-    # The selection round-trips so a dediacritization pipeline can be pinned and reproduced (0016).
+    # The selection round-trips so a dediacritization pipeline can be pinned and reproduced.
     step = RemoveTashkeel(classes={MarkClass.HARAKAT, MarkClass.SHADDA})
     spec = step.to_dict()
     assert spec == {
@@ -508,7 +508,7 @@ def test_remove_tashkeel_is_total_and_idempotent(text: str) -> None:
     assert RemoveTashkeel()(once) == once
 
 
-# --- FoldAlef (issue 0007, story 27) — the alef-variant letter fold ---
+# --- FoldAlef — the alef-variant letter fold ---
 
 BARE_ALEF = chr(0x0627)
 # Every alef-variant LETTER folds to bare alef (built from code points, immune to file encoding):
@@ -557,7 +557,7 @@ def test_fold_alef_is_total_and_idempotent(text: str) -> None:
     assert FoldAlef()(once) == once
 
 
-# --- FoldAlefMaqsura (issue 0007, story 30) — alef maqsura -> yeh ---
+# --- FoldAlefMaqsura — alef maqsura -> yeh ---
 
 YEH = chr(0x064A)
 ALEF_MAQSURA = chr(0x0649)
@@ -594,7 +594,7 @@ def test_fold_alef_maqsura_is_total_and_idempotent(text: str) -> None:
     assert FoldAlefMaqsura()(once) == once
 
 
-# --- FoldHamza (issue 0007, story 28) — the separate, configurably-aggressive hamza fold ---
+# --- FoldHamza — the separate, configurably-aggressive hamza fold ---
 
 WAW = chr(0x0648)
 WAW_HAMZA = chr(0x0624)  # ؤ
@@ -626,7 +626,7 @@ def test_fold_hamza_heavy_also_drops_standalone() -> None:
 
 def test_fold_hamza_owns_the_combining_hamza_marks() -> None:
     # The combining hamza marks U+0654/U+0655 are hamza ON a carrier (GLOSSARY: Hamza).
-    # RemoveTashkeel deliberately leaves them (issue 0006 documents them as letter content owned
+    # RemoveTashkeel deliberately leaves them (they are letter content owned
     # by letter folding); FoldHamza is that owner — it deletes them in BOTH modes, folding
     # carrier+hamza to a bare carrier, parallel to folding ؤ/ئ. (NFC composes them away anyway.)
     beh = chr(0x0628)
@@ -648,7 +648,7 @@ def test_fold_hamza_safety_is_linguistic_folding() -> None:
 
 
 def test_fold_hamza_serializes_its_mode() -> None:
-    # The light/heavy toggle round-trips so an aggressive-folding pipeline can be pinned (0016).
+    # The light/heavy toggle round-trips so an aggressive-folding pipeline can be pinned.
     light, heavy = FoldHamza(), FoldHamza(drop_standalone_hamza=True)
     assert light.to_dict() == {"name": "FoldHamza", "config": {"drop_standalone_hamza": False}}
     assert heavy.to_dict() == {"name": "FoldHamza", "config": {"drop_standalone_hamza": True}}
@@ -679,7 +679,7 @@ def test_fold_hamza_is_total_and_idempotent(text: str) -> None:
     assert FoldHamza(drop_standalone_hamza=True)(heavy_once) == heavy_once
 
 
-# --- FoldTehMarbuta (issue 0007, story 29) — configurable target ---
+# --- FoldTehMarbuta — configurable target ---
 
 HEH = chr(0x0647)
 TEH = chr(0x062A)
@@ -704,7 +704,7 @@ def test_fold_teh_marbuta_target_keep_is_identity() -> None:
 
 
 def test_fold_teh_marbuta_folds_the_goal_form_too() -> None:
-    # The goal-form teh marbuta ۃ U+06C3 folds with ة (issue 0004 routed it to this opt-in fold).
+    # The goal-form teh marbuta ۃ U+06C3 folds with ة (routed to this opt-in fold).
     assert FoldTehMarbuta()(MADRASA + TEH_MARBUTA_GOAL) == MADRASA + HEH
 
 
@@ -719,7 +719,7 @@ def test_fold_teh_marbuta_safety_is_linguistic_folding() -> None:
 
 
 def test_fold_teh_marbuta_serializes_its_target() -> None:
-    # The target round-trips so a folding pipeline can be pinned and reproduced (0016).
+    # The target round-trips so a folding pipeline can be pinned and reproduced.
     step = FoldTehMarbuta(target=TehMarbutaTarget.TEH)
     assert step.to_dict() == {"name": "FoldTehMarbuta", "config": {"target": "teh"}}
     rebuilt = FoldTehMarbuta.from_dict(step.to_dict()["config"])
@@ -751,7 +751,7 @@ def test_fold_teh_marbuta_is_total_and_idempotent(text: str) -> None:
 
 # --- The letter-fold completeness invariant (chars.py: ONE STATED PRINCIPLE) ---
 #
-# The sibling of the mark-class partition below, for the opt-in letter folds (issue 0007). Re-derive
+# The sibling of the mark-class partition below, for the opt-in letter folds. Re-derive
 # every Arabic-script alef / hamza / maqsura LETTER from the LIVE Unicode database — independent
 # of the fold tables (names and decompositions, not "whatever the tables happen to skip") — and
 # assert each candidate is either folded by its step or in the explicit, documented EXCLUDED set, so
@@ -842,7 +842,7 @@ def test_fold_alef_maqsura_is_the_only_arabic_maqsura_letter() -> None:
 # into a class in chars.py — membership is verified against the principle, never left to a guessed
 # numeric range (the U+06BE lesson). The two NFC-composing hamza marks are the documented exception:
 # under NFC they (re)compose into a distinct letter (أ ؤ ئ إ), so they are letter content owned by
-# letter folding (issue 0007), not tashkeel.
+# letter folding, not tashkeel.
 _NFC_COMPOSING_HAMZA = frozenset((0x0654, 0x0655))
 _ARABIC_BLOCKS = (
     (0x0600, 0x06FF),  # Arabic
@@ -868,7 +868,7 @@ def test_remove_tashkeel_deletes_every_arabic_combining_mark() -> None:
         hex(cp) for cp in marks if cp not in _NFC_COMPOSING_HAMZA and remove_tashkeel(chr(cp)) != ""
     ]
     assert survived == [], f"Arabic marks not covered by any MarkClass: {survived}"
-    # the excluded pair is deliberately preserved here (NFC composes it; 0007 folds the seat).
+    # the excluded pair is preserved here (NFC composes it; the letter folds handle the seat).
     assert all(remove_tashkeel(chr(cp)) == chr(cp) for cp in _NFC_COMPOSING_HAMZA)
 
 
@@ -884,7 +884,7 @@ def test_marks_added_after_unicode_15_are_triaged_into_quranic() -> None:
 
 def test_remove_tashkeel_never_strips_a_carrier() -> None:
     # Carrier safety: removal touches marks only — base letters (incl. the hamza-seat and alef
-    # variants that letter folding 0007 owns) and digits pass through untouched.
+    # variants that letter folding owns) and digits pass through untouched.
     carriers = (
         "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"  # the basic letters
         + "".join(
@@ -897,7 +897,7 @@ def test_remove_tashkeel_never_strips_a_carrier() -> None:
     assert remove_tashkeel(carriers) == carriers
 
 
-# --- Safety-class invariant (story 41 / ADR-0004): lossless steps only touch encoding noise ---
+# --- Safety-class invariant (ADR-0004): lossless steps only touch encoding noise ---
 #
 # `safety` must be an ENFORCED property, not just a label nobody checks. The check: a lossless
 # ENCODING_REPAIR step only ever rewrites encoding noise (presentation forms, tatweel, invisibles,
@@ -911,7 +911,7 @@ def test_remove_tashkeel_never_strips_a_carrier() -> None:
 #     range is split to drop U+0640 TATWEEL (encoding noise RemoveTatweel deletes) and the rarely
 #     used extended letters U+063B-U+063F, keeping the set to unambiguous core Arabic.
 #   - U+064B-U+0652: tashkeel (harakat / tanween / shadda / sukun). Encoding repair must keep
-#     vocalization; removing it is opt-in LINGUISTIC_FOLDING (issue 0006). None of these canonically
+#     vocalization; removing it is opt-in LINGUISTIC_FOLDING. None of these canonically
 #     recompose with a base letter under NFC (only the U+0653-U+0655 madda/hamza marks do), so a
 #     canonical run of them survives NFC unchanged.
 _PROTECTED_CODE_POINTS = [chr(cp) for cp in (*range(0x0621, 0x063B), *range(0x0641, 0x0653))]
@@ -933,7 +933,7 @@ def test_lossless_step_is_identity_on_clean_arabic(text: str) -> None:
         assert step(clean) == clean, f"{type(step).__name__} altered clean Arabic text"
 
 
-# --- MapDigits (issue 0008, story 31) — convert among the three digit systems ---
+# --- MapDigits — convert among the three digit systems ---
 
 # Built from code points so the expectation is immune to how this file is saved. Each system is a
 # contiguous 0-9 run keyed by its zero: ASCII U+0030, Arabic-Indic U+0660, Extended U+06F0.
@@ -983,7 +983,7 @@ def test_map_digits_safety_is_linguistic_folding() -> None:
 
 
 def test_map_digits_serializes_its_target() -> None:
-    # The target round-trips so a digit-folding pipeline can be pinned and reproduced (0016).
+    # The target round-trips so a digit-folding pipeline can be pinned and reproduced.
     step = MapDigits(target=DigitTarget.ARABIC_INDIC)
     assert step.to_dict() == {
         "name": "MapDigits",
@@ -1016,7 +1016,7 @@ def test_map_digits_is_total_and_idempotent(text: str) -> None:
         assert MapDigits(target=target)(once) == once
 
 
-# --- MapPunctuation (issue 0008, story 32) — Arabic punctuation -> Latin, separator-safe ---
+# --- MapPunctuation — Arabic punctuation -> Latin, separator-safe ---
 
 ARABIC_COMMA = chr(0x060C)  # ،
 ARABIC_SEMICOLON = chr(0x061B)  # ؛
@@ -1075,7 +1075,7 @@ def test_map_punctuation_is_total_and_idempotent(text: str) -> None:
     assert MapPunctuation()(once) == once
 
 
-# --- ReduceElongation (issue 0009, story 33) — collapse repeated-letter word-lengthening ---
+# --- ReduceElongation — collapse repeated-letter word-lengthening ---
 
 # Built from code points so the expectation is immune to how this file is saved.
 ELONGATED = chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)  # جمييييل (4 yeh)
@@ -1150,7 +1150,7 @@ def test_reduce_elongation_free_function_agrees_with_step() -> None:
 
 def test_reduce_elongation_serializes_its_cap() -> None:
     # The cap AND the resolved trigger round-trip so an elongation-reducing pipeline can be pinned
-    # and reproduced (0016): min_run=None resolves to max(cap+1, 3) at construction, so the
+    # and reproduced: min_run=None resolves to max(cap+1, 3) at construction, so the
     # serialized form never carries the placeholder.
     step = ReduceElongation(cap=2)
     assert step.to_dict() == {"name": "ReduceElongation", "config": {"cap": 2, "min_run": 3}}
@@ -1173,7 +1173,7 @@ def test_reduce_elongation_is_total_and_idempotent(text: str) -> None:
         assert ReduceElongation(cap=cap)(once) == once
 
 
-# --- CleanURLs / CleanMentions / CleanHTML (issue 0012, story 34) — noise removal -------------
+# --- CleanURLs / CleanMentions / CleanHTML — noise removal -------------
 #
 # Cleaning = removal of non-linguistic noise (CONTEXT.md), a sibling of normalization. Each step
 # either deletes the matched noise or replaces it with a configurable placeholder token. Entity
@@ -1314,7 +1314,7 @@ _MORE = chr(0x0627) + chr(0x0644) + chr(0x0645) + chr(0x0632) + chr(0x064A) + ch
 
 
 def test_clean_html_strips_tags_and_unescapes_entities() -> None:
-    # The worked example (story 34): tags removed AND &amp; decoded to &.
+    # The worked example: tags removed AND &amp; decoded to &.
     text = f"<b>{_TEXT}</b> &amp; {_MORE}"
     assert CleanHTML()(text) == f"{_TEXT} & {_MORE}"
 
@@ -1371,7 +1371,7 @@ def test_clean_html_never_raises(text: str) -> None:
         clean_html(text, mode=mode)  # type: ignore[arg-type]
 
 
-# --- HandleEmoji (issue 0013, story 35) — keep / strip / demojize ---
+# --- HandleEmoji — keep / strip / demojize ---
 
 # Code points, not glyphs, so the expectation is immune to how this file is saved. "أحبه" (I love
 # it) U+0623 U+062D U+0628 U+0647; 😍 is U+1F60D (smiling face with heart-eyes).
@@ -1380,7 +1380,7 @@ _HEART_EYES = chr(0x1F60D)  # 😍
 
 
 def test_handle_emoji_strip_removes_emoji_keeping_surrounding_text() -> None:
-    # The worked example (story 35): the emoji is removed, the text and the space before it stay.
+    # The worked example: the emoji is removed, the text and the space before it stay.
     assert HandleEmoji(mode=EmojiMode.STRIP)(f"{_LOVE} {_HEART_EYES}") == f"{_LOVE} "
 
 
@@ -1465,7 +1465,7 @@ def test_handle_emoji_keep_and_strip_are_total_and_idempotent(text: str) -> None
         assert handle_emoji(once, mode=mode) == once  # type: ignore[arg-type]
 
 
-# --- RemoveStopwords (issue 0017, stories 36/37) — flat curated stopword list ------------------
+# --- RemoveStopwords — flat curated stopword list ------------------
 
 # الكتاب علي الطاولة — "the book on the table" in FOLDED form (the list ships folded, so the
 # preposition على reads علي after FoldAlefMaqsura — the text RemoveStopwords actually sees). The
@@ -1488,7 +1488,7 @@ def test_remove_stopwords_matches_only_the_folded_spelling() -> None:
 
 
 def test_remove_stopwords_keeps_negation_particles() -> None:
-    # Negation safety (story 37): the polarity-bearing particles ما/لا/لم/لن/ليس are excluded from
+    # Negation safety: the polarity-bearing particles ما/لا/لم/لن/ليس are excluded from
     # the list, so a sentence made only of them is returned UNCHANGED — removal can never silently
     # flip the sentiment by deleting a negation.
     negations = "ما لا لم لن ليس"
@@ -1518,8 +1518,8 @@ def test_remove_stopwords_free_function_agrees_with_step() -> None:
 
 
 def test_remove_stopwords_serializes_its_list_version() -> None:
-    # The list version is pinned in the config so a serialized profile reproduces the exact removal
-    # (story 36); it round-trips through to_dict/from_dict and the registry.
+    # The list version is pinned in the config so a serialized profile reproduces the exact removal;
+    # it round-trips through to_dict/from_dict and the registry.
     step = RemoveStopwords()
     assert step.to_dict() == {
         "name": "RemoveStopwords",
@@ -1548,7 +1548,7 @@ def test_remove_stopwords_is_total_and_idempotent(text: str) -> None:
 
 
 def test_remove_stopwords_works_end_to_end_in_a_pipeline() -> None:
-    # End-to-end through Pipeline (story 36): the required folds run first (the version-2 ordering
+    # End-to-end through Pipeline: the required folds run first (the version-2 ordering
     # contract), routing the RAW spelling (على with alef maqsura, hamza spellings, vocalization)
     # onto the folded list; a downstream CollapseWhitespace tidies the gaps a removal leaves.
     pipe = Pipeline(

@@ -1,4 +1,4 @@
-"""araclean polars Series namespace (issue 0022) — a thin adapter at the facade seam (ADR-0003).
+"""araclean polars Series namespace — a thin adapter at the facade seam (ADR-0003).
 
 Registers a ``.araclean`` namespace on polars Series so a dataframe workflow normalizes a text
 column in one idiomatic call::
@@ -9,8 +9,8 @@ column in one idiomatic call::
 
 It holds no normalization logic: it validates ``profile`` + ``**overrides`` once through the config
 trust boundary (`NormalizeConfig`), builds the effective `Pipeline`, and maps it over the Series —
-every behavior lives in the deep core, so the namespace mirrors the pandas accessor (issue 0021)
-and the CLI adapter (issue 0020). Together with the pandas accessor it makes the `normalize` facade
+every behavior lives in the deep core, so the namespace mirrors the pandas accessor
+and the CLI adapter. Together with the pandas accessor it makes the `normalize` facade
 a real seam (two adapters), and it produces output parity with the pandas accessor.
 
 polars lives behind the optional ``[polars]`` extra (ADR-0003 lean core). Importing this module

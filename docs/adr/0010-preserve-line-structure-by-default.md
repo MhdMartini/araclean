@@ -14,7 +14,7 @@ This reverses the intuitive "collapse everything to a space," and the reversal i
   (paragraph, list, and — for vocalized/Qur'anic text — verse/hemistich boundaries). A library whose
   entire identity is "we don't silently destroy signal" must not silently flatten documents by
   default.
-- **It matches the user story's actual wording.** PRD story 24 asks for "NBSP and other Unicode
+- **It matches the user story's actual wording.** The user story asks for "NBSP and other Unicode
   *spaces* collapsed to a single space, so that spacing differences don't create duplicate tokens" —
   about horizontal spacing and tokenization, not line structure. The earlier `\s+ → " "`
   implementation over-reached by also eating newlines.
@@ -40,7 +40,7 @@ U+2029); see `chars.LINE_BREAKS`.
 - `LIGHT` (and any lossless profile) preserves line breaks; `normalize(text)` no longer flattens a
   multi-line document. The behavior is pinned end-to-end in `tests/test_api.py` and by the golden
   snapshot.
-- `SEARCH` (issue 0010/0014, when built) constructs `CollapseWhitespace(collapse_lines=True)` to
+- `SEARCH` (when built) constructs `CollapseWhitespace(collapse_lines=True)` to
   flatten for maximum recall. The flag is serialized in `to_dict`, so a flattening pipeline can be
   pinned and shared like any other.
 - A future need for paragraph-exact preservation (collapse runs but keep blank-line boundaries)

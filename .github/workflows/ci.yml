@@ -3,9 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ["v*"] # a release tag (issue 0024) runs the gate, then publishes + deploys docs
+    tags: ["v*"] # a release tag runs the gate, then publishes + deploys docs
   pull_request:
-  workflow_dispatch: # manual end-to-end DRY RUN of the build/publish pipeline (0024 AC4)
+  workflow_dispatch: # manual end-to-end DRY RUN of the build/publish pipeline
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -49,7 +49,7 @@ jobs:
         run: uv run cz check --rev-range ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}
 
   docs:
-    # Build the docs site under --strict (issue 0023), so a broken link, a page missing from the
+    # Build the docs site under --strict, so a broken link, a page missing from the
     # nav, or a stale generated page fails CI. The `docs` dependency group is separate from `dev`,
     # so only this job installs mkdocs-material; the docs guard tests (drift/cross-check/doctest/
     # tooltips) run here with mkdocs present (they skip in the lean `gate`/`test` jobs).
@@ -92,7 +92,7 @@ jobs:
 
   build:
     # Build the sdist + wheel and validate the package metadata. Runs on every release tag AND on a
-    # manual workflow_dispatch — the dispatch path is the end-to-end DRY RUN (issue 0024, AC4): it
+    # manual workflow_dispatch — the dispatch path is the end-to-end DRY RUN: it
     # produces and checks the exact artifacts a real publish would upload, without uploading them, so
     # the packaging pipeline is proven before the first PyPI release. The built dist is handed to
     # `publish` as an artifact, so the bytes that are checked are the bytes that ship.
@@ -116,8 +116,8 @@ jobs:
           path: dist/
 
   publish:
-    # Tag-triggered PyPI publish via Trusted Publishing (OIDC) — no stored token (ADR-0008, issue
-    # 0024). The OIDC publisher PyPI was given is bound to THIS workflow file (ci.yml), so the publish
+    # Tag-triggered PyPI publish via Trusted Publishing (OIDC) — no stored token (ADR-0008).
+    # The OIDC publisher PyPI was given is bound to THIS workflow file (ci.yml), so the publish
     # step must live here; moving it to another file would require re-doing the PyPI setup. Gated
     # behind the full quality gate + the build/metadata check, so a tag only ships when everything is
     # green. `id-token: write` lets the action mint the short-lived OIDC token it trades to PyPI; no
@@ -140,9 +140,9 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
 
   docs-deploy:
-    # Versioned docs (issue 0024, story 52): `mike` publishes the tag's docs as a pinned X.Y.Z version
+    # Versioned docs: `mike` publishes the tag's docs as a pinned X.Y.Z version
     # with a moving `latest` alias and makes `latest` the default, so the docs a reader lands on match
-    # the araclean version they installed — a reproducibility requirement (PRD), not a nicety. mike
+    # the araclean version they installed — a reproducibility requirement, not a nicety. mike
     # commits the rendered site to the `gh-pages` branch that GitHub Pages serves; `contents: write`
     # authorizes that push and is the only permission granted. Runs after the gate + strict docs build
     # are green, so the site can never be deployed broken.

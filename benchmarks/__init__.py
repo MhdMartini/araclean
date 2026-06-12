@@ -1,4 +1,4 @@
-"""asv benchmark suite for araclean (issue 0019, ADR-0006).
+"""asv benchmark suite for araclean (ADR-0006).
 
 This package is discovered and run by airspeed velocity (`asv`), configured in ``asv.conf.json`` at
 the repo root. asv installs araclean into an isolated environment at each commit and imports these

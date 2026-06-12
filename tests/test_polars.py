@@ -1,9 +1,9 @@
-"""Behavior of the polars Series namespace (issue 0022) — a thin adapter at the facade seam.
+"""Behavior of the polars Series namespace — a thin adapter at the facade seam.
 
 The namespace holds no normalization logic: it validates the profile + overrides once, builds the
 effective pipeline, and maps it over the Series. So these tests build real Series, call the
 registered `.araclean` namespace, and assert the values agree with mapping the `normalize` facade —
-never the namespace's internals. The final test pins output parity with the pandas accessor (0021).
+never the namespace's internals. The final test pins output parity with the pandas accessor.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def _araclean(s: pl.Series) -> polars_accessor.AracleanNamespace:
 
 
 def test_normalize_equals_mapping_the_facade() -> None:
-    # The headline ergonomic (story 44): one call on a column == mapping `normalize` element-wise.
+    # The headline ergonomic: one call on a column == mapping `normalize` element-wise.
     s = pl.Series("text", [TATWEEL_WORD, "على", "abc"])
     result = _araclean(s).normalize(profile="light")
     expected = [normalize(value, profile="light") for value in s.to_list()]
@@ -113,7 +113,7 @@ def test_empty_and_whitespace_strings() -> None:
 
 
 def test_output_parity_with_the_pandas_accessor() -> None:
-    # 0022's distinguishing criterion: the same input through both adapters yields the same
+    # The distinguishing criterion: the same input through both adapters yields the same
     # normalized values. A noisy mixed fixture run through SEARCH exercises folds + digits.
     data = [TATWEEL_WORD, "على", "كتابًا", "جمييييل", "ﻷحمد", "العدد ١٢٣؟"]
     polars_values = _araclean(pl.Series("text", data)).normalize(profile="search").to_list()

@@ -1,5 +1,5 @@
 {
-    "// note": "airspeed-velocity config for regression-over-time benchmarking (issue 0019, ADR-0006). The benchmark suite lives in benchmarks/ and times araclean against itself across commits, so a future throughput regression is detectable. The snapshot-in-time comparison vs pyarabic lives in the pytest-benchmark tests. Run with `uv run asv run` / `uv run asv continuous`; validate with `uv run asv check -E existing`.",
+    "// note": "airspeed-velocity config for regression-over-time benchmarking (ADR-0006). The benchmark suite lives in benchmarks/ and times araclean against itself across commits, so a future throughput regression is detectable. The snapshot-in-time comparison vs pyarabic lives in the pytest-benchmark tests. Run with `uv run asv run` / `uv run asv continuous`; validate with `uv run asv check -E existing`.",
     "version": 1,
     "project": "araclean",
     "project_url": "https://github.com/MhdMartini/araclean",

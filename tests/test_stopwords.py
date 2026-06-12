@@ -1,4 +1,4 @@
-"""Integrity of the curated, versioned Arabic stopword list (issue 0017, story 36).
+"""Integrity of the curated, versioned Arabic stopword list.
 
 The list's hard invariants — **no duplicates**, bare canonical (NFC) Arabic letters, and no negation
 particle — are enforced at *import* by `araclean.stopwords` itself (a malformed edit raises, failing
@@ -27,7 +27,7 @@ def test_stopwords_are_bare_arabic_letters_in_normalized_form() -> None:
 
 
 def test_stopwords_exclude_negation_particles() -> None:
-    # Negation safety (story 37): the polarity-bearing particles are disjoint from the removal list,
+    # Negation safety: the polarity-bearing particles are disjoint from the removal list,
     # so RemoveStopwords can never delete a negation and flip sentiment.
     assert stopwords.NEGATION_PARTICLES.isdisjoint(stopwords.STOPWORDS)
     for particle in ("ما", "لا", "لم", "لن", "ليس"):

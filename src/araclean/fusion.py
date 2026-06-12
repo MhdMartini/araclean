@@ -1,4 +1,4 @@
-"""The fused `str.translate` engine (issue 0018, story 42, ADR-0006).
+"""The fused `str.translate` engine (ADR-0006).
 
 `str.translate` is a context-free, single-pass, per-character map: it replaces each input code
 point independently and never re-scans its own output. So applying a *run* of consecutive

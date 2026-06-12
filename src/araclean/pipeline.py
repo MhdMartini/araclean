@@ -66,7 +66,7 @@ class Pipeline:
         self._steps: tuple[Step, ...] = tuple(steps)
         _check_step_ordering(self._steps)
         # Compile the execution plan once: maximal runs of consecutive single-char `str.translate`
-        # steps fuse into one combined table applied in a single C-level pass (issue 0018), while
+        # steps fuse into one combined table applied in a single C-level pass, while
         # the contextual steps stay their own pass, in order. This is purely an execution
         # optimization behind the fixed interface -- `_steps` remains the source of truth for
         # repr/select/audit/to_dict, so the plan changes nothing observable (ADR-0006).
@@ -74,7 +74,7 @@ class Pipeline:
 
     @property
     def steps(self) -> tuple[Step, ...]:
-        """The ordered steps, for inspection (e.g. the safety-class audit, story 41)."""
+        """The ordered steps, for inspection (e.g. the safety-class audit)."""
         return self._steps
 
     def __repr__(self) -> str:
@@ -88,12 +88,12 @@ class Pipeline:
 
     def batch(self, texts: Iterable[str]) -> Iterator[str]:
         """Normalize each text lazily — a streaming generator, so a corpus larger than memory
-        (or an unbounded stream) processes without materializing the input (story 13)."""
+        (or an unbounded stream) processes without materializing the input."""
         for text in texts:
             yield self(text)
 
     def select(self, *names: str) -> Pipeline:
-        """Build a NEW pipeline holding exactly the named steps, in the order given (story 16).
+        """Build a NEW pipeline holding exactly the named steps, in the order given.
 
         One primitive covers both adapting operations: name a subset to *filter*, or name every
         step in a different order to *reorder*. Steps are addressed by `_step_name` (the registry
@@ -141,7 +141,7 @@ class Pipeline:
         return Pipeline([step for step in self._steps if _step_name(step) not in dropped])
 
     def audit(self) -> SafetyReport:
-        """Audit this pipeline's safety: is it lossless, and if not, what it loses (story 41).
+        """Audit this pipeline's safety: is it lossless, and if not, what it loses.
 
         Pure in-process computation: it reads each step's declared `safety` (fixed at construction)
         and buckets the step names by class, so an auditor can verify a pipeline is lossless or

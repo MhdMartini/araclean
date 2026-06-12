@@ -1,8 +1,8 @@
-"""The `araclean` command-line interface — one adapter at the facade seam (issue 0020, ADR-0003).
+"""The `araclean` command-line interface — one adapter at the facade seam (ADR-0003).
 
 A thin Typer layer over the core: it parses arguments, builds the effective `Pipeline` **once**
 through the config trust boundary (`NormalizeConfig`), then streams text through it line by line, so
-a corpus larger than memory is cleaned without writing Python (story 45). It holds no normalization
+a corpus larger than memory is cleaned without writing Python. It holds no normalization
 logic — every behavior lives in the deep core, so the CLI is integration-tested by invoking it.
 
 Typer lives behind the optional ``[cli]`` extra (ADR-0003 lean core). This module imports it lazily

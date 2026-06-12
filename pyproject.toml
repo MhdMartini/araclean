@@ -32,7 +32,7 @@ Homepage = "https://github.com/MhdMartini/araclean"
 Repository = "https://github.com/MhdMartini/araclean"
 Issues = "https://github.com/MhdMartini/araclean/issues"
 
-# The `araclean` command-line entry point (issue 0020). It lives behind the [cli] extra: the
+# The `araclean` command-line entry point. It lives behind the [cli] extra: the
 # console script resolves to `araclean.cli:main`, which prints an actionable "install araclean[cli]"
 # message instead of an ImportError traceback when Typer is absent, so the lean core never pulls it.
 [project.scripts]
@@ -43,14 +43,14 @@ araclean = "araclean.cli:main"
 [project.optional-dependencies]
 # Typer (a thin layer over click) powers the CLI; it bundles `rich` for help/error formatting.
 cli = ["typer>=0.12"]
-# pandas powers the `.araclean` Series accessor (issue 0021); kept behind an extra so the lean
+# pandas powers the `.araclean` Series accessor; kept behind an extra so the lean
 # core never imports it (ADR-0003). `import araclean.pandas` registers the accessor and needs this.
 pandas = ["pandas>=2"]
-# polars powers the `.araclean` Series namespace (issue 0022); kept behind an extra so the lean
+# polars powers the `.araclean` Series namespace; kept behind an extra so the lean
 # core never imports it (ADR-0003). `import araclean.polars` registers the namespace and needs this.
 polars = ["polars>=1"]
 # `emoji` powers HandleEmoji's `demojize` mode only (keep/strip are pure-Python). Kept behind an
-# extra so the lean MIT core never pulls it in (ADR-0003, story 4); it is BSD-licensed, not GPL.
+# extra so the lean MIT core never pulls it in (ADR-0003); it is BSD-licensed, not GPL.
 emoji = ["emoji>=2"]
 all = ["araclean[cli]", "araclean[pandas]", "araclean[polars]", "araclean[emoji]"]
 
@@ -63,28 +63,28 @@ dev = [
     "pytest>=8",
     "hypothesis>=6",
     "syrupy>=4",
-    # Micro-benchmarks for the fused str.translate engine (issue 0018, ADR-0006): the fused profile
+    # Micro-benchmarks for the fused str.translate engine (ADR-0006): the fused profile
     # is shown to run in fewer char passes and faster than the unfused composition; the numbers feed
-    # the cross-tool benchmark harness (issue 0019).
+    # the cross-tool benchmark harness.
     "pytest-benchmark>=4",
     "pre-commit>=3.7",
     "commitizen>=4.16",
     # The optional `emoji` backend, so HandleEmoji's `demojize` mode is exercised in CI.
     "emoji>=2",
-    # The [cli] extra's backend, so the CLI (issue 0020) is exercised by the test suite in CI.
+    # The [cli] extra's backend, so the CLI is exercised by the test suite in CI.
     "typer>=0.12",
-    # The [pandas] extra's backend + its type stubs, so the pandas accessor (issue 0021) is
+    # The [pandas] extra's backend + its type stubs, so the pandas accessor is
     # exercised and type-checked in CI. pandas ships no py.typed; pandas-stubs supplies the types.
     "pandas>=2",
     "pandas-stubs>=2",
-    # The [polars] extra's backend, so the polars accessor (issue 0022) is exercised and
+    # The [polars] extra's backend, so the polars accessor is exercised and
     # type-checked in CI. polars ships its own py.typed, so no separate stubs are needed.
     "polars>=1",
     # An independent JSON Schema validator, so tests prove a profile's emitted JSON validates
-    # against its emitted JSON Schema (story 40) — the schema is published, not just pydantic-internal.
+    # against its emitted JSON Schema — the schema is published, not just pydantic-internal.
     "jsonschema>=4",
     "types-jsonschema>=4",
-    # pyarabic is a DEV-ONLY DIFFERENTIAL ORACLE (issue 0019, ADR-0002): the cross-tool agreement
+    # pyarabic is a DEV-ONLY DIFFERENTIAL ORACLE (ADR-0002): the cross-tool agreement
     # tests and the throughput comparison import it. It is GPL-3.0, so it must NEVER appear in
     # [project.dependencies] or any [project.optional-dependencies] extra — `pip install araclean`
     # (and `araclean[all]`) pull none of it, keeping the distributed MIT core clean. As a
@@ -95,12 +95,12 @@ dev = [
     # developer installs it explicitly. See benchmarks/README.md.)
     "pyarabic>=0.6",
     # asv (airspeed velocity) runs the benchmarks/ suite as regression-over-time so a future
-    # throughput regression is detectable across commits (issue 0019, ADR-0006). Pure-Python and
+    # throughput regression is detectable across commits (ADR-0006). Pure-Python and
     # light; `uv run asv check` validates the suite, `uv run asv run` records timings. The
     # snapshot-in-time cross-tool comparison lives in the pytest-benchmark tests instead.
     "asv>=0.6",
 ]
-# The docs site (issue 0023): mkdocs-material + mkdocstrings (Google docstrings). Kept in its OWN
+# The docs site: mkdocs-material + mkdocstrings (Google docstrings). Kept in its OWN
 # group, NOT in `dev`, so the default `uv sync` and the test matrix stay lean — these are not needed
 # to run the suite. The drift/cross-check/doctest guards in tests/test_docs.py need only `araclean`,
 # so they run in the normal gate; only the live `mkdocs build --strict` needs this group, and it
@@ -109,7 +109,7 @@ docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.4",
-    # `mike` publishes versioned docs to the `gh-pages` branch (issue 0024, story 52): each release
+    # `mike` publishes versioned docs to the `gh-pages` branch: each release
     # tag deploys a pinned X.Y.Z version with a moving `latest` alias, so the docs a reader sees match
     # the araclean version they installed. Only the CI `docs-deploy` job invokes it; a plain
     # `mkdocs build` never needs it (the theme's version selector reads gh-pages' versions.json at
@@ -130,7 +130,7 @@ src = ["src", "tests"]
 # look like Latin letters (alef like l, the heh family like o), which ruff's ambiguous-unicode
 # rules (RUF001-003) would otherwise flag. Allow exactly those Arabic glyphs so the homoglyph
 # check still guards the rest of the codebase. Extend as later steps introduce more Arabic.
-# Digits (issue 0008): the Arabic-Indic / Extended zero ٠ ۰ look like ".", the one ١ like "l", and
+# Digits: the Arabic-Indic / Extended zero ٠ ۰ look like ".", the one ١ like "l", and
 # the decimal separator ٫ like ",". They are documented in MapDigits/MapPunctuation prose on purpose.
 # Quote/typography glyphs (MapQuotes, roadmap Phase 1) and emoji-exclusion prose (roadmap 0.3):
 # the single guillemets ‹ ›, the low-9/reversed singles ‚ ‛, the prime ′ and the info source ℹ are
@@ -172,7 +172,7 @@ pythonVersion = "3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# `docs_gen.py` (the docs-site generator, issue 0023) lives at the repo root, outside the `src`
+# `docs_gen.py` (the docs-site generator) lives at the repo root, outside the `src`
 # package, because it is build-time tooling that must never ship in the wheel. Putting the root on
 # the path lets the docs guard tests `import docs_gen` to cross-check the generated docs against the
 # source of truth without packaging it.
@@ -182,7 +182,7 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
 filterwarnings = [
-    # The pyarabic differential oracle (issue 0019, dev-only) emits SyntaxWarnings from its own
+    # The pyarabic differential oracle (dev-only) emits SyntaxWarnings from its own
     # source at import time (unescaped regex sequences in an old release). It is a third-party test
     # oracle we do not control, so silence only that to keep our own warning surface meaningful.
     "ignore:invalid escape sequence:SyntaxWarning:pyarabic.araby",

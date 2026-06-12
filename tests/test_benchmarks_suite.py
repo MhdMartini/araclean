@@ -1,4 +1,4 @@
-"""Guard the asv benchmark wiring (issue 0019, ADR-0006).
+"""Guard the asv benchmark wiring (ADR-0006).
 
 `asv` times the suite over time; this test guards that there is a well-formed config pointing at a
 suite that actually imports and runs. So a benchmark broken by an unrelated change (a renamed

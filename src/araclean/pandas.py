@@ -1,4 +1,4 @@
-"""araclean pandas Series accessor (issue 0021) — a thin adapter at the facade seam (ADR-0003).
+"""araclean pandas Series accessor — a thin adapter at the facade seam (ADR-0003).
 
 Registers a ``.araclean`` accessor on pandas Series so a dataframe workflow normalizes a text
 column in one idiomatic call::
@@ -9,8 +9,8 @@ column in one idiomatic call::
 
 It holds no normalization logic: it validates ``profile`` + ``**overrides`` once through the config
 trust boundary (`NormalizeConfig`), builds the effective `Pipeline`, and maps it over the Series —
-every behavior lives in the deep core, so the accessor mirrors the CLI adapter (issue 0020). It is
-the first of the two facade adapters (the polars accessor, issue 0022, is the other) that make the
+every behavior lives in the deep core, so the accessor mirrors the CLI adapter. It is
+the first of the two facade adapters (the polars accessor is the other) that make the
 `normalize` facade a real seam.
 
 pandas lives behind the optional ``[pandas]`` extra (ADR-0003 lean core). Importing this module

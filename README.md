@@ -1,5 +1,12 @@
 # araclean
 
+[![CI](https://github.com/MhdMartini/araclean/actions/workflows/ci.yml/badge.svg)](https://github.com/MhdMartini/araclean/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/araclean.svg)](https://pypi.org/project/araclean/)
+[![Python versions](https://img.shields.io/pypi/pyversions/araclean.svg)](https://pypi.org/project/araclean/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Docs](https://img.shields.io/badge/docs-online-teal.svg)](https://mhdmartini.github.io/araclean/)
+
 Arabic text normalization and cleaning — pure-Python, composable, reproducible.
 
 > **Status:** pre-release (`0.x`). The v1 normalization core is complete and fully

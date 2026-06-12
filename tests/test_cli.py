@@ -1,4 +1,4 @@
-"""Behavior of the `araclean` CLI (issue 0020) — a thin adapter at the facade seam.
+"""Behavior of the `araclean` CLI — a thin adapter at the facade seam.
 
 The CLI holds no normalization logic: it parses arguments, builds the effective pipeline once via
 the config trust boundary, and streams text through it. So the tests invoke the app on real
@@ -41,7 +41,7 @@ def test_no_profile_defaults_to_light() -> None:
 
 
 def test_normalizes_a_file_argument(tmp_path: Path) -> None:
-    # `araclean normalize --profile search FILE` normalizes the file's content (story 45).
+    # `araclean normalize --profile search FILE` normalizes the file's content.
     line = "على " + TATWEEL_WORD  # search folds maqsura (على->علي) and removes the tatweel
     src = tmp_path / "corpus.txt"
     src.write_text(line + "\n", encoding="utf-8")

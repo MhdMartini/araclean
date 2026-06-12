@@ -1,4 +1,4 @@
-"""The curated, versioned Arabic stopword list backing `RemoveStopwords` (issue 0017).
+"""The curated, versioned Arabic stopword list backing `RemoveStopwords`.
 
 Provenance — this list is **freshly authored for araclean** from common Modern Standard Arabic
 function words (prepositions, pronouns, demonstratives, relative pronouns, conjunctions, and
@@ -7,7 +7,7 @@ other copyleft source, so it does not encumber araclean's MIT core; the list its
 the public domain under **CC0-1.0** (`STOPWORDS_LICENSE`). It carries a `STOPWORDS_VERSION` so a
 `Profile` can pin an exact list and stopword removal stays reproducible across releases.
 
-Design properties (surfaced in the docs, issue 0023):
+Design properties (surfaced in the docs):
 
 - **FOLDED FORM — run AFTER the letter folds** (list version 2). Every entry is stored in its
   letter-folded spelling (no hamza-bearing alef أ/إ, no alef maqsura ى, no hamza carrier ؤ/ئ — the
@@ -21,7 +21,7 @@ Design properties (surfaced in the docs, issue 0023):
   kept — only a standalone ``و`` / ``في`` token would be removed.
 - **Negation-safe by default.** The polarity-bearing particles ``ما`` / ``لا`` / ``لم`` / ``لن`` /
   ``ليس`` (`NEGATION_PARTICLES`) are deliberately **excluded**, so `RemoveStopwords` can never
-  silently flip the sentiment of a sentence by deleting its negation (story 37).
+  silently flip the sentiment of a sentence by deleting its negation.
 - **Homograph policy — one stated principle.** An entry is kept iff its FUNCTION-word reading
   dominates its content readings by token frequency in running text (in the folded spelling, since
   folding merges words). Dropped under that principle: أم (*or* — but commonly *mother*: أم محمد),
@@ -46,8 +46,8 @@ STOPWORDS_VERSION = "2.0.0"
 STOPWORDS_LICENSE = "CC0-1.0"
 """The list is freshly authored and dedicated to the public domain (no GPL source)."""
 
-# The negation / polarity particles kept OUT of the list so removal cannot flip sentiment (story
-# 37). Named here so the disjointness is testable and self-documenting, not implicit. All five are
+# The negation / polarity particles kept OUT of the list so removal cannot flip sentiment.
+# Named here so the disjointness is testable and self-documenting, not implicit. All five are
 # fixed points of the letter folds, so the exclusion is fold-stable too.
 NEGATION_PARTICLES: frozenset[str] = frozenset(
     {
@@ -172,12 +172,12 @@ def _letter_fold(word: str) -> str:
 
 
 def _validated(words: tuple[str, ...]) -> frozenset[str]:
-    """Enforce the list's integrity at import (story 36) and return it as a matching set.
+    """Enforce the list's integrity at import and return it as a matching set.
 
     Raises `ValueError` if any entry is empty, contains whitespace, tatweel or a non-letter (so the
     list is bare, canonical-form Arabic), if any entry is non-NFC, if an entry is not a FIXED POINT
     of the letter folds (the list ships folded — version 2's contract), if a `NEGATION_PARTICLES`
-    member slipped in (negation safety, story 37), or if there is a duplicate (which also guards
+    member slipped in (negation safety), or if there is a duplicate (which also guards
     the إن/أن-style fold merges: both must be authored as the single folded entry). A bad edit
     therefore fails at import — in CI and every test run — rather than silently shipping a
     malformed list.
