@@ -14,10 +14,12 @@ import re
 import unicodedata
 from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 from enum import StrEnum
 from typing import Any, ClassVar, Literal, Protocol, Self, TypedDict, runtime_checkable
 
 from araclean import chars, registry, stopwords
+from araclean.offsets import OffsetMap
 from araclean.safety import SafetyClass
 
 type UnicodeForm = Literal["NFC", "NFD", "NFKC", "NFKD"]
@@ -74,13 +76,79 @@ class AlignmentNotSupportedError(NotImplementedError):
 
 @runtime_checkable
 class SupportsAlignment(Protocol):
-    """The reserved, optional capability a `Step` opts into to support offset tracking.
+    """Optional capability a `Step` opts into to support offset-preserving normalization.
 
-    Not implemented by any v1 step. The placeholder second element stands in for the future
-    ``OffsetMap`` (ADR-0005).
+    Every built-in step implements this (ADR-0012). Custom steps that don't will cause
+    ``Pipeline.apply_aligned`` to raise ``AlignmentNotSupportedError``.
     """
 
-    def apply_aligned(self, s: str, /) -> tuple[str, object]: ...
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]: ...
+
+
+# ---------------------------------------------------------------------------
+# Module-level helpers shared by step apply_aligned implementations
+# ---------------------------------------------------------------------------
+
+
+def _collect_regex_sub(
+    s: str,
+    pattern: re.Pattern[str],
+    replacement: str | Callable[[re.Match[str]], str],
+) -> tuple[str, list[tuple[int, int]], list[int]]:
+    """Apply ``pattern.sub(replacement, s)``, collecting each match span and the length of the
+    string it was replaced with.  Returns ``(normalized, spans, replacement_lens)``."""
+    spans: list[tuple[int, int]] = []
+    rep_lens: list[int] = []
+
+    def _track(m: re.Match[str]) -> str:
+        result = replacement(m) if callable(replacement) else replacement
+        spans.append(m.span())
+        rep_lens.append(len(result))
+        return result
+
+    normalized = pattern.sub(_track, s)
+    return normalized, spans, rep_lens
+
+
+def _aligned_from_translate(s: str, table: Mapping[int, str | int | None]) -> tuple[str, OffsetMap]:
+    """Apply ``str.translate(table)`` and return ``(normalized, OffsetMap)``."""
+    return s.translate(table), OffsetMap.from_translate(s, table)
+
+
+def _aligned_unicode_normalize(s: str, form: UnicodeForm) -> tuple[str, OffsetMap]:
+    """Apply ``unicodedata.normalize(form, s)`` and return ``(normalized, OffsetMap)`` using
+    ``SequenceMatcher`` to align any code-point-count changes."""
+    normalized = unicodedata.normalize(form, s)
+    if s == normalized:
+        return normalized, OffsetMap.identity(len(s))
+    sm = SequenceMatcher(None, s, normalized, autojunk=False)
+    o: list[int] = []
+    for op, i1, i2, j1, j2 in sm.get_opcodes():
+        if op == "equal":
+            for k in range(j2 - j1):
+                o.append(i1 + k)
+                o.append(i1 + k + 1)
+        elif op == "replace":
+            for _ in range(j2 - j1):
+                o.append(i1)
+                o.append(i2)
+        elif op == "insert":
+            for _ in range(j2 - j1):
+                o.append(i1)
+                o.append(i1)
+        # "delete" — chars disappeared, no normalized chars emitted
+    return normalized, OffsetMap(o)
+
+
+_HTML_ENTITY: re.Pattern[str] = re.compile(r"&(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#[xX][0-9a-fA-F]+);")
+
+
+def _aligned_html_unescape(s: str) -> tuple[str, OffsetMap]:
+    """Run ``html.unescape`` and return ``(normalized, OffsetMap)``."""
+    normalized, spans, rep_lens = _collect_regex_sub(
+        s, _HTML_ENTITY, lambda m: html.unescape(m.group())
+    )
+    return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
 
 
 @runtime_checkable
@@ -129,6 +197,9 @@ class NormalizeUnicode:
     def __call__(self, s: str, /) -> str:
         return normalize_unicode(s, self.form)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_unicode_normalize(s, self.form)
+
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {"form": self.form}}
 
@@ -161,6 +232,9 @@ class FoldPresentationForms:
 
     def __call__(self, s: str, /) -> str:
         return fold_presentation_forms(s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
 
     @property
     def translate_table(self) -> dict[int, str]:
@@ -198,6 +272,9 @@ class RemoveTatweel:
 
     def __call__(self, s: str, /) -> str:
         return remove_tatweel(s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
 
     @property
     def translate_table(self) -> dict[int, None]:
@@ -243,6 +320,13 @@ class StripBidi:
     def __call__(self, s: str, /) -> str:
         return strip_bidi(s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        # Two passes: regex ZWJ deletion, then translate.
+        after_regex, spans, rep_lens = _collect_regex_sub(s, chars.ZWJ_OUTSIDE_EMOJI, "")
+        m1 = OffsetMap.from_regex_sub(s, spans, rep_lens)
+        after_trans, m2 = _aligned_from_translate(after_regex, chars.STRIP_BIDI)
+        return after_trans, m1.compose(m2)
+
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
 
@@ -275,6 +359,9 @@ class UnifyLookalikes:
 
     def __call__(self, s: str, /) -> str:
         return unify_lookalikes(s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
 
     @property
     def translate_table(self) -> dict[int, str]:
@@ -330,6 +417,13 @@ class CollapseWhitespace:
 
     def __call__(self, s: str, /) -> str:
         return collapse_whitespace(s, collapse_lines=self.collapse_lines)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        repl: str | Callable[[re.Match[str]], str] = (
+            " " if self.collapse_lines else _collapse_whitespace_run
+        )
+        normalized, spans, rep_lens = _collect_regex_sub(s, chars.WHITESPACE_RUN, repl)
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {"collapse_lines": self.collapse_lines}}
@@ -477,6 +571,14 @@ class RemoveTashkeel:
     def __call__(self, s: str, /) -> str:
         return self._apply(s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        if self.position == "all":
+            return _aligned_from_translate(s, self._table)
+        # position == "final": regex substitution
+        pattern = _final_tashkeel_pattern(self._table)
+        normalized, spans, rep_lens = _collect_regex_sub(s, pattern, "")
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
+
     @property
     def translate_table(self) -> dict[int, None]:
         """The precomputed `str.translate` deletion table — the fused-engine seam (0018).
@@ -534,6 +636,9 @@ class FoldAlef:
     def __call__(self, s: str, /) -> str:
         return fold_alef(s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
+
     @property
     def translate_table(self) -> dict[int, str]:
         """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
@@ -570,6 +675,9 @@ class FoldAlefMaqsura:
 
     def __call__(self, s: str, /) -> str:
         return fold_alef_maqsura(s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
 
     @property
     def translate_table(self) -> dict[int, str]:
@@ -632,6 +740,9 @@ class FoldHamza:
 
     def __call__(self, s: str, /) -> str:
         return s.translate(self._table)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
 
     @property
     def translate_table(self) -> dict[int, str | None]:
@@ -709,6 +820,9 @@ class FoldTehMarbuta:
 
     def __call__(self, s: str, /) -> str:
         return s.translate(self._table)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
 
     @property
     def translate_table(self) -> dict[int, str]:
@@ -819,6 +933,19 @@ class MapDigits:
         converted = s.translate(self._table)
         return _map_separators(converted) if self.map_separators else converted
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        if not self.map_separators:
+            return _aligned_from_translate(s, self._table)
+        # map_separators=True: translate first, then regex separator rewrite
+        after_trans, m1 = _aligned_from_translate(s, self._table)
+        after_sep, spans, rep_lens = _collect_regex_sub(
+            after_trans,
+            chars.NUMBER_SEPARATOR_BETWEEN_DIGITS,
+            lambda m: chars.ARABIC_NUMBER_SEPARATORS[m.group()],
+        )
+        m2 = OffsetMap.from_regex_sub(after_trans, spans, rep_lens)
+        return after_sep, m1.compose(m2)
+
     @property
     def translate_table(self) -> dict[int, str]:
         """The precomputed `str.translate` table this step applies — fused-engine seam (0018).
@@ -873,6 +1000,12 @@ class MapPunctuation:
 
     def __call__(self, s: str, /) -> str:
         return map_punctuation(s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        normalized, spans, rep_lens = _collect_regex_sub(
+            s, chars.ARABIC_PUNCTUATION_RUN, lambda m: chars.ARABIC_PUNCTUATION[m.group()]
+        )
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
@@ -972,6 +1105,11 @@ class ReduceElongation:
     def __call__(self, s: str, /) -> str:
         return self._pattern.sub(self._replacement, s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        repl = self._replacement
+        normalized, spans, rep_lens = _collect_regex_sub(s, self._pattern, repl)
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
+
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {"cap": self.cap, "min_run": self.min_run}}
 
@@ -1044,6 +1182,11 @@ class CleanURLs:
     def __call__(self, s: str, /) -> str:
         replacement = self._replacement
         return chars.URL.sub(lambda _m: replacement, s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        repl = self._replacement
+        normalized, spans, rep_lens = _collect_regex_sub(s, chars.URL, lambda _m: repl)
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
 
     def to_dict(self) -> StepDict:
         return {
@@ -1123,6 +1266,12 @@ class CleanMentions:
     def __call__(self, s: str, /) -> str:
         return chars.MENTION_OR_EMAIL.sub(self._substitute, s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        normalized, spans, rep_lens = _collect_regex_sub(
+            s, chars.MENTION_OR_EMAIL, self._substitute
+        )
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
+
     def to_dict(self) -> StepDict:
         return {
             "name": self.name,
@@ -1193,6 +1342,13 @@ class CleanHTML:
         replacement = self._replacement
         stripped = chars.HTML_TAG.sub(lambda _m: replacement, s)
         return html.unescape(stripped)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        repl = self._replacement
+        after_tags, spans, rep_lens = _collect_regex_sub(s, chars.HTML_TAG, lambda _m: repl)
+        m1 = OffsetMap.from_regex_sub(s, spans, rep_lens)
+        after_unescape, m2 = _aligned_html_unescape(after_tags)
+        return after_unescape, m1.compose(m2)
 
     def to_dict(self) -> StepDict:
         return {
@@ -1323,6 +1479,23 @@ class HandleEmoji:
     def __call__(self, s: str, /) -> str:
         return self._apply(s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        if self.mode is EmojiMode.KEEP:
+            return s, OffsetMap.identity(len(s))
+        if self.mode is EmojiMode.STRIP:
+            normalized, spans, rep_lens = _collect_regex_sub(s, chars.EMOJI, "")
+            return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
+        # DEMOJIZE: find emoji spans, demojize each, build alignment
+        demojize = self._apply  # already resolved at construction
+        spans_list: list[tuple[int, int]] = []
+        rep_lens_list: list[int] = []
+        for m in chars.EMOJI.finditer(s):
+            replacement = demojize(m.group())
+            spans_list.append(m.span())
+            rep_lens_list.append(len(replacement))
+        normalized = demojize(s)
+        return normalized, OffsetMap.from_regex_sub(s, spans_list, rep_lens_list)
+
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {"mode": self.mode.value}}
 
@@ -1396,6 +1569,10 @@ class RemoveStopwords:
 
     def __call__(self, s: str, /) -> str:
         return remove_stopwords(s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        normalized, spans, rep_lens = _collect_regex_sub(s, stopwords.STOPWORD_PATTERN, "")
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
 
     def to_dict(self) -> StepDict:
         # Pin the list version so a serialized profile reproduces the exact removal (story 36).
@@ -1511,6 +1688,12 @@ class CleanHashtags:
             return s
         return chars.HASHTAG.sub(self._substitute, s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        if self._substitute is None:  # KEEP
+            return s, OffsetMap.identity(len(s))
+        normalized, spans, rep_lens = _collect_regex_sub(s, chars.HASHTAG, self._substitute)
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
+
     def to_dict(self) -> StepDict:
         return {
             "name": self.name,
@@ -1589,6 +1772,9 @@ class RemovePunctuation:
     def __call__(self, s: str, /) -> str:
         return s.translate(self._table)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
+
     @property
     def translate_table(self) -> dict[int, None]:
         """The precomputed `str.translate` deletion table — the fused-engine seam (0018)."""
@@ -1636,6 +1822,10 @@ class FoldTanweenAlef:
 
     def __call__(self, s: str, /) -> str:
         return fold_tanween_alef(s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        normalized, spans, rep_lens = _collect_regex_sub(s, chars.TANWEEN_ALEF, "")
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
@@ -1703,6 +1893,11 @@ class RemoveForeign:
         replacement = self._replacement
         return self._pattern.sub(lambda _m: replacement, s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        repl = self._replacement
+        normalized, spans, rep_lens = _collect_regex_sub(s, self._pattern, lambda _m: repl)
+        return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
+
     def to_dict(self) -> StepDict:
         return {
             "name": self.name,
@@ -1745,6 +1940,17 @@ class Trim:
     def __call__(self, s: str, /) -> str:
         return trim(s)
 
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        normalized = s.strip()
+        if not normalized:
+            return normalized, OffsetMap([] if not s else [0, 0] * 0)
+        lead = len(s) - len(s.lstrip())
+        o: list[int] = []
+        for i in range(len(normalized)):
+            o.append(lead + i)
+            o.append(lead + i + 1)
+        return normalized, OffsetMap(o)
+
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
 
@@ -1778,6 +1984,9 @@ class MapQuotes:
 
     def __call__(self, s: str, /) -> str:
         return map_quotes(s)
+
+    def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
+        return _aligned_from_translate(s, self.translate_table)
 
     @property
     def translate_table(self) -> dict[int, str]:

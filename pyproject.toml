@@ -178,6 +178,9 @@ testpaths = ["tests"]
 # source of truth without packaging it.
 pythonpath = ["."]
 addopts = "-ra"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
 filterwarnings = [
     # The pyarabic differential oracle (issue 0019, dev-only) emits SyntaxWarnings from its own
     # source at import time (unescaped regex sequences in an old release). It is a third-party test

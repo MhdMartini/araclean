@@ -89,3 +89,5 @@ retargets
 
 # Python API identifiers referenced in prose
 maxunicode
+omap
+autojunk

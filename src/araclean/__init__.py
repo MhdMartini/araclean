@@ -4,6 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from araclean.api import normalize
 from araclean.config import NormalizeConfig, ProfileName
+from araclean.offsets import OffsetMap
 from araclean.pipeline import Pipeline
 from araclean.profiles import CLASSICAL, LIGHT, ML, SEARCH, SOCIAL, Profile
 from araclean.safety import SafetyClass, SafetyReport
@@ -104,6 +105,7 @@ __all__ = [
     "MarkClass",
     "NormalizeConfig",
     "NormalizeUnicode",
+    "OffsetMap",
     "Pipeline",
     "Profile",
     "ProfileName",

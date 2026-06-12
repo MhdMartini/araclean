@@ -1,6 +1,6 @@
 # araclean
 
-Arabic text normalization and cleaning — **pure-Python, composable, reproducible**.
+Arabic text normalization and cleaning — **pure-Python, composable, reproducible, offset-preserving**.
 
 araclean fixes mojibake and inconsistent encoding, optionally folds the spelling and vocalization
 variants that fragment a vocabulary, and does it through one small, serializable interface. Its core
@@ -32,10 +32,25 @@ Optional extras: `araclean[cli]`, `araclean[pandas]`, `araclean[polars]`, `aracl
 
 ```
 
-That's the whole surface: one `normalize` call, a profile to pick the trade-off. The default
-`LIGHT` profile is safe to run on any corpus; reach for `SEARCH`, `ML`, `SOCIAL`, or `CLASSICAL`
-when you want their specific folding. Every Python example in these docs is executed by the test
-suite, so what you read is what runs.
+That's the whole surface for batch use. For span-level work — RAG citation, NER projection —
+`apply_aligned` returns the normalized text *and* a map back to every original position:
+
+```pycon
+>>> from araclean import Pipeline, RemoveTatweel, FoldAlef
+>>> pipe = Pipeline([RemoveTatweel(), FoldAlef()])
+>>> normalized, omap = pipe.apply_aligned("أحمـد")
+>>> normalized
+'احمد'
+>>> omap.to_original((0, 4))   # where does the whole normalized word sit in the original?
+(0, 5)
+
+```
+
+No other Arabic NLP library exposes this. See **[Offset-preserving normalization](guides/offset-preserving.md)**.
+
+The default `LIGHT` profile is safe to run on any corpus; reach for `SEARCH`, `ML`, `SOCIAL`, or
+`CLASSICAL` when you want their specific folding. Every Python example in these docs is executed
+by the test suite, so what you read is what runs.
 
 ## Where to next
 
@@ -46,6 +61,8 @@ suite, so what you read is what runs.
 
 **Using it day to day**
 
+- **[Offset-preserving normalization](guides/offset-preserving.md)** — project normalized spans
+  back to original text, for RAG citation and NER/QA span grounding.
 - **[Command line](guides/cli.md)** — stream files, stdin/stdout, and JSONL corpora from the shell.
 - **[pandas & polars](guides/dataframes.md)** — normalize a text column in one call.
 - **[Tuning profiles](guides/tuning-profiles.md)** — per-knob overrides (`map_digits=True`,

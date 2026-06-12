@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from araclean import fusion, registry
+from araclean.offsets import OffsetMap
 from araclean.profiles import Profile, get_profile
 from araclean.safety import SafetyClass, SafetyReport
 from araclean.steps import (
@@ -155,21 +156,29 @@ class Pipeline:
             cleaning=tuple(buckets[SafetyClass.CLEANING]),
         )
 
-    def apply_aligned(self, text: str, /) -> tuple[str, object]:
-        """Reserved offset/alignment entry point — not implemented in v1 (ADR-0005).
+    def apply_aligned(self, text: str, /) -> tuple[str, OffsetMap]:
+        """Normalize *text* while tracking how every position maps back to the original.
 
-        Every step must implement the optional `apply_aligned` hook for this to work; none do
-        in v1, so this raises a clear, actionable `AlignmentNotSupportedError` naming the step.
+        Returns ``(normalized, offset_map)`` where ``offset_map.to_original(span)`` projects
+        any span in the normalized string back to the corresponding span in *text*.
+
+        Raises ``AlignmentNotSupportedError`` for any custom step that does not implement
+        ``apply_aligned()`` — the error names the offending step so the caller can add the hook.
         """
+        current = text
+        running: OffsetMap | None = None
         for step in self._steps:
             if not isinstance(step, SupportsAlignment):
                 raise AlignmentNotSupportedError(
                     f"Step {type(step).__name__!r} does not implement apply_aligned(); "
-                    "offset/alignment tracking is reserved but not implemented in v1 (ADR-0005)."
+                    "add apply_aligned() to the step to use offset-preserving normalization."
                 )
-        raise AlignmentNotSupportedError(
-            "Offset/alignment tracking is reserved but not implemented in v1 (ADR-0005)."
-        )
+            normalized, step_map = step.apply_aligned(current)
+            running = step_map if running is None else running.compose(step_map)
+            current = normalized
+        if running is None:
+            running = OffsetMap.identity(len(text))
+        return current, running
 
     def to_dict(self) -> PipelineDict:
         """Serialize to a plain, JSON-friendly dict; raises if a step can't serialize itself."""
