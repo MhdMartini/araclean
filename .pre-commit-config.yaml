@@ -58,6 +58,11 @@ repos:
         entry: npx --yes cspell@9.8.0 --no-progress --no-summary --no-must-find-files
         language: system
         types: [text]
+        # npx's package cache is not concurrency-safe: pre-commit splits a long file list (CI's
+        # --all-files) into batches it runs IN PARALLEL, and concurrent `npx --yes` installs into
+        # a cold cache corrupt each other (seen in CI as a bogus SyntaxError from inside
+        # cspell-lib). One serial invocation installs once, then checks everything.
+        require_serial: true
 
       - id: commitizen
         name: commitizen (Conventional Commit message)

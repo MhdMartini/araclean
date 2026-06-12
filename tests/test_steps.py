@@ -872,6 +872,16 @@ def test_remove_tashkeel_deletes_every_arabic_combining_mark() -> None:
     assert all(remove_tashkeel(chr(cp)) == chr(cp) for cp in _NFC_COMPOSING_HAMZA)
 
 
+def test_marks_added_after_unicode_15_are_triaged_into_quranic() -> None:
+    # Unicode 16.0/17.0 additions, triaged ahead of the interpreter shipping that UCD — the live
+    # completeness test above only sees marks the RUNNING Python's database knows. Pepet (Pegon
+    # vowel sign, 16.0) and the double vertical bar below (Old Sindhi tanween, 17.0) follow the
+    # non-Arabic-orthography rule (like U+0659-U+065C); the alef overlay (16.0) and small low
+    # noon (17.0) are Qur'anic annotation.
+    for cp in (0x0897, 0x10EFA, 0x10EFB, 0x10EFC):
+        assert RemoveTashkeel(classes={MarkClass.QURANIC})(chr(cp)) == "", hex(cp)
+
+
 def test_remove_tashkeel_never_strips_a_carrier() -> None:
     # Carrier safety: removal touches marks only — base letters (incl. the hamza-seat and alef
     # variants that letter folding 0007 owns) and digits pass through untouched.

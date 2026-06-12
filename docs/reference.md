@@ -15,6 +15,13 @@ configuration boundary, and every `Step`. Each Arabic term below is glossed to E
 
 ::: araclean.Profile
 
+## Offset maps
+
+Returned by `Pipeline.apply_aligned` / a step's `apply_aligned` — see
+[Offset-preserving normalization](guides/offset-preserving.md).
+
+::: araclean.OffsetMap
+
 ## Configuration
 
 The validated override surface behind `normalize(..., profile=…, **overrides)` — see

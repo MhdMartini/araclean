@@ -44,7 +44,7 @@ original = "كتاب أحمـد الكبير"
 normalized, omap = pipe.apply_aligned(original)
 
 # Retrieval-time: a search hit in the normalized index gives a span
-# Suppose a fuzzy search found "احمد" at position 6 in the normalized text
+# Suppose a fuzzy search found "احمد" somewhere in the normalized text
 found_start = normalized.index("احمد")
 found_end = found_start + len("احمد")
 
@@ -65,17 +65,19 @@ original_doc = "قال الرئيسُ محمـدٌ في المؤتمرِ"
 normalized, omap = pipe.apply_aligned(original_doc)
 
 # A NER model running on normalized text predicts a PERSON span
-ner_start, ner_end = 12, 16  # "محمد" in normalized
+ner_start = normalized.index("محمد")
+ner_end = ner_start + len("محمد")
 
 # Project to original text
 orig_start, orig_end = omap.to_original((ner_start, ner_end))
 original_span = original_doc[orig_start:orig_end]
-print(original_span)   # "محمـدٌ" — the original spelling in the source document
+print(original_span)   # "محمـد" — the original spelling, tatweel intact (the deleted
+                       # trailing tanween sits past the span: it produced no normalized char)
 ```
 
 ## What the map tracks
 
-Every normalization step is one of three operation kinds, all of which araclean tracks exactly:
+Every normalization step is one of a few operation kinds, each tracked by the map:
 
 | Kind | Examples | Alignment |
 |------|---------|-----------|
@@ -106,8 +108,7 @@ A custom step that does not implement `apply_aligned` raises `AlignmentNotSuppor
 `Pipeline.apply_aligned` reaches it.  Add the hook to opt in:
 
 ```python
-from araclean.offsets import OffsetMap
-from araclean.safety import SafetyClass
+from araclean import OffsetMap, SafetyClass
 
 class MyStep:
     safety = SafetyClass.ENCODING_REPAIR
@@ -121,4 +122,4 @@ class MyStep:
 ```
 
 For deletions or multi-char substitutions, use `OffsetMap.from_translate` or
-`OffsetMap.from_regex_sub` — see the [`OffsetMap` API reference](../reference.md#offsetmap).
+`OffsetMap.from_regex_sub` — see the [`OffsetMap` API reference](../reference.md#offset-maps).

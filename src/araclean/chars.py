@@ -280,6 +280,8 @@ QURANIC: frozenset[int] = frozenset(
         *range(0x0659, 0x065D),  # extended vowel signs (non-Arabic orthographies)
         0x065F,  # wavy hamza below (a non-composing hamza mark)
         *range(0x06D6, 0x06EE),  # small high ligatures, pause/sajda/end-of-ayah, small waw/yeh
+        0x0897,  # pepet -- Pegon vowel sign for ə (Unicode 16.0); non-Arabic vocalization, so it
+        # rides here with the U+0659-U+065C extended vowel signs, NOT in HARAKAT
         *range(0x0898, 0x08A0),  # small high/low recitation words + extended madda & alef signs
         *range(0x08CA, 0x08D0),  # small high farsi-yeh/yeh-barree/word-sah/zah, large round dots
         *range(0x08D1, 0x08E3),  # small high/low words, footnote & safha, disputed end-of-ayah
@@ -287,6 +289,10 @@ QURANIC: frozenset[int] = frozenset(
         0x08F3,  # small high waw
         *range(0x08F7, 0x08FE),  # recitation arrowheads
         0x08FF,  # mark sideways noon ghunna
+        0x10EFA,  # double vertical bar below -- Old Sindhi tanween (Unicode 17.0); non-Arabic
+        # nunation, so it rides here (the pepet rule), NOT in TANWEEN
+        0x10EFB,  # small low noon -- Qur'anic mark, Indonesia (Unicode 17.0)
+        0x10EFC,  # combining alef overlay -- Qur'anic mark, Libya (Unicode 16.0)
         *range(0x10EFD, 0x10F00),  # small low words: sakta, qasr, madda (Arabic Extended-C)
     )
 )

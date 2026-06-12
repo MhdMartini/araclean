@@ -55,6 +55,7 @@ nav:
       - SOCIAL: profiles/social.md
       - CLASSICAL: profiles/classical.md
   - Guides:
+      - Offset-preserving normalization: guides/offset-preserving.md
       - Command line: guides/cli.md
       - pandas & polars: guides/dataframes.md
       - Tuning profiles: guides/tuning-profiles.md

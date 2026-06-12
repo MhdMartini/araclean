@@ -240,8 +240,12 @@ def test_remove_tashkeel_final_apply_aligned() -> None:
 def test_reduce_elongation_apply_aligned() -> None:
     s = "جمييييل"
     step = ReduceElongation()
-    normalized, _ = step.apply_aligned(s)
-    assert "يييي" not in normalized
+    normalized, omap = step.apply_aligned(s)
+    # The replacement is a sub() TEMPLATE (\g<c>): it must be expanded, not inserted literally.
+    assert normalized == step(s) == "جميل"
+    # The collapsed letter maps back to the whole elongated run
+    run_start = s.index("ي")
+    assert omap.to_original((2, 3)) == (run_start, run_start + 4)
     _roundtrip_check(s, step)
 
 
@@ -314,6 +318,16 @@ def test_clean_html_entity_apply_aligned() -> None:
     _roundtrip_check(s, step)
 
 
+def test_clean_html_entity_without_semicolon_apply_aligned() -> None:
+    # html.unescape also rewrites the no-semicolon legacy named refs and bare numeric refs;
+    # apply_aligned must match __call__ on them.
+    step = CleanHTML()
+    for s in ("x &amp y", "a &#65 b", "&lt&gt"):
+        normalized, _ = step.apply_aligned(s)
+        assert normalized == step(s)
+        _roundtrip_check(s, step)
+
+
 def test_handle_emoji_keep_apply_aligned() -> None:
     s = "مرحبا 😀"
     step = HandleEmoji()
@@ -328,6 +342,17 @@ def test_handle_emoji_strip_apply_aligned() -> None:
     normalized, _ = step.apply_aligned(s)
     assert "😀" not in normalized
     _roundtrip_check(s, step)
+
+
+def test_handle_emoji_demojize_apply_aligned() -> None:
+    # The `emoji` extra is installed in dev. The library segments sequences itself — the flag
+    # (two regional indicators) is the case where regex spans disagree with what it rewrites.
+    step = HandleEmoji(mode=EmojiMode.DEMOJIZE)
+    for s in ("مرحبا 😀", "علم 🇸🇦 هنا"):
+        normalized, omap = step.apply_aligned(s)
+        assert normalized == step(s)
+        assert len(omap) == len(normalized)
+        _roundtrip_check(s, step)
 
 
 def test_clean_hashtags_apply_aligned() -> None:

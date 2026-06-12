@@ -101,7 +101,9 @@ def _collect_regex_sub(
     rep_lens: list[int] = []
 
     def _track(m: re.Match[str]) -> str:
-        result = replacement(m) if callable(replacement) else replacement
+        # A str replacement is a sub() TEMPLATE: expand it, so group references (\g<c>) and
+        # escapes behave exactly as in `pattern.sub(replacement, s)`.
+        result = replacement(m) if callable(replacement) else m.expand(replacement)
         spans.append(m.span())
         rep_lens.append(len(result))
         return result
@@ -115,12 +117,16 @@ def _aligned_from_translate(s: str, table: Mapping[int, str | int | None]) -> tu
     return s.translate(table), OffsetMap.from_translate(s, table)
 
 
-def _aligned_unicode_normalize(s: str, form: UnicodeForm) -> tuple[str, OffsetMap]:
-    """Apply ``unicodedata.normalize(form, s)`` and return ``(normalized, OffsetMap)`` using
-    ``SequenceMatcher`` to align any code-point-count changes."""
-    normalized = unicodedata.normalize(form, s)
+def _aligned_via_diff(s: str, normalized: str) -> OffsetMap:
+    """Build an ``OffsetMap`` for an opaque ``s -> normalized`` rewrite via ``SequenceMatcher``.
+
+    The fallback for transforms whose internals we don't control (``unicodedata.normalize``,
+    ``emoji.demojize``): the normalized text is exactly the transform's own output, and alignment
+    is recovered from the diff — coarse (a replaced run maps to the whole source run) but always
+    consistent with the returned string.
+    """
     if s == normalized:
-        return normalized, OffsetMap.identity(len(s))
+        return OffsetMap.identity(len(s))
     sm = SequenceMatcher(None, s, normalized, autojunk=False)
     o: list[int] = []
     for op, i1, i2, j1, j2 in sm.get_opcodes():
@@ -137,10 +143,18 @@ def _aligned_unicode_normalize(s: str, form: UnicodeForm) -> tuple[str, OffsetMa
                 o.append(i1)
                 o.append(i1)
         # "delete" — chars disappeared, no normalized chars emitted
-    return normalized, OffsetMap(o)
+    return OffsetMap(o)
 
 
-_HTML_ENTITY: re.Pattern[str] = re.compile(r"&(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#[xX][0-9a-fA-F]+);")
+def _aligned_unicode_normalize(s: str, form: UnicodeForm) -> tuple[str, OffsetMap]:
+    """Apply ``unicodedata.normalize(form, s)`` and return ``(normalized, OffsetMap)``."""
+    normalized = unicodedata.normalize(form, s)
+    return normalized, _aligned_via_diff(s, normalized)
+
+
+# Mirrors what `html.unescape` rewrites, INCLUDING the no-semicolon forms it accepts (legacy named
+# references like `&amp` and bare numeric references like `&#65`) — the trailing `;` is optional.
+_HTML_ENTITY: re.Pattern[str] = re.compile(r"&(?:[a-zA-Z][a-zA-Z0-9]*|#[0-9]+|#[xX][0-9a-fA-F]+);?")
 
 
 def _aligned_html_unescape(s: str) -> tuple[str, OffsetMap]:
@@ -1485,16 +1499,11 @@ class HandleEmoji:
         if self.mode is EmojiMode.STRIP:
             normalized, spans, rep_lens = _collect_regex_sub(s, chars.EMOJI, "")
             return normalized, OffsetMap.from_regex_sub(s, spans, rep_lens)
-        # DEMOJIZE: find emoji spans, demojize each, build alignment
-        demojize = self._apply  # already resolved at construction
-        spans_list: list[tuple[int, int]] = []
-        rep_lens_list: list[int] = []
-        for m in chars.EMOJI.finditer(s):
-            replacement = demojize(m.group())
-            spans_list.append(m.span())
-            rep_lens_list.append(len(replacement))
-        normalized = demojize(s)
-        return normalized, OffsetMap.from_regex_sub(s, spans_list, rep_lens_list)
+        # DEMOJIZE: the emoji library segments sequences itself (and not always where our EMOJI
+        # regex would — flags, keycaps), so align its whole-string output via the diff fallback
+        # rather than trusting regex spans that could leave the map inconsistent with the text.
+        normalized = self._apply(s)
+        return normalized, _aligned_via_diff(s, normalized)
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {"mode": self.mode.value}}
@@ -1943,7 +1952,7 @@ class Trim:
     def apply_aligned(self, s: str, /) -> tuple[str, OffsetMap]:
         normalized = s.strip()
         if not normalized:
-            return normalized, OffsetMap([] if not s else [0, 0] * 0)
+            return normalized, OffsetMap([])
         lead = len(s) - len(s.lstrip())
         o: list[int] = []
         for i in range(len(normalized)):

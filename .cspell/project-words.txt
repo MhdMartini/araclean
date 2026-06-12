@@ -13,11 +13,13 @@ nonspacing
 precomposed
 doachashmee
 chashmi
+pepet
 
 # Domain-adjacent proper nouns
 Hijri
 Uyghur
 Jawi
+Pegon
 
 # ruff lint vocabulary (the ambiguous-unicode allow-list, RUF001-003)
 confusables
