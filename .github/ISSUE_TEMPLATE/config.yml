@@ -1,0 +1,13 @@
+# Force contributors through the structured templates above; a "blank issue" escape hatch is disabled
+# so every report carries the input/config/version detail a normalization bug needs to be actionable.
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/MhdMartini/araclean/discussions
+    about: Usage questions, ideas, and anything that isn't a concrete bug or feature request.
+  - name: Security vulnerability
+    url: https://github.com/MhdMartini/araclean/security/advisories/new
+    about: Report a security issue privately — please do not open a public issue.
+  - name: Code of Conduct
+    url: https://github.com/MhdMartini/araclean/blob/main/CODE_OF_CONDUCT.md
+    about: How we expect everyone to behave, and how to report abuse.
