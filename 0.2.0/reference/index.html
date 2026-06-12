@@ -1,0 +1,7029 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Arabic text normalization and cleaning — pure-Python, composable, reproducible.">
+      
+      
+      
+        <link rel="canonical" href="https://mhdmartini.github.io/araclean/0.2.0/reference/">
+      
+      
+        <link rel="prev" href="../concepts/architecture/">
+      
+      
+        <link rel="next" href="cli/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Python API - araclean</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#api-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="araclean" class="md-header__button md-logo" aria-label="araclean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            araclean
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Python API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/MhdMartini/araclean" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MhdMartini/araclean
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="araclean" class="md-nav__button md-logo" aria-label="araclean" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    araclean
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/MhdMartini/araclean" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    MhdMartini/araclean
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Profiles
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Profiles
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/light/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    LIGHT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SEARCH
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/ml/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ML
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/social/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SOCIAL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../profiles/classical/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLASSICAL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/offset-preserving/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Offset-preserving normalization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/dataframes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    pandas & polars
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/tuning-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tuning profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/composing-pipelines/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Composing pipelines
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/custom-steps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing custom steps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/reproducibility/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reproducible preprocessing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../guides/stopwords/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stopword removal
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/why-araclean/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Why araclean
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/safety/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    The safety contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture & performance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-normalize-facade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The normalize facade
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.normalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        normalize
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipelines-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipelines &amp; profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.Pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        batch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.select" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        select
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.drop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.apply_aligned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_aligned
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.to_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.from_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.from_profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.Profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offset-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offset maps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.OffsetMap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OffsetMap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OffsetMap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.from_translate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_translate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.from_regex_sub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_regex_sub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compose
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.to_original" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_original
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.to_normalized" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_normalized
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.NormalizeConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NormalizeConfig
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NormalizeConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.NormalizeConfig.resolve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resolve
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.ProfileName" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProfileName
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safety-classes-the-lossless-lossy-split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety classes (the lossless / lossy split)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.SafetyClass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SafetyClass
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.SafetyReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SafetyReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SafetyReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.SafetyReport.lossless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lossless
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.SafetyReport.lossy_steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lossy_steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#encoding-repair-lossless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encoding repair (lossless)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.NormalizeUnicode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NormalizeUnicode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.StripBidi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StripBidi
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldPresentationForms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldPresentationForms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldPresentationForms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldPresentationForms.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemoveTatweel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveTatweel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RemoveTatweel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.RemoveTatweel.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.UnifyLookalikes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UnifyLookalikes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="UnifyLookalikes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.UnifyLookalikes.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CollapseWhitespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CollapseWhitespace
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.Trim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trim
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trim">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linguistic-folding-lossy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linguistic folding (lossy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemoveTashkeel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveTashkeel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RemoveTashkeel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.RemoveTashkeel.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldAlef" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldAlef
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldAlef">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldAlef.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldAlefMaqsura" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldAlefMaqsura
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldAlefMaqsura">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldAlefMaqsura.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldHamza" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldHamza
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldHamza">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldHamza.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldTehMarbuta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldTehMarbuta
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldTehMarbuta">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldTehMarbuta.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldTanweenAlef" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldTanweenAlef
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.MapDigits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MapDigits
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MapDigits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.MapDigits.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.MapPunctuation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MapPunctuation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemovePunctuation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemovePunctuation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RemovePunctuation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.RemovePunctuation.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.MapQuotes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MapQuotes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MapQuotes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.MapQuotes.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.ReduceElongation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReduceElongation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemoveStopwords" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveStopwords
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RemoveStopwords">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cleaning-lossy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cleaning (lossy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanURLs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanURLs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanMentions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanMentions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanHashtags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanHashtags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanHTML" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanHTML
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.HandleEmoji" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HandleEmoji
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemoveForeign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveForeign
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.MarkClass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MarkClass
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.TehMarbutaTarget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TehMarbutaTarget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.DigitTarget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DigitTarget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanMode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanMode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.EmojiMode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EmojiMode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.HashtagMode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HashtagMode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extension-protocol-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extension &amp; protocol types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.Step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stopword-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stopword data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.stopwords" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stopwords
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dataframe-accessors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataFrame accessors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.pandas.AracleanAccessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AracleanAccessor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AracleanAccessor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.pandas.AracleanAccessor.normalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        normalize
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.polars.AracleanNamespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AracleanNamespace
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AracleanNamespace">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.polars.AracleanNamespace.normalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        normalize
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.AlignmentNotSupportedError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AlignmentNotSupportedError
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.EmojiSupportNotInstalledError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EmojiSupportNotInstalledError
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.cli.CLIExtraNotInstalledError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLIExtraNotInstalledError
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.pandas.PandasExtraNotInstalledError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PandasExtraNotInstalledError
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.polars.PolarsExtraNotInstalledError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PolarsExtraNotInstalledError
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-normalize-facade" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The normalize facade
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.normalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        normalize
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pipelines-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipelines &amp; profiles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.Pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pipeline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        batch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.select" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        select
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.drop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        drop
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.apply_aligned" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        apply_aligned
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.to_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.from_dict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_dict
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.Pipeline.from_profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_profile
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.Profile" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Profile
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#offset-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Offset maps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.OffsetMap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OffsetMap
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OffsetMap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.identity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        identity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.from_translate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_translate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.from_regex_sub" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        from_regex_sub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compose
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.to_original" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_original
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.OffsetMap.to_normalized" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        to_normalized
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.NormalizeConfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NormalizeConfig
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NormalizeConfig">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.NormalizeConfig.resolve" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        resolve
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.ProfileName" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProfileName
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safety-classes-the-lossless-lossy-split" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety classes (the lossless / lossy split)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.SafetyClass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SafetyClass
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.SafetyReport" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SafetyReport
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="SafetyReport">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.SafetyReport.lossless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lossless
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#araclean.SafetyReport.lossy_steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lossy_steps
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Steps
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Steps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#encoding-repair-lossless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Encoding repair (lossless)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.NormalizeUnicode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NormalizeUnicode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.StripBidi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StripBidi
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldPresentationForms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldPresentationForms
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldPresentationForms">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldPresentationForms.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemoveTatweel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveTatweel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RemoveTatweel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.RemoveTatweel.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.UnifyLookalikes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UnifyLookalikes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="UnifyLookalikes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.UnifyLookalikes.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CollapseWhitespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CollapseWhitespace
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.Trim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trim
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trim">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linguistic-folding-lossy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linguistic folding (lossy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemoveTashkeel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveTashkeel
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RemoveTashkeel">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.RemoveTashkeel.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldAlef" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldAlef
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldAlef">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldAlef.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldAlefMaqsura" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldAlefMaqsura
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldAlefMaqsura">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldAlefMaqsura.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldHamza" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldHamza
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldHamza">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldHamza.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldTehMarbuta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldTehMarbuta
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FoldTehMarbuta">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.FoldTehMarbuta.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.FoldTanweenAlef" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FoldTanweenAlef
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.MapDigits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MapDigits
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MapDigits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.MapDigits.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.MapPunctuation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MapPunctuation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemovePunctuation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemovePunctuation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RemovePunctuation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.RemovePunctuation.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.MapQuotes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MapQuotes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MapQuotes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.MapQuotes.translate_table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        translate_table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.ReduceElongation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReduceElongation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemoveStopwords" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveStopwords
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="RemoveStopwords">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cleaning-lossy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cleaning (lossy)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanURLs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanURLs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanMentions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanMentions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanHashtags" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanHashtags
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanHTML" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanHTML
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.HandleEmoji" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HandleEmoji
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.RemoveForeign" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RemoveForeign
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#step-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.MarkClass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MarkClass
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.TehMarbutaTarget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TehMarbutaTarget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.DigitTarget" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DigitTarget
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.CleanMode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CleanMode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.EmojiMode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EmojiMode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.HashtagMode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HashtagMode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#extension-protocol-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extension &amp; protocol types
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.Step" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stopword-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stopword data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.stopwords" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stopwords
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dataframe-accessors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DataFrame accessors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.pandas.AracleanAccessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AracleanAccessor
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AracleanAccessor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.pandas.AracleanAccessor.normalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        normalize
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.polars.AracleanNamespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AracleanNamespace
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="AracleanNamespace">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#araclean.polars.AracleanNamespace.normalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        normalize
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.AlignmentNotSupportedError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AlignmentNotSupportedError
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.EmojiSupportNotInstalledError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EmojiSupportNotInstalledError
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.cli.CLIExtraNotInstalledError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLIExtraNotInstalledError
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.pandas.PandasExtraNotInstalledError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PandasExtraNotInstalledError
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#araclean.polars.PolarsExtraNotInstalledError" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PolarsExtraNotInstalledError
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="api-reference">API reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h1>
+<p>The whole public surface: the one-call <code>normalize</code> facade, the <code>Pipeline</code> it assembles, the
+configuration boundary, and every <code>Step</code>. Each Arabic term below is glossed to English on hover
+(ADR-0007); searching the English name (e.g. <em>diacritics</em>) finds the Arabic-primary step
+(<code>RemoveTashkeel</code>). For the <code>araclean</code> shell command, see the <a href="cli/">CLI reference</a>.</p>
+<h2 id="the-normalize-facade">The <code>normalize</code> facade<a class="headerlink" href="#the-normalize-facade" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-function">
+
+
+<h2 id="araclean.normalize" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">normalize</span>
+
+
+<a href="#araclean.normalize" class="headerlink" title="Permanent link">&para;</a></h2>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">normalize</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="o">*</span><span class="p">,</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Profile</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">config</span><span class="p">:</span> <span class="n">NormalizeConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="o">**</span><span class="n">overrides</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+
+    <div class="doc doc-contents first">
+
+        <p>Normalize Arabic text with a named profile (default <code>LIGHT</code> — lossless encoding repair).</p>
+<p><code>profile=None</code> applies <code>LIGHT</code>. Pass <code>profile="search"</code> (etc.) for a named preset, a <code>Profile</code>
+object for a fully custom pipeline, or per-knob <code>**overrides</code> to tune a named profile —
+<code>normalize(text, profile="ml", map_digits=True)</code> folds digits, <code>profile="social",
+emoji="strip"</code> drops emoji. Overrides are validated against <code>NormalizeConfig</code>, so an unknown
+knob or a bad value is rejected here. A prebuilt <code>config=NormalizeConfig(...)</code> may be passed
+instead, but not together with <code>profile</code>/overrides.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div><h2 id="pipelines-profiles">Pipelines &amp; profiles<a class="headerlink" href="#pipelines-profiles" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.Pipeline" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Pipeline</span>
+
+
+<a href="#araclean.Pipeline" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>An ordered, serializable sequence of <code>Step</code>s, callable like a single <code>str -&gt; str</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.Pipeline.steps" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">steps</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.Pipeline.steps" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">steps</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Step</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The ordered steps, for inspection (e.g. the safety-class audit, story 41).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.Pipeline.batch" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">batch</span>
+
+
+<a href="#araclean.Pipeline.batch" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">batch</span><span class="p">(</span><span class="n">texts</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Normalize each text lazily — a streaming generator, so a corpus larger than memory
+(or an unbounded stream) processes without materializing the input (story 13).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.Pipeline.select" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">select</span>
+
+
+<a href="#araclean.Pipeline.select" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">select</span><span class="p">(</span><span class="o">*</span><span class="n">names</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pipeline</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Build a NEW pipeline holding exactly the named steps, in the order given (story 16).</p>
+<p>One primitive covers both adapting operations: name a subset to <em>filter</em>, or name every
+step in a different order to <em>reorder</em>. Steps are addressed by <code>_step_name</code> (the registry
+name, or the class name for a custom step). This pipeline is left unchanged. Raises
+<code>KeyError</code> for an unknown name, or if a name matches more than one step <em>with differing
+configs</em> (genuinely ambiguous). EQUAL duplicates are interchangeable, not ambiguous —
+every profile runs its <code>NormalizeUnicode</code> NFC bookends as identical value objects, so
+naming <code>"NormalizeUnicode"</code> (once, or once per copy you want) just works; only a name
+whose duplicates differ (SEARCH's two differently-configured <code>CollapseWhitespace</code>) is
+rejected, because a name cannot say which one you meant.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.Pipeline.drop" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">drop</span>
+
+
+<a href="#araclean.Pipeline.drop" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">drop</span><span class="p">(</span><span class="o">*</span><span class="n">names</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pipeline</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Build a NEW pipeline WITHOUT every step matching each name (the subtractive adapter).</p>
+<p>The common profile adaptation — "SEARCH minus <code>MapDigits</code>" — is subtraction, which
+<code>select</code> cannot express on a built-in profile without re-naming every kept step. <code>drop</code>
+removes ALL steps carrying a name (removing every match is well-defined, so duplicates
+need no disambiguation) and keeps the rest in order. This pipeline is left unchanged.
+Raises <code>KeyError</code> for a name no step carries, so a typo is never a silent no-op.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.Pipeline.audit" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">audit</span>
+
+
+<a href="#araclean.Pipeline.audit" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">audit</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">SafetyReport</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Audit this pipeline's safety: is it lossless, and if not, what it loses (story 41).</p>
+<p>Pure in-process computation: it reads each step's declared <code>safety</code> (fixed at construction)
+and buckets the step names by class, so an auditor can verify a pipeline is lossless or
+enumerate exactly the lossy steps it carries. The buckets preserve pipeline order.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.Pipeline.apply_aligned" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">apply_aligned</span>
+
+
+<a href="#araclean.Pipeline.apply_aligned" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">apply_aligned</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">OffsetMap</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Normalize <em>text</em> while tracking how every position maps back to the original.</p>
+<p>Returns <code>(normalized, offset_map)</code> where <code>offset_map.to_original(span)</code> projects
+any span in the normalized string back to the corresponding span in <em>text</em>.</p>
+<p>Raises <code>AlignmentNotSupportedError</code> for any custom step that does not implement
+<code>apply_aligned()</code> — the error names the offending step so the caller can add the hook.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.Pipeline.to_dict" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_dict</span>
+
+
+<a href="#araclean.Pipeline.to_dict" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">to_dict</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">PipelineDict</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Serialize to a plain, JSON-friendly dict; raises if a step can't serialize itself.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.Pipeline.from_dict" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">from_dict</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#araclean.Pipeline.from_dict" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_dict</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Pipeline</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Rehydrate a pipeline from <code>to_dict()</code> output via the step registry.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.Pipeline.from_profile" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">from_profile</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#araclean.Pipeline.from_profile" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Profile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Pipeline</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Build a pipeline from a named profile (e.g. <code>"light"</code>) or a <code>Profile</code> object.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.Profile" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Profile</span>
+
+
+<a href="#araclean.Profile" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
+
+
+
+        <p>A named preset: an ordered list of step specs that assemble into a <code>Pipeline</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="offset-maps">Offset maps<a class="headerlink" href="#offset-maps" title="Permanent link">&para;</a></h2>
+<p>Returned by <code>Pipeline.apply_aligned</code> / a step's <code>apply_aligned</code> — see
+<a href="../guides/offset-preserving/">Offset-preserving normalization</a>.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.OffsetMap" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">OffsetMap</span>
+
+
+<a href="#araclean.OffsetMap" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Alignment from normalized-text positions back to original-text positions.</p>
+<p>Internally stores a flat <code>list[int]</code> of length <code>2 * len(normalized)</code>: entries
+<code>[2*i, 2*i+1]</code> are <code>(orig_start, orig_end)</code> for normalized character <code>i</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.OffsetMap.identity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">identity</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#araclean.OffsetMap.identity" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">identity</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OffsetMap</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Build identity map: normalized char <code>i</code> maps to original <code>[i, i+1)</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.OffsetMap.from_translate" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">from_translate</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#araclean.OffsetMap.from_translate" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_translate</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">original</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OffsetMap</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Build offset map from <em>original</em> string + its <code>str.translate</code> table.</p>
+<p>Handles all three operation kinds:
+- <code>None</code> value → 1→0 deletion (no normalized chars emitted)
+- <code>int</code> value → 1→1 replacement (one normalized char)
+- <code>str</code> value → 1→N expansion (each result char maps back to the one original char)
+- no entry → identity (one normalized char = one original char)</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.OffsetMap.from_regex_sub" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">from_regex_sub</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-staticmethod"><code>staticmethod</code></small>
+  </span>
+
+<a href="#araclean.OffsetMap.from_regex_sub" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_regex_sub</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">original</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">match_spans</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">replacement_lens</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OffsetMap</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Build offset map from match spans collected during a regex substitution.</p>
+<p>Each match at <code>original[start:end]</code> was replaced by <code>replacement_len</code> normalized
+chars that all map back to <code>[start, end)</code>.  Non-matched chars are identity.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.OffsetMap.compose" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">compose</span>
+
+
+<a href="#araclean.OffsetMap.compose" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">compose</span><span class="p">(</span><span class="n">other</span><span class="p">:</span> <span class="n">OffsetMap</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OffsetMap</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Chain two maps: <em>self</em> maps norm1→orig; <em>other</em> maps norm2→norm1.</p>
+<p>Returns a new map that maps norm2→orig, so a caller accumulates after each step:
+<code>running = running.compose(step_map)</code> starting from the first step's map.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.OffsetMap.to_original" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_original</span>
+
+
+<a href="#araclean.OffsetMap.to_original" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">to_original</span><span class="p">(</span><span class="n">span</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Map half-open normalized span <code>[start, end)</code> to original span.</p>
+<p>For an empty span (<code>start == end</code>) returns a zero-width point in the original.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.OffsetMap.to_normalized" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">to_normalized</span>
+
+
+<a href="#araclean.OffsetMap.to_normalized" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">to_normalized</span><span class="p">(</span><span class="n">span</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Map half-open original span <code>[start, end)</code> to normalized span (best-effort).</p>
+<p>For a span that was entirely deleted, returns a zero-width insertion point at the
+position in normalized text just before where the deleted content appeared.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<p>The validated override surface behind <code>normalize(..., profile=…, **overrides)</code> — see
+<a href="../guides/tuning-profiles/">Tuning profiles</a> for the task-oriented view.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.NormalizeConfig" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">NormalizeConfig</span>
+
+
+<a href="#araclean.NormalizeConfig" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="pydantic.BaseModel">BaseModel</span></code></p>
+
+
+
+        <p>A validated <code>normalize</code> call: a profile plus optional per-knob overrides (stories 39/40).</p>
+<p>Frozen and <code>extra="forbid"</code>, so a typo'd knob (<code>map_digit=</code> for <code>map_digits=</code>) or an unknown
+option value fails loudly at construction instead of silently doing nothing — a reproducibility
+footgun the trust boundary exists to close. Each override is <code>None</code> by default, meaning "use the
+profile's own default for that step"; setting one rewrites exactly that step when <code>resolve()</code>
+assembles the effective <code>Profile</code>.</p>
+<p>The override surface is the profile name <strong>plus</strong> per-knob scalars (the shape issue 0016 fixes):
+<code>map_digits</code> is ML's optional digit fold (story 6) and is valid ONLY with ML — it appends a
+lossy step, which on any other profile would silently break that profile's contract (LIGHT/
+CLASSICAL are lossless; SEARCH already folds digits). <code>remove_stopwords</code> is SEARCH's optional
+stopword removal — valid only there, because the folded list requires exactly SEARCH's letter
+folds before it (the <code>RemoveStopwords</code> ordering contract). The remaining knobs patch a step the
+profile carries; an override that names a step the chosen profile does not contain is rejected
+by <code>resolve()</code>, so it can never be a silent no-op.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.NormalizeConfig.resolve" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">resolve</span>
+
+
+<a href="#araclean.NormalizeConfig.resolve" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">resolve</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Profile</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Assemble the effective <code>Profile</code>: the named preset with this config's overrides applied.</p>
+<p>Pure construction (no per-string work): it patches the matching step specs, appends ML's
+optional <code>MapDigits</code> and inserts SEARCH's optional <code>RemoveStopwords</code>. Raises <code>ValueError</code>
+if an override names a step the profile lacks (e.g. <code>emoji=</code> on <code>LIGHT</code>) or a profile that
+does not own it (<code>map_digits</code> off ML, <code>remove_stopwords</code> off SEARCH), so an override is
+never a silent no-op.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.ProfileName" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ProfileName</span>
+
+
+<a href="#araclean.ProfileName" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>The closed set of named profiles <code>normalize</code> accepts (story 39).</p>
+<p>A <code>StrEnum</code> so an unknown profile name is rejected at the config boundary with a clear error,
+rather than only when the pipeline is assembled.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="safety-classes-the-lossless-lossy-split">Safety classes (the lossless / lossy split)<a class="headerlink" href="#safety-classes-the-lossless-lossy-split" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.SafetyClass" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">SafetyClass</span>
+
+
+<a href="#araclean.SafetyClass" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>What kind of information a <code>Step</code> may discard.</p>
+<p><code>ENCODING_REPAIR</code> is lossless and default-on (the <code>LIGHT</code> profile); the other two are lossy
+and opt-in, so only an all-<code>ENCODING_REPAIR</code> pipeline is lossless. The two lossy classes name
+<em>what</em> is discarded so the audit (story 41) can report it precisely: <code>LINGUISTIC_FOLDING</code>
+discards a linguistic distinction <em>within</em> the Arabic text (<abbr title="Removing tashkeel">dediacritization</abbr>, <abbr title="The letter alef">alef</abbr>/<abbr title="Glottal-stop letter/mark">hamza</abbr>/teh-
+marbuta/maqsura folding, digit/punctuation mapping); <code>CLEANING</code> removes <em>non-linguistic noise</em>
+around it (URLs, mentions, HTML, emoji). The two are siblings, not synonyms — Cleaning is a
+distinct concern from Normalization (CONTEXT.md), so a URL strip is not "linguistic folding".
+See ADR-0011.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.SafetyReport" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">SafetyReport</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.SafetyReport" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>The safety-class audit of a <code>Pipeline</code>: is it lossless, and if not, what does it lose?</p>
+<p>Story 41 / ADR-0004. Each field lists the names of the steps in that safety class, in pipeline
+order, so the report does not merely say <em>that</em> a pipeline is lossy but enumerates <em>which</em> steps
+lose information and of <em>what kind</em> — <code>linguistic_folding</code> (a distinction within the Arabic
+text) vs <code>cleaning</code> (non-linguistic noise removal). A pipeline is <code>lossless</code> iff it carries no
+step of either lossy class, i.e. every step is <code>ENCODING_REPAIR</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.SafetyReport.lossless" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">lossless</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.SafetyReport.lossless" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">lossless</span><span class="p">:</span> <span class="nb">bool</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>True iff no lossy step is present (every step is <code>ENCODING_REPAIR</code>).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.SafetyReport.lossy_steps" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">lossy_steps</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.SafetyReport.lossy_steps" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">lossy_steps</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Every lossy step — the linguistic folds followed by the cleaning steps.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="steps">Steps<a class="headerlink" href="#steps" title="Permanent link">&para;</a></h2>
+<p>Every step is a pure <code>str -&gt; str</code> transform that precomputes its table or regex at construction and
+declares its safety class. Steps are grouped here by what they do.</p>
+<p>Each step class also exists as a bare function with the same options as keyword arguments
+(<code>RemoveTatweel()</code> ↔ <code>remove_tatweel(s)</code>, <code>FoldTehMarbuta(target="teh")</code> ↔
+<code>fold_teh_marbuta(s, target="teh")</code>) for one-off, validation-free use — Layer 1 of the API
+(see <a href="../concepts/architecture/">Architecture</a>).</p>
+<h3 id="encoding-repair-lossless">Encoding repair (lossless)<a class="headerlink" href="#encoding-repair-lossless" title="Permanent link">&para;</a></h3>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.NormalizeUnicode" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">NormalizeUnicode</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.NormalizeUnicode" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Compose to a Unicode normalization form (default NFC) — lossless encoding repair.</p>
+<p>English: <em>Unicode normalization</em>. Composing to NFC is the canonical first step so visually
+identical text compares equal regardless of how it was encoded.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.StripBidi" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">StripBidi</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.StripBidi" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Remove bidi controls, zero-width characters and the BOM — lossless encoding repair.</p>
+<p>English: <em>bidi/zero-width stripping</em>. RLM/LRM/ALM and the embedding/isolate controls, the
+zero-width non-joiner/space/word-joiner, and the BOM are invisible: they carry no Arabic
+letter content yet break equality and tokenization, so they are deleted outright.</p>
+<p>The zero-width JOINER U+200D is the one CONTEXTUAL case: inside an emoji sequence (👨‍👩‍👧,
+👨‍⚕️) the joiner is content — deleting it would split the sequence into its component emoji
+(and alter what a later <code>HandleEmoji</code> sees), so a ZWJ flanked by emoji is KEPT and every other
+ZWJ is stripped. Residual: a joiner between an emoji and an Arabic letter still goes. That one
+rule is a regex pass, so unlike the other LIGHT repairs this step is contextual and stays its
+own pass — it does not join the 0018 fused-translate engine (ADR-0006).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.FoldPresentationForms" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">FoldPresentationForms</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.FoldPresentationForms" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Fold Arabic presentation forms back to base letters — lossless encoding repair.</p>
+<p>English: <em>presentation-form folding</em>. OCR, legacy encodings and copy-paste leave letters as
+their contextual presentation glyphs (Forms-A/-B); folding them to the base letters lets such
+text match normally. The <abbr title="The lam+alef sequence and its ligature">lam-alef</abbr> ligatures decompose to lam + their <em>matching</em> <abbr title="The letter alef">alef</abbr> variant
+(ﻷ → لأ), and combining marks keep their order (a per-character fold, not whole-string NFKC).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.FoldPresentationForms.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.FoldPresentationForms.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The static <code>str.translate</code> table this step applies — the fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.RemoveTatweel" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RemoveTatweel</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.RemoveTatweel" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Strip <abbr title="Elongation / justification character (kashida)">tatweel</abbr> ـ (U+0640) — lossless encoding repair.</p>
+<p>English: <em><abbr title="Elongation / justification character (kashida)">tatweel</abbr> / kashida removal</em>. <abbr title="Elongation / justification character (kashida)">Tatweel</abbr> only stretches a word visually for
+justification; deleting it collapses elongated spellings (محـــمد → محمد) without touching
+any letter or vocalization mark.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.RemoveTatweel.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.RemoveTatweel.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The static <code>str.translate</code> table this step applies — the fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.UnifyLookalikes" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">UnifyLookalikes</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.UnifyLookalikes" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Unify look-alike <abbr title="The letter kaf">kaf</abbr>/<abbr title="The letter yeh/yaa">yeh</abbr>/<abbr title="The letter heh">heh</abbr> to Arabic letters — lossless encoding repair.</p>
+<p>English: <em>look-alike unification</em>. Under the Arabic-language assumption, letters from other
+Arabic-script orthographies (Persian keheh ک, Farsi <abbr title="The letter yeh/yaa">yeh</abbr> ی, the <abbr title="The letter heh">heh</abbr>-family forms) are encoding
+artifacts and fold to the Arabic letter (ک→ك, ی→ي, ھ/ہ/ە→ه). One accepted residual: a Persian
+<abbr title="The letter yeh/yaa">yeh</abbr> used word-finally merges على→علي (U+06CC is indistinguishable from <abbr title="Shortened/curtailed alef (dotless yeh form)">alef maqsura</abbr>).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.UnifyLookalikes.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.UnifyLookalikes.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The static <code>str.translate</code> table this step applies — the fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.CollapseWhitespace" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CollapseWhitespace</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.CollapseWhitespace" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Collapse whitespace runs — keeping line breaks by default — lossless encoding repair.</p>
+<p>English: <em>whitespace collapse</em>. Each whitespace run collapses to a single character, so equality
+and tokenization stop depending on how many (or which) spaces a source used: a horizontal run
+becomes one ASCII space, and a run containing a line break becomes a single <code>"\n"</code>. Line
+structure is preserved by default — flattening it to spaces is lossy, not lossless, so it is
+opt-in via <code>collapse_lines=True</code> (the recall-oriented behavior SEARCH wants). See ADR-0010.
+Runs collapse but are not trimmed, so the step stays a fixed point.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.Trim" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Trim</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.Trim" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Strip leading and trailing whitespace — lossless encoding repair.</p>
+<p>English: <em>trimming</em>. <code>CollapseWhitespace</code> deliberately does NOT trim — collapsing an edge run
+in place is what keeps it a fixed point — so edge whitespace survives every profile. This
+separate, explicit step removes it (<code>str.strip()</code>, so every Unicode whitespace counts),
+keeping both contracts clean: collapse stays a fixed point, trim is its own idempotent
+operation a caller composes when wanted. Edge whitespace carries no linguistic signal, so
+<code>safety</code> is <code>ENCODING_REPAIR</code>. Positional (start/end), hence contextual — its own pass, not a
+0018 fusion candidate.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h3 id="linguistic-folding-lossy">Linguistic folding (lossy)<a class="headerlink" href="#linguistic-folding-lossy" title="Permanent link">&para;</a></h3>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.RemoveTashkeel" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RemoveTashkeel</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.RemoveTashkeel" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Remove <abbr title="Diacritics / vocalization marks">tashkeel</abbr> — diacritics / vocalization marks — by class — lossy linguistic folding.</p>
+<p>English: <em><abbr title="Removing tashkeel">dediacritization</abbr></em>. The first lossy step and araclean's headline differentiator: which
+mark classes to remove is chosen <em>independently</em> (story 26), so a caller can strip <abbr title="Short vowels">harakat</abbr> while
+keeping a meaningful <abbr title="Gemination / consonant-doubling mark">shadda</abbr>, drop only <abbr title="Nunation">tanween</abbr>, etc. Removal deletes the marks alone and never a
+carrier letter (a <abbr title="Nunation">tanween</abbr> over an <abbr title="The letter alef">alef</abbr> goes; the <abbr title="The letter alef">alef</abbr> stays). <code>safety</code> is <code>LINGUISTIC_FOLDING</code>,
+so it never runs under <code>LIGHT</code>: it is opt-in via a lossy profile or an explicit step (ADR-0004).</p>
+<p><code>classes</code> defaults to every <code>MarkClass</code>. <abbr title="the short-vowel marks / vowelless mark">Sukun</abbr> rides with <code>HARAKAT</code> (it is the <em>absence</em> of a
+vowel, not a haraka, but stripping the vowels while leaving a bare <abbr title="the short-vowel marks / vowelless mark">sukun</abbr> is never wanted). The
+orthographic combining <abbr title="Madda sign (hamza + long alef)">madda</abbr> U+0653 is removed with <code>MADDA</code>; the <abbr title="The letter alef">alef</abbr>-with-<abbr title="Madda sign (hamza + long alef)">madda</abbr> letter آ U+0622
+is letter folding (issue 0007), kept here.</p>
+<p><code>position</code> selects WHERE the chosen marks are removed: <code>"all"</code> (the default) everywhere via
+one <code>str.translate</code> pass; <code>"final"</code> only a WORD-FINAL run of them — the i3rab fold (drop the
+case vowel, keep the word-internal vocalization: كِتَابٌ → كِتَاب), PyArabic's
+<code>strip_lastharaka</code> parity. A trailing run followed by an <em>unselected</em> mark counts as
+word-internal and is kept. <code>"final"</code> is a contextual regex rule, so in that mode the step
+stays its own pass and does not join the 0018 fused-translate engine (its <code>translate_table</code>
+raises <code>AttributeError</code>, which the planner reads as "not fusible").</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.RemoveTashkeel.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.RemoveTashkeel.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The precomputed <code>str.translate</code> deletion table — the fused-engine seam (0018).</p>
+<p>Only <code>position="all"</code> IS one translate pass; <code>"final"</code> is contextual, so this raises
+<code>AttributeError</code> and the fusion planner leaves the step as its own pass.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.FoldAlef" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">FoldAlef</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.FoldAlef" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Fold the <abbr title="Alef with hamza above/below, madda, wasla, wavy hamza">alef variants</abbr> أ إ آ ٱ to bare <abbr title="The letter alef">alef</abbr> ا — lossy linguistic folding.</p>
+<p>English: <em><abbr title="The letter alef">alef</abbr> folding</em>. The <abbr title="Glottal-stop letter/mark">hamza</abbr>-/<abbr title="Madda sign (hamza + long alef)">madda</abbr>-bearing <abbr title="The letter alef">alef</abbr> letters, <abbr title="The letter alef">alef</abbr>-wasla, and the wavy-<abbr title="Glottal-stop letter/mark">hamza</abbr>
+alefs collapse to the plain <abbr title="The letter alef">alef</abbr> (أ/إ/آ/ٱ/ٲ/ٳ → ا), so spelling variation in how an initial <abbr title="The letter alef">alef</abbr>
+was written stops splitting otherwise-identical words. It discards a real orthographic
+distinction, so <code>safety</code> is <code>LINGUISTIC_FOLDING</code>: opt-in via a lossy profile or an explicit
+step, never under <code>LIGHT</code>. (Historical/manuscript alefs that are not contemporary Arabic — e.g.
+the high-<abbr title="Glottal-stop letter/mark">hamza</abbr> <abbr title="The letter alef">alef</abbr> U+0675, the Extended-B annotation alefs — are deliberately left alone.)</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.FoldAlef.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.FoldAlef.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The static <code>str.translate</code> table this step applies — the fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.FoldAlefMaqsura" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">FoldAlefMaqsura</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.FoldAlefMaqsura" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Fold <abbr title="Shortened/curtailed alef (dotless yeh form)">alef maqsura</abbr> ى to <abbr title="The letter yeh/yaa">yeh</abbr> ي — lossy linguistic folding.</p>
+<p>English: <em><abbr title="The letter alef">alef</abbr>-maqsura folding</em>. The dotless final ى (a long-<abbr title="The letter alef">alef</abbr> sound) folds to <abbr title="The letter yeh/yaa">yeh</abbr> ي so the
+two spellings stop splitting a word. This merges على and علي, a genuine distinction, so the fold
+is <code>LINGUISTIC_FOLDING</code> and never runs under <code>LIGHT</code>: it is opt-in for recall (SEARCH).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.FoldAlefMaqsura.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.FoldAlefMaqsura.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The static <code>str.translate</code> table this step applies — the fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.FoldHamza" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">FoldHamza</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.FoldHamza" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Fold <abbr title="Glottal-stop letter/mark">hamza</abbr> off its carriers ؤ→و, ئ→ي — separate and configurably aggressive — lossy folding.</p>
+<p>English: <em><abbr title="Glottal-stop letter/mark">hamza</abbr> folding</em>. A toggle kept separate from <code>FoldAlef</code> so <abbr title="Glottal-stop letter/mark">hamza</abbr> can be neutralized on
+the <abbr title="The letter waw; also the conjunction &quot;and&quot;">waw</abbr>/<abbr title="The letter yeh/yaa">yeh</abbr> carriers (ؤ→و, ئ→ي) without folding <abbr title="The letter alef">alef</abbr>. Folding <em>lightly</em> (the default) folds the
+carriers and deletes the combining <abbr title="Glottal-stop letter/mark">hamza</abbr> marks U+0654/U+0655 (<abbr title="Glottal-stop letter/mark">hamza</abbr> seated on a carrier — the
+letter content issue 0006 routes here, not to <code>RemoveTashkeel</code>). Folding <em>heavily</em>
+(<code>drop_standalone_hamza=True</code>) also drops the standalone <abbr title="Glottal-stop letter/mark">hamza</abbr> ء U+0621 and the high <abbr title="Glottal-stop letter/mark">hamza</abbr>
+ٴ U+0674. The precomposed <abbr title="The letter alef">alef</abbr>-<abbr title="Glottal-stop letter/mark">hamza</abbr> letters أ/إ are <abbr title="Alef with hamza above/below, madda, wasla, wavy hamza">alef variants</abbr>, left to <code>FoldAlef</code>.
+<code>safety</code> is <code>LINGUISTIC_FOLDING</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.FoldHamza.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.FoldHamza.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The precomputed <code>str.translate</code> table — the fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.FoldTehMarbuta" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">FoldTehMarbuta</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.FoldTehMarbuta" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Fold <abbr title="&quot;Tied&quot; taa (word-final)">teh marbuta</abbr> ة to a configurable target (<abbr title="The letter heh">heh</abbr> by default) — lossy linguistic folding.</p>
+<p>English: <em>teh-marbuta folding</em>. The word-final "tied taa" ة (and its goal form ۃ) folds to
+<code>TehMarbutaTarget.HEH</code> ه (the common search fold, default), <code>TEH</code> ت (its underlying value), or
+is left in place with <code>KEEP</code>. ة marks a real grammatical ending, so the fold discards
+information: <code>safety</code> is <code>LINGUISTIC_FOLDING</code>, never run under <code>LIGHT</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.FoldTehMarbuta.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.FoldTehMarbuta.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The precomputed <code>str.translate</code> table (empty for <code>KEEP</code>) — fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.FoldTanweenAlef" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">FoldTanweenAlef</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.FoldTanweenAlef" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Drop the word-final <abbr title="Nunation">tanween</abbr>-fath carrier <abbr title="The letter alef">alef</abbr>: كتاباً → كتاب — lossy linguistic folding.</p>
+<p>English: <em><abbr title="Nunation">tanween</abbr>-<abbr title="The letter alef">alef</abbr> folding</em>. The adverbial-accusative ending writes its <abbr title="Nunation">tanween</abbr>-fath on a
+carrier <abbr title="The letter alef">alef</abbr> (كتاباً, or the same pair typed <abbr title="Nunation">tanween</abbr>-first as كتابًا); for recall (SEARCH) the
+whole ending folds away so the inflected spelling matches the bare كتاب. <code>RemoveTashkeel</code>
+alone cannot do this — it strips only the mark, leaving كتابا, a different spelling — so this
+step MUST RUN BEFORE <abbr title="Removing tashkeel">dediacritization</abbr>, while the <abbr title="Nunation">tanween</abbr> still marks which <abbr title="The letter alef">alef</abbr> is a carrier
+(the SEARCH ordering). A <abbr title="Nunation">tanween</abbr> seated directly on a letter (خطأً، مدرسةً) has no carrier and
+is left to <code>RemoveTashkeel</code>; only the standard fathatan U+064B participates.</p>
+<p>It discards a real grammatical ending, so <code>safety</code> is <code>LINGUISTIC_FOLDING</code>: opt-in via SEARCH
+or an explicit step, never under <code>LIGHT</code>. A contextual <code>re</code> rule (word-final anchoring), so it
+stays its own pass and is not a candidate for the 0018 fused-translate engine (ADR-0006).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.MapDigits" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">MapDigits</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.MapDigits" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Convert digits among Arabic-Indic / Extended / ASCII to a target — lossy linguistic folding.</p>
+<p>English: <em>digit mapping</em>. Every digit — Arabic-Indic ٠-٩, Extended (Persian/Urdu) ۰-۹, or ASCII
+0-9 — is rewritten to the chosen <code>DigitTarget</code> by numeric value, so numbers parse and match
+consistently regardless of how they were typed (story 31). The default target is <code>ASCII</code>. The
+map erases which script a digit was written in, so <code>safety</code> is <code>LINGUISTIC_FOLDING</code>: opt-in via
+a lossy profile or an explicit step, never under <code>LIGHT</code>.</p>
+<p>The dedicated Arabic number separators (decimal ٫ U+066B, thousands ٬ U+066C) are NOT digits,
+so by default they stay — ١٢٫٥ becomes the mixed-script 12٫5. The opt-in
+<code>map_separators=True</code> also rewrites a separator when digit-flanked on BOTH sides (٫ → <code>.</code>,
+٬ → <code>,</code>; the inverse of <code>MapPunctuation</code>'s guard), giving 12.5; a stray separator outside a
+number is never touched. That guard is a contextual regex, so with the knob on the step stays
+its own pass and does not join the 0018 fused-translate engine (its <code>translate_table</code> raises
+<code>AttributeError</code>, which the planner reads as "not fusible").</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.MapDigits.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.MapDigits.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The precomputed <code>str.translate</code> table this step applies — fused-engine seam (0018).</p>
+<p>Only the pure digit map IS one translate pass; with <code>map_separators=True</code> the
+digit-flanked guard is contextual, so this raises <code>AttributeError</code> and the fusion planner
+leaves the step as its own pass.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.MapPunctuation" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">MapPunctuation</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.MapPunctuation" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Map Arabic punctuation ، ؛ ؟ to Latin , ; ? — number-separator-safe — lossy folding.</p>
+<p>English: <em>punctuation mapping</em>. The Arabic comma ،, semicolon ؛ and question mark ؟ fold to
+their Latin equivalents so one tokenizer/sentence-splitter works on Arabic text (story 32). A
+mark sitting between two digits is a numeric separator (e.g. a thousands-grouped number) and is
+preserved, not turned into sentence punctuation; the dedicated decimal/thousands/date separators
+are never touched. The fold erases the script of the punctuation, so <code>safety</code> is
+<code>LINGUISTIC_FOLDING</code>, never run under <code>LIGHT</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.RemovePunctuation" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RemovePunctuation</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.RemovePunctuation" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Delete every Unicode punctuation character (category P*) — lossy linguistic folding.</p>
+<p>English: <em>punctuation removal</em>. The bag-of-words / classification staple every incumbent
+ships: for token-frequency features, punctuation is noise. One stated principle: a code point
+is removed iff its Unicode general category is P<em> (Po/Pd/Ps/Pe/Pi/Pf/Pc) — which covers the
+Arabic marks ، ؛ ؟ ٪ ۔ as much as ASCII and every other script's punctuation, re-derived from
+the live UCD so it tracks Unicode releases. Symbols (S</em>: <code>$ + = ~</code>), digits and letters are
+not punctuation and pass through. <code>keep</code> carves out characters to preserve (each entry one
+character).</p>
+<p>Distinct from <code>MapPunctuation</code> (which REWRITES the three Arabic sentence marks to their Latin
+equivalents for tokenizer uniformity): this step DELETES, so the two compose — map first if
+you want the Latin marks, or just remove everything. Deleting sentence structure is lossy, so
+<code>safety</code> is <code>LINGUISTIC_FOLDING</code>: opt-in, never under <code>LIGHT</code>. The whole behavior is one
+<code>str.translate</code>, so it is fusible (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.RemovePunctuation.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.RemovePunctuation.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The precomputed <code>str.translate</code> deletion table — the fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.MapQuotes" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">MapQuotes</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.MapQuotes" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Fold typographic quotation marks to the straight ASCII pair — lossy linguistic folding.</p>
+<p>English: <em>quote normalization</em>. Arabic text quotes with guillemets «», and word processors
+emit the curly/low-9 variants; folding them all to <code>"</code> / <code>'</code> (by visual family — double
+to double, single to single) gives a tokenizer one quote vocabulary. It erases the quote
+style, so <code>safety</code> is <code>LINGUISTIC_FOLDING</code>: opt-in via an explicit step, never under <code>LIGHT</code>
+and in no built-in profile. One <code>str.translate</code> pass, so it is fusible (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h3 id="araclean.MapQuotes.translate_table" class="doc doc-heading">
+            <span class="doc doc-object-name doc-attribute-name">translate_table</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#araclean.MapQuotes.translate_table" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">translate_table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>The static <code>str.translate</code> table this step applies — the fused-engine seam (0018).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+    </div>
+
+</div>
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.ReduceElongation" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ReduceElongation</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.ReduceElongation" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Collapse runs of &gt;= <code>min_run</code> repeated Arabic letters to <code>cap</code> copies — lossy folding.</p>
+<p>English: <em>elongation reduction</em>. Word-lengthening repeats a letter for emphasis (جمييييل,
+راااائع); this collapses such a run so emphatic spellings stop exploding the vocabulary. Two
+knobs, because the TRIGGER and the TARGET are different decisions:</p>
+<ul>
+<li><code>min_run</code> — what counts as elongation: only a run of at least <code>min_run</code> copies collapses.
+  Defaults to <code>max(cap + 1, 3)</code>: Arabic spells true doubled letters constantly (the
+  assimilated definite article الله/اللغة, verb prefixes تتكلم, lexical doubles ممكن/مما),
+  while a TRIPLED letter is virtually nonexistent in real spelling — so 3+ is the safe
+  elongation signal (the literature's standard rule) and a double is presumed legitimate. A
+  2-copy emphatic spelling is indistinguishable from a legitimate double without a lexicon, so
+  it is deliberately left alone.</li>
+<li><code>cap</code> — what a run reduces to: <code>cap=1</code> (the default) collapses to the canonical single
+  letter, so جمييييل merges with جميل (what ML/SEARCH want); <code>cap=2</code> keeps a doubled letter
+  so emphasis survives as a feature (what SOCIAL wants — its trigger is already 3, so its
+  behavior is identical with the default <code>min_run</code>).</li>
+</ul>
+<p>Only contemporary Arabic letters are capped; digits are never touched (a repeated digit is a
+number, not emphasis, so 1000 stays 1000), nor are <abbr title="Diacritics / vocalization marks">tashkeel</abbr> marks or <abbr title="Elongation / justification character (kashida)">tatweel</abbr>. The fold discards
+the emphasis, so <code>safety</code> is <code>LINGUISTIC_FOLDING</code>: opt-in via a lossy profile or an explicit
+step, never under <code>LIGHT</code>. It is a contextual <code>re</code> rule, so it stays its own pass and is not a
+candidate for the 0018 fused-translate engine (ADR-0006).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.RemoveStopwords" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RemoveStopwords</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.RemoveStopwords" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Remove curated Arabic stopwords — function-word filtering — lossy linguistic folding.</p>
+<p>English: <em>stopword removal</em>. Deletes whole-token occurrences of the bundled, versioned Arabic
+stopword list (<code>araclean.stopwords</code>) — prepositions, pronouns, demonstratives, relative
+pronouns, neutral conjunctions and particles — so high-frequency function words stop drowning
+out content words (IR/retrieval, bag-of-words features). It discards linguistic content from the
+Arabic text, so <code>safety</code> is <code>LINGUISTIC_FOLDING</code>: opt-in via a lossy profile or an explicit
+step, never under <code>LIGHT</code> (it is content removal, not non-linguistic-noise cleaning — ADR-0011).</p>
+<p>Two deliberate properties (story 37): the list is <strong>flat, not clitic-aware</strong> (ADR-0001), so a
+prefixed/suffixed form like <code>والكتاب</code> / <code>فيها</code> is kept — only a standalone token is removed;
+and it is <strong>negation-safe</strong> — the polarity particles <code>ما</code> / <code>لا</code> / <code>لم</code> / <code>لن</code> / <code>ليس</code>
+are excluded so removal can never flip a sentence's polarity. A removed token leaves its
+whitespace as written (a gap), like the other delete-style steps (CleanURLs); a later
+<code>CollapseWhitespace</code> tidies the gaps. The list version is serialized so a <code>Profile</code> pins it
+reproducibly.</p>
+<p>ORDERING CONTRACT (enforced): the list ships in FOLDED form (<code>araclean.stopwords</code>), so this
+step must run AFTER <abbr title="Removing tashkeel">dediacritization</abbr> and the letter folds — <code>requires_before</code> names them, and
+<code>Pipeline</code> rejects at construction any pipeline where they do not precede this step. Folding
+first is what makes matching robust: real typed Arabic routinely omits <abbr title="Glottal-stop letter/mark">hamza</abbr> (انا، الى) and
+vocalized text never matches a bare list, but after <code>RemoveTashkeel</code> + <code>FoldAlef</code> +
+<code>FoldAlefMaqsura</code> + <code>FoldHamza</code> every spelling variant lands on the one folded form the list
+carries. The folds are idempotent and cheap, so a pipeline over already-normalized text simply
+includes them as no-ops.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h3 id="cleaning-lossy">Cleaning (lossy)<a class="headerlink" href="#cleaning-lossy" title="Permanent link">&para;</a></h3>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.CleanURLs" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CleanURLs</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.CleanURLs" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Remove URLs or replace them with a placeholder token — cleaning (non-linguistic noise).</p>
+<p>English: <em>URL cleaning</em>. A scheme- (http/https) or <code>www.</code>-prefixed run is metadata noise, not
+Arabic content, so it is <code>DELETE</code>d (the default) or, in <code>PLACEHOLDER</code> mode, replaced by the
+<code>placeholder</code> token — the AraBERT <code>[رابط]</code>/<code>[URL]</code> expectation, kept first-class. The
+default token is the English <code>[URL]</code>; pass <code>placeholder="[رابط]"</code> for the Arabic one.
+Matching is conservative (only http(s):// and <code>www.</code> anchor it), so ordinary prose is safe.</p>
+<p><code>safety</code> is <code>CLEANING</code>: it discards non-linguistic noise, a sibling of linguistic folding, so it
+never runs under <code>LIGHT</code> — opt-in via a lossy profile (SOCIAL) or an explicit step (ADR-0011).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.CleanMentions" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CleanMentions</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.CleanMentions" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Remove @mentions or replace them with a placeholder token — cleaning (non-linguistic noise).</p>
+<p>English: <em>mention cleaning</em>. An <code>@</code>-handle is metadata noise, so it is <code>DELETE</code>d (the default)
+or, in <code>PLACEHOLDER</code> mode, replaced by the <code>placeholder</code> token (the AraBERT <code>[مستخدم]</code>/
+<code>[MENTION]</code> expectation, kept first-class; the default token is the English <code>[MENTION]</code>). A
+handle is <code>@</code> plus Unicode word characters, so an Arabic handle @محمد is matched as readily as
+@user; a bare <code>@</code> with no following word character is left alone. An EMAIL ADDRESS is
+recognized before the mention shape and kept verbatim — <code>user@example.com</code> is an address,
+not a mention to rewrite into <code>user[MENTION].com</code>. The email shape requires a dotted domain,
+so the dotless <code>user@example</code> still has its host read as a mention (documented residual).</p>
+<p><code>safety</code> is <code>CLEANING</code>: it discards non-linguistic noise, never run under <code>LIGHT</code> (ADR-0011).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.CleanHashtags" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CleanHashtags</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.CleanHashtags" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Segment, remove, or replace #hashtags — cleaning (social-metadata markup), no-op when kept.</p>
+<p>English: <em>hashtag handling</em>. A <code>#tag</code> is social metadata wrapping real words — in Arabic
+social text often a full phrase (#اليوم_الوطني_السعودي). The default <code>SEGMENT</code> mode applies
+the entrenched AraBERT recipe: drop the <code>#</code>, map <code>_</code> to a space, so the words stay in the
+text as content (what SOCIAL pins). <code>DELETE</code> removes the tag outright; <code>PLACEHOLDER</code> swaps in
+the <code>placeholder</code> token (default the English <code>[HASHTAG]</code>; pass an Arabic one explicitly);
+<code>KEEP</code> leaves tags untouched, so a config override can pin "do not touch hashtags".</p>
+<p>A tag is <code>#</code> plus Unicode word characters (Arabic matches as readily as Latin; <code>_</code> is a
+word character, so multi-word tags match whole). In SOCIAL, <code>CleanURLs</code> runs FIRST, so a URL
+fragment (…/page#section) is gone before this step could read it as a tag. <code>safety</code> is
+mode-dependent, like <code>HandleEmoji</code>: <code>KEEP</code> is a lossless no-op (<code>ENCODING_REPAIR</code>); the
+rewriting modes are <code>CLEANING</code> (ADR-0011).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.CleanHTML" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CleanHTML</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.CleanHTML" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Strip HTML tags and unescape entities — cleaning (non-linguistic noise).</p>
+<p>English: <em>HTML cleaning</em>. Markup is noise around the text: each tag is <code>DELETE</code>d (the default,
+so you keep the inner text) or, in <code>PLACEHOLDER</code> mode, replaced by the <code>placeholder</code> token, and
+HTML entities are <strong>always</strong> unescaped (<code>&amp;amp;</code> → <code>&amp;</code>, <code>&amp;lt;</code> → <code>&lt;</code>), which a tag-only
+strip would miss. Tags are removed BEFORE unescaping, so an intentionally escaped <code>&amp;lt;b&amp;gt;</code>
+stays literal text instead of being decoded into a <code>&lt;b&gt;</code> tag and then stripped.</p>
+<p><code>safety</code> is <code>CLEANING</code>: it discards non-linguistic noise, never run under <code>LIGHT</code> (ADR-0011).
+Strict idempotence does not hold over arbitrary text — <code>html.unescape</code> decodes only one level,
+so a multiply-encoded entity (<code>&amp;amp;amp;</code> → <code>&amp;amp;</code> → <code>&amp;</code>) changes on each pass — but on
+realistic single-encoded markup the step is a fixed point.</p>
+<p>SCOPE BOUNDARY: this is a tag stripper, not an HTML parser. The <em>content</em> of a container
+element survives even when its tags go — including <code>&lt;script&gt;</code> and <code>&lt;style&gt;</code>, whose
+JavaScript/CSS text is kept as text. Fine for the social-snippet case this step serves; for
+web-scrape corpora, strip script/style containers with a real HTML parser before araclean.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.HandleEmoji" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">HandleEmoji</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.HandleEmoji" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Keep, strip, or demojize emoji — cleaning (non-linguistic noise), or a no-op when kept.</p>
+<p>English: <em>emoji handling</em>. Social text carries affective signal in emoji, so the default <code>KEEP</code>
+leaves them untouched (a lossless no-op). <code>STRIP</code> removes them; <code>DEMOJIZE</code> rewrites each to its
+text alias (😍 → <code>:smiling_face_with_heart_eyes:</code>) so the signal survives as words a tokenizer
+can read. <code>safety</code> is therefore <em>mode-dependent</em>: <code>KEEP</code> is <code>ENCODING_REPAIR</code> (lossless, safe
+under <code>LIGHT</code>); <code>STRIP</code>/<code>DEMOJIZE</code> are <code>CLEANING</code> (opt-in noise removal — ADR-0011).</p>
+<p><code>DEMOJIZE</code> needs the optional <code>emoji</code> library (the <code>[emoji]</code> extra), resolved once at
+construction so the per-string call stays setup-free; building a <code>DEMOJIZE</code> step without the
+extra raises <code>EmojiSupportNotInstalledError</code>. <code>KEEP</code>/<code>STRIP</code> need no dependency — <code>STRIP</code>
+recognizes emoji from a built-in Unicode set, so the lean core covers it (it strips a whole
+ZWJ sequence, leaving a standalone joiner — invisible formatting owned by StripBidi — alone).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.RemoveForeign" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">RemoveForeign</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#araclean.RemoveForeign" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>Remove non-Arabic-script letter spans or replace them with a placeholder token — cleaning.</p>
+<p>English: <em>foreign-span removal</em>. The standard Arabic corpus-prep filter: for an Arabic corpus,
+embedded foreign words are noise, so a maximal run of non-Arabic-script LETTERS (category L*
+outside the Arabic blocks, with any combining marks riding along — a decomposed <code>café</code>
+travels whole) is <code>DELETE</code>d (default) or, in <code>PLACEHOLDER</code> mode, replaced by the <code>placeholder</code>
+token (default the English <code>[FOREIGN]</code>; pass <code>[أجنبي]</code> explicitly). A span must START with
+a letter, so a lone combining mark — the VS16 after an emoji, a stray accent — never opens a
+span and emoji are untouched. Digits, punctuation, whitespace and symbols pass through: this
+filters foreign WORDS, not structure (<code>RemovePunctuation</code> / <code>MapDigits</code> own those concerns).</p>
+<p><code>safety</code> is <code>CLEANING</code>: for the Arabic-corpus contract, non-Arabic-script content is
+surrounding noise like a URL, not an Arabic-internal distinction (ADR-0011) — and like every
+cleaning step it is opt-in, never under <code>LIGHT</code>. Deletion leaves whitespace gaps; a later
+<code>CollapseWhitespace</code> tidies them. A contextual rule over a UCD-derived span pattern (built
+lazily, once per process), so it stays its own pass (ADR-0006).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="step-options">Step options<a class="headerlink" href="#step-options" title="Permanent link">&para;</a></h2>
+<p>The closed option sets the configurable steps accept (as enum members or their string values).</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.MarkClass" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">MarkClass</span>
+
+
+<a href="#araclean.MarkClass" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>A class of <abbr title="Diacritics / vocalization marks">tashkeel</abbr> marks <code>RemoveTashkeel</code> can remove independently (story 26).</p>
+<p>English: <em>diacritic class</em>. The vocalization-mark taxonomy (GLOSSARY: <abbr title="Diacritics / vocalization marks">Tashkeel</abbr>) split into the
+units a caller selects between. <code>SUKUN</code> is not a member — it is the vowelless mark (the
+<em>absence</em> of a vowel, not a haraka), removed together with <code>HARAKAT</code> for convenience and not
+selectable on its own (GLOSSARY: <abbr title="Short vowels">Harakat</abbr>).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.TehMarbutaTarget" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">TehMarbutaTarget</span>
+
+
+<a href="#araclean.TehMarbutaTarget" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>What <code>FoldTehMarbuta</code> rewrites the <abbr title="&quot;Tied&quot; taa (word-final)">teh marbuta</abbr> ة to (story 29).</p>
+<p>English: <em>teh-marbuta target</em>. <code>HEH</code> (the common search fold, default) and <code>TEH</code> (its underlying
+value) are the standard targets; <code>KEEP</code> leaves ة in place so a profile can pin "do not fold".</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.DigitTarget" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">DigitTarget</span>
+
+
+<a href="#araclean.DigitTarget" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Which digit system <code>MapDigits</code> converts every digit to (story 31).</p>
+<p>English: <em>digit target</em>. <code>ASCII</code> (default) makes numbers parse and match consistently; the two
+Arabic systems are <code>ARABIC_INDIC</code> (Eastern ٠-٩) and <code>EXTENDED_ARABIC_INDIC</code> (Persian/Urdu ۰-۹).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.CleanMode" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CleanMode</span>
+
+
+<a href="#araclean.CleanMode" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>Whether a cleaning step deletes the matched noise or replaces it with a placeholder token.</p>
+<p>English: <em>cleaning mode</em>. <code>DELETE</code> (default) removes the span outright; <code>PLACEHOLDER</code> swaps in a
+fixed token (e.g. <code>[URL]</code>) so a model keeps "a link was here" as a feature without a noisy
+unique value — the entrenched AraBERT expectation, so it is first-class, not just delete.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.EmojiMode" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">EmojiMode</span>
+
+
+<a href="#araclean.EmojiMode" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>How <code>HandleEmoji</code> treats emoji (story 35).</p>
+<p>English: <em>emoji handling</em>. <code>KEEP</code> (default) leaves emoji in place so affective signal survives;
+<code>STRIP</code> removes them; <code>DEMOJIZE</code> replaces each with its text alias (😍 → <code>:heart_eyes:</code>),
+which needs the optional <code>emoji</code> library (the <code>[emoji]</code> extra).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.HashtagMode" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">HashtagMode</span>
+
+
+<a href="#araclean.HashtagMode" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="enum.StrEnum">StrEnum</span></code></p>
+
+
+
+        <p>How <code>CleanHashtags</code> treats a #hashtag (roadmap Phase 1).</p>
+<p>English: <em>hashtag handling</em>. <code>SEGMENT</code> (default — the entrenched AraBERT recipe) drops the
+<code>#</code> and maps <code>_</code> to a space, so the tag's words survive as text; <code>DELETE</code> removes the tag;
+<code>PLACEHOLDER</code> swaps in a fixed token; <code>KEEP</code> leaves it untouched (the no-op a config override
+can pin).</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="extension-protocol-types">Extension &amp; protocol types<a class="headerlink" href="#extension-protocol-types" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.Step" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Step</span>
+
+
+<a href="#araclean.Step" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="typing.Protocol">Protocol</span></code></p>
+
+
+
+        <p>A single normalization transform: a <code>safety</code> class plus a pure <code>str -&gt; str</code> call.</p>
+<p>The reserved, optional alignment hook <code>apply_aligned(s) -&gt; (str, OffsetMap)</code> (ADR-0005)
+is intentionally absent from this contract; a <code>Pipeline</code> detects it when present and raises
+a clear error otherwise. Steps precompute any table/regex at construction so <code>__call__</code> does
+no setup and no validation (ADR-0006).</p>
+<p>A step satisfies the contract by exposing a readable <code>safety</code> attribute — the natural idiom is
+a class-level <code>safety = SafetyClass.…</code> assignment (what built-in and custom steps both use).
+It is a <em>read-only</em> member: a step's safety class is an intrinsic trait, never reassigned, so a
+class variable, a frozen field (when the class varies it by config, like <code>HandleEmoji</code>), or a
+property all satisfy it.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="stopword-data">Stopword data<a class="headerlink" href="#stopword-data" title="Permanent link">&para;</a></h2>
+<p>The curated, versioned list behind <code>RemoveStopwords</code> — see the
+<a href="../guides/stopwords/">stopwords guide</a>. <code>STOPWORDS</code> (the matching set), <code>STOPWORDS_VERSION</code>,
+<code>STOPWORDS_LICENSE</code>, and <code>NEGATION_PARTICLES</code> (the polarity particles deliberately excluded) are
+importable from the module:</p>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="araclean.stopwords" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">stopwords</span>
+
+
+<a href="#araclean.stopwords" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>The curated, versioned Arabic stopword list backing <code>RemoveStopwords</code> (issue 0017).</p>
+<p>Provenance — this list is <strong>freshly authored for araclean</strong> from common Modern Standard Arabic
+function words (prepositions, pronouns, demonstratives, relative pronouns, conjunctions, and
+neutral particles). It is <strong>not</strong> derived from the GPL-licensed <code>Arabic-Stopwords</code> package or any
+other copyleft source, so it does not encumber araclean's MIT core; the list itself is dedicated to
+the public domain under <strong>CC0-1.0</strong> (<code>STOPWORDS_LICENSE</code>). It carries a <code>STOPWORDS_VERSION</code> so a
+<code>Profile</code> can pin an exact list and stopword removal stays reproducible across releases.</p>
+<p>Design properties (surfaced in the docs, issue 0023):</p>
+<ul>
+<li><strong>FOLDED FORM — run AFTER the letter folds</strong> (list version 2). Every entry is stored in its
+  letter-folded spelling (no <abbr title="Glottal-stop letter/mark">hamza</abbr>-bearing <abbr title="The letter alef">alef</abbr> أ/إ, no <abbr title="Shortened/curtailed alef (dotless yeh form)">alef maqsura</abbr> ى, no <abbr title="Glottal-stop letter/mark">hamza</abbr> carrier ؤ/ئ — the
+  output of <code>FoldAlef</code> + <code>FoldAlefMaqsura</code> + <code>FoldHamza</code>), and <code>RemoveStopwords</code> requires those
+  folds plus <code>RemoveTashkeel</code> to run before it (<code>Pipeline</code> enforces this at construction). The
+  pipeline itself is the spelling-variant generator: the canonical إلى, the routinely-typed
+  <abbr title="Glottal-stop letter/mark">hamza</abbr>-less الى, and the vocalized إلَى all fold to the one entry الى→الي, so matching is robust
+  without enumerating variants. <code>_validated</code> enforces fold-stability per entry at import.</li>
+<li><strong>Flat, not clitic-aware</strong> (ADR-0001 — no morphology). Each entry is a whole bare token; the list
+  does not know about proclitics/enclitics, so <code>والكتاب</code> (and-the-book) and <code>فيها</code> (in-it) are
+  kept — only a standalone <code>و</code> / <code>في</code> token would be removed.</li>
+<li><strong>Negation-safe by default.</strong> The polarity-bearing particles <code>ما</code> / <code>لا</code> / <code>لم</code> / <code>لن</code> /
+  <code>ليس</code> (<code>NEGATION_PARTICLES</code>) are deliberately <strong>excluded</strong>, so <code>RemoveStopwords</code> can never
+  silently flip the sentiment of a sentence by deleting its negation (story 37).</li>
+<li><strong>Homograph policy — one stated principle.</strong> An entry is kept iff its FUNCTION-word reading
+  dominates its content readings by token frequency in running text (in the folded spelling, since
+  folding merges words). Dropped under that principle: أم (<em>or</em> — but commonly <em>mother</em>: أم محمد),
+  كم (<em>how many</em> — but also <em>km</em>), نفس (<em>same</em> — but commonly <em>soul/self/breath</em>), كأن (<em>as if</em> —
+  folds onto كان <em>was</em>, one of the most frequent verbs), أية (<em>any</em> fem. — rare standalone, and its
+  folded ايه is the dialectal <em>what?</em>). Kept despite a known collision: علي (the fold of the
+  preposition على — the preposition dwarfs the name <em>Ali</em> in running text; the residual is that a
+  bare standalone علي is removed), لان (the fold of لأن <em>because</em> — the verb reading <em>softened</em> is
+  rare), ان (the shared fold of إن and أن — the rare آن <em>time</em> also lands there and is accepted).</li>
+</ul>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="dataframe-accessors">DataFrame accessors<a class="headerlink" href="#dataframe-accessors" title="Permanent link">&para;</a></h2>
+<p>Installed by importing <code>araclean.pandas</code> / <code>araclean.polars</code> (each needs its extra) — see
+<a href="../guides/dataframes/">pandas &amp; polars</a>.</p>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.pandas.AracleanAccessor" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AracleanAccessor</span>
+
+
+<a href="#araclean.pandas.AracleanAccessor" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>The <code>.araclean</code> Series accessor: <code>series.araclean.normalize(profile=..., **overrides)</code>.</p>
+<p>pandas instantiates this with the Series the accessor was reached through.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.pandas.AracleanAccessor.normalize" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">normalize</span>
+
+
+<a href="#araclean.pandas.AracleanAccessor.normalize" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">normalize</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="o">*</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">overrides</span><span class="p">:</span> <span class="nb">object</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Normalize each value in the Series with a named profile (default <code>LIGHT</code>) + overrides.</p>
+<p>Equivalent to <code>series.map(lambda x: normalize(x, profile=..., **overrides))</code> but builds
+the pipeline once. <code>profile</code> and the per-knob <code>**overrides</code> (e.g. <code>map_digits=True</code>,
+<code>emoji="strip"</code>) are validated through the config trust boundary, so an unknown profile,
+knob, or value raises the same clear error as the <code>normalize</code> facade. Missing values
+(<code>NaN</code>/<code>None</code>) pass through unchanged (<code>na_action="ignore"</code>); empty strings normalize
+to empty strings.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.polars.AracleanNamespace" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AracleanNamespace</span>
+
+
+<a href="#araclean.polars.AracleanNamespace" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+
+
+
+        <p>The <code>.araclean</code> Series namespace: <code>series.araclean.normalize(profile=..., **overrides)</code>.</p>
+<p>polars instantiates this with the Series the namespace was reached through.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-object doc-function">
+
+
+<h3 id="araclean.polars.AracleanNamespace.normalize" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">normalize</span>
+
+
+<a href="#araclean.polars.AracleanNamespace.normalize" class="headerlink" title="Permanent link">&para;</a></h3>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">normalize</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="o">*</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">overrides</span><span class="p">:</span> <span class="nb">object</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pl</span><span class="o">.</span><span class="n">Series</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Normalize each value in the Series with a named profile (default <code>LIGHT</code>) + overrides.</p>
+<p>Equivalent to mapping <code>normalize(x, profile=..., **overrides)</code> element-wise but builds
+the pipeline once. <code>profile</code> and the per-knob <code>**overrides</code> (e.g. <code>map_digits=True</code>,
+<code>emoji="strip"</code>) are validated through the config trust boundary, so an unknown profile,
+knob, or value raises the same clear error as the <code>normalize</code> facade. Null values pass
+through unchanged (<code>map_elements</code> skips nulls); empty strings normalize to empty strings.
+The result is a String Series, matching the pandas accessor value-for-value.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div><h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.AlignmentNotSupportedError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AlignmentNotSupportedError</span>
+
+
+<a href="#araclean.AlignmentNotSupportedError" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="NotImplementedError">NotImplementedError</span></code></p>
+
+
+
+        <p>Raised when offsets/alignment are requested through a step that lacks <code>apply_aligned</code>.</p>
+<p>Offset tracking is reserved but not implemented in v1 (ADR-0005). Subclasses
+<code>NotImplementedError</code> so callers probing for the capability can fall back.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.EmojiSupportNotInstalledError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">EmojiSupportNotInstalledError</span>
+
+
+<a href="#araclean.EmojiSupportNotInstalledError" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="ImportError">ImportError</span></code></p>
+
+
+
+        <p>Raised when <code>HandleEmoji(mode="demojize")</code> is built without the optional <code>emoji</code> extra.</p>
+<p><code>KEEP</code>/<code>STRIP</code> need no dependency; only <code>DEMOJIZE</code> requires the <code>emoji</code> library, kept out of
+the lean MIT core (ADR-0003). Subclasses <code>ImportError</code> so a caller probing for the capability
+can catch it; the message says how to install the extra.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.cli.CLIExtraNotInstalledError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CLIExtraNotInstalledError</span>
+
+
+<a href="#araclean.cli.CLIExtraNotInstalledError" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="ImportError">ImportError</span></code></p>
+
+
+
+        <p>Raised when the CLI is built without the optional <code>[cli]</code> extra (Typer) installed.</p>
+<p>Subclasses <code>ImportError</code> (so a caller probing for the capability can catch it); the message
+says how to install it. Mirrors <code>EmojiSupportNotInstalledError</code> for the <code>[emoji]</code> extra.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.pandas.PandasExtraNotInstalledError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">PandasExtraNotInstalledError</span>
+
+
+<a href="#araclean.pandas.PandasExtraNotInstalledError" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="ImportError">ImportError</span></code></p>
+
+
+
+        <p>Raised when the pandas accessor is used without the optional <code>[pandas]</code> extra installed.</p>
+<p>Subclasses <code>ImportError</code> (so a caller probing for the capability can catch it); the message
+says how to install it. Mirrors <code>EmojiSupportNotInstalledError</code> / <code>CLIExtraNotInstalledError</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h2 id="araclean.polars.PolarsExtraNotInstalledError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">PolarsExtraNotInstalledError</span>
+
+
+<a href="#araclean.polars.PolarsExtraNotInstalledError" class="headerlink" title="Permanent link">&para;</a></h2>
+
+
+    <div class="doc doc-contents first">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="ImportError">ImportError</span></code></p>
+
+
+
+        <p>Raised when the polars namespace is used without the optional <code>[polars]</code> extra installed.</p>
+<p>Subclasses <code>ImportError</code> (so a caller probing for the capability can catch it); the message
+says how to install it. Mirrors <code>PandasExtraNotInstalledError</code> / <code>CLIExtraNotInstalledError</code>.</p>
+<!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div><!-- GENERATED by docs_gen.py from the source of truth (araclean + GLOSSARY.md). Do not edit by hand; run `uv run python docs_gen.py`. -->
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      MIT-licensed. Arabic-primary terminology (ADR-0007).
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.top", "content.code.copy", "search.suggest", "search.highlight"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
