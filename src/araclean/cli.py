@@ -26,7 +26,13 @@ from pydantic import ValidationError
 from araclean.api import build_pipeline
 from araclean.config import ProfileName
 from araclean.pipeline import Pipeline
-from araclean.steps import CleanMode, EmojiMode, EmojiSupportNotInstalledError
+from araclean.steps import (
+    CleanMode,
+    EmojiMode,
+    EmojiSupportNotInstalledError,
+    HashtagMode,
+    TehMarbutaTarget,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable
@@ -158,6 +164,11 @@ def build_app() -> typer.Typer:
         map_digits: bool | None = typer.Option(
             None, "--map-digits/--no-map-digits", help="ML: also fold digits to ASCII."
         ),
+        remove_stopwords: bool | None = typer.Option(
+            None,
+            "--remove-stopwords/--no-remove-stopwords",
+            help="SEARCH: also remove the bundled stopword list (after the folds).",
+        ),
         emoji: EmojiMode | None = typer.Option(
             None, "--emoji", help="SOCIAL: keep/strip/demojize."
         ),
@@ -172,17 +183,48 @@ def build_app() -> typer.Typer:
         mention_token: str | None = typer.Option(
             None, "--mention-token", help="SOCIAL: @mention placeholder."
         ),
+        hashtag_mode: HashtagMode | None = typer.Option(
+            None, "--hashtag-mode", help="SOCIAL: segment/delete/placeholder/keep."
+        ),
+        hashtag_token: str | None = typer.Option(
+            None, "--hashtag-token", help="SOCIAL: #hashtag placeholder."
+        ),
+        teh_marbuta: TehMarbutaTarget | None = typer.Option(
+            None, "--teh-marbuta", help="SEARCH: fold teh marbuta to heh/teh, or keep."
+        ),
+        tashkeel_classes: str | None = typer.Option(
+            None,
+            "--tashkeel-classes",
+            help="SEARCH/ML/SOCIAL: comma-separated mark classes to remove "
+            "(harakat,tanween,shadda,madda,dagger_alef,quranic).",
+        ),
+        collapse_lines: bool | None = typer.Option(
+            None,
+            "--collapse-lines/--no-collapse-lines",
+            help="Flatten line breaks to spaces, or keep line structure (ADR-0010).",
+        ),
     ) -> None:
         """Normalize Arabic text from a file or stdin, writing to a file or stdout."""
         overrides: dict[str, object] = {}
         for key, value in (
             ("map_digits", map_digits),
+            ("remove_stopwords", remove_stopwords),
             ("emoji", emoji),
             ("elongation_cap", elongation_cap),
             ("url_mode", url_mode),
             ("url_token", url_token),
             ("mention_mode", mention_mode),
             ("mention_token", mention_token),
+            ("hashtag_mode", hashtag_mode),
+            ("hashtag_token", hashtag_token),
+            ("teh_marbuta", teh_marbuta),
+            # The comma-separated CLI string becomes the list the config boundary validates into
+            # MarkClass members, so a bad class name fails there with the pydantic error.
+            (
+                "tashkeel_classes",
+                tashkeel_classes and [c.strip() for c in tashkeel_classes.split(",")],
+            ),
+            ("collapse_lines", collapse_lines),
         ):
             if value is not None:
                 overrides[key] = value

@@ -36,28 +36,54 @@ def _apply_in_sequence(steps: Iterable[Callable[[str], str]], text: str) -> str:
 
 
 def test_build_plan_fuses_each_run_of_translate_steps_into_one_pass() -> None:
-    # LIGHT is: NFC | [StripBidi, FoldPresentationForms, RemoveTatweel, UnifyLookalikes] | Collapse
-    # | NFC. The four consecutive translate steps collapse to ONE fused pass; the contextual steps
-    # (NFC, CollapseWhitespace) stay their own pass, in their original positions.
+    # LIGHT is: NFC | StripBidi | [FoldPresentationForms, RemoveTatweel, UnifyLookalikes] |
+    # Collapse | NFC. The three consecutive translate steps collapse to ONE fused pass; the
+    # contextual steps (NFC, StripBidi — contextual since its emoji-aware ZWJ rule — and
+    # CollapseWhitespace) stay their own pass, in their original positions.
     steps = Pipeline.from_profile(LIGHT).steps
     plan = fusion.build_plan(steps)
 
     fused_passes = [op for op in plan if isinstance(op, fusion.TranslatePass)]
-    assert len(fused_passes) == 1  # the run of four translate steps fused into a single char pass
+    assert len(fused_passes) == 1  # the run of three translate steps fused into a single char pass
 
     contextual = [type(op).__name__ for op in plan if not isinstance(op, fusion.TranslatePass)]
-    assert contextual == ["NormalizeUnicode", "CollapseWhitespace", "NormalizeUnicode"]
+    assert contextual == ["NormalizeUnicode", "StripBidi", "CollapseWhitespace", "NormalizeUnicode"]
 
-    # The fused pass reproduces applying exactly those four translate steps in sequence.
-    block = steps[1:5]
+    # The fused pass reproduces applying exactly those three translate steps in sequence.
+    block = steps[2:5]
     for text in [MIXED, "", "abc"]:
         assert fused_passes[0](text) == _apply_in_sequence(block, text)
 
 
+def test_build_plan_leaves_a_contextual_config_mode_its_own_pass() -> None:
+    # A config-dependent step is fusible only in its pure-translate mode: RemoveTashkeel fuses for
+    # position="all" but raises AttributeError from translate_table for "final" (and MapDigits for
+    # map_separators=True), which the planner reads as "not fusible here" — the run is split and
+    # output equality with the unfused composition is preserved.
+    from araclean import FoldAlef, MapDigits, RemoveTashkeel, Step
+
+    fusible: list[Step] = [RemoveTashkeel(), FoldAlef(), MapDigits()]
+    assert all(isinstance(op, fusion.TranslatePass) is False for op in fusible)  # steps, not passes
+    assert (
+        len([op for op in fusion.build_plan(fusible) if isinstance(op, fusion.TranslatePass)]) == 1
+    )
+
+    contextual: list[Step] = [
+        RemoveTashkeel(position="final"),
+        FoldAlef(),
+        MapDigits(map_separators=True),
+    ]
+    plan = fusion.build_plan(contextual)
+    assert not [op for op in plan if isinstance(op, fusion.TranslatePass)]  # nothing fused
+    vocalized = "كِتَابٌ ١٢٫٥"
+    assert _apply_in_sequence(plan, vocalized) == _apply_in_sequence(contextual, vocalized)
+
+
 def test_build_plan_makes_one_fused_pass_per_run_preserving_order() -> None:
-    # SEARCH has TWO maximal runs of translate steps (the LIGHT block, then the lossy-fold block),
-    # split by the contextual CollapseWhitespace/NFC, MapPunctuation and ReduceElongation passes.
-    # Fusion makes exactly one char pass per run and never reorders across a contextual boundary.
+    # SEARCH has TWO maximal runs of translate steps (the LIGHT fold block, then the lossy-fold
+    # block), split by the contextual StripBidi, CollapseWhitespace/NFC, FoldTanweenAlef,
+    # MapPunctuation and ReduceElongation passes. Fusion makes exactly one char pass per run and
+    # never reorders across a contextual boundary.
     steps = Pipeline.from_profile(SEARCH).steps
     plan = fusion.build_plan(steps)
 
@@ -132,8 +158,8 @@ def test_fused_search_profile_throughput(benchmark: BenchmarkFixture) -> None:
 
 def test_fused_pipeline_runs_in_fewer_passes_and_is_faster_than_unfused() -> None:
     # The story-42 claim: char-level normalization runs as a SINGLE fused pass per run, and faster.
-    # SEARCH's ten single-char translate steps collapse to TWO fused passes (one per contiguous
-    # run), so the plan makes strictly fewer passes over each string than the seventeen-step unfused
+    # SEARCH's nine single-char translate steps collapse to TWO fused passes (one per contiguous
+    # run), so the plan makes strictly fewer passes over each string than the eighteen-step unfused
     # composition (deterministic) — and is measurably faster on the corpus (min-of-N timing, the
     # most stable statistic, guards against scheduler noise; the measured margin is ~2x).
     pipe = Pipeline.from_profile(SEARCH)

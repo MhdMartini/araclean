@@ -2,7 +2,7 @@
 
 # `SEARCH` profile
 
-**Lossy — opt-in.** Alongside 9 lossless encoding-repair steps it applies 8 lossy *linguistic folding* steps that discard information, so it is never the default (ADR-0004).
+**Lossy — opt-in.** Alongside 9 lossless encoding-repair steps it applies 9 lossy *linguistic folding* steps that discard information, so it is never the default (ADR-0004).
 
 It assembles these steps, in order:
 
@@ -15,15 +15,16 @@ It assembles these steps, in order:
 | 5 | `UnifyLookalikes` | `encoding_repair` | ✓ lossless |
 | 6 | `CollapseWhitespace` | `encoding_repair` | ✓ lossless |
 | 7 | `NormalizeUnicode` | `encoding_repair` | ✓ lossless |
-| 8 | `RemoveTashkeel` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 9 | `FoldAlef` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 10 | `FoldHamza` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 11 | `FoldTehMarbuta` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 12 | `FoldAlefMaqsura` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 13 | `MapDigits` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 14 | `MapPunctuation` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 15 | `ReduceElongation` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 16 | `CollapseWhitespace` | `encoding_repair` | ✓ lossless |
-| 17 | `NormalizeUnicode` | `encoding_repair` | ✓ lossless |
+| 8 | `FoldTanweenAlef` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 9 | `RemoveTashkeel` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 10 | `FoldAlef` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 11 | `FoldHamza` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 12 | `FoldTehMarbuta` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 13 | `FoldAlefMaqsura` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 14 | `MapDigits` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 15 | `MapPunctuation` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 16 | `ReduceElongation` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 17 | `CollapseWhitespace` | `encoding_repair` | ✓ lossless |
+| 18 | `NormalizeUnicode` | `encoding_repair` | ✓ lossless |
 
 See the [API reference](../reference.md) for what each step does and how to configure it.

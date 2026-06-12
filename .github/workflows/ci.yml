@@ -3,7 +3,9 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"] # a release tag (issue 0024) runs the gate, then publishes + deploys docs
   pull_request:
+  workflow_dispatch: # manual end-to-end DRY RUN of the build/publish pipeline (0024 AC4)
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -87,3 +89,83 @@ jobs:
         run: uv run mypy
       - name: pyright
         run: uv run pyright
+
+  build:
+    # Build the sdist + wheel and validate the package metadata. Runs on every release tag AND on a
+    # manual workflow_dispatch — the dispatch path is the end-to-end DRY RUN (issue 0024, AC4): it
+    # produces and checks the exact artifacts a real publish would upload, without uploading them, so
+    # the packaging pipeline is proven before the first PyPI release. The built dist is handed to
+    # `publish` as an artifact, so the bytes that are checked are the bytes that ship.
+    name: build distribution
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: build sdist + wheel
+        # The version is static in pyproject.toml (cz owns it via `version_provider = "uv"`), so the
+        # build needs no git history — hatchling reads `[project].version` directly.
+        run: uv build
+      - name: check distribution metadata
+        run: uvx twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    # Tag-triggered PyPI publish via Trusted Publishing (OIDC) — no stored token (ADR-0008, issue
+    # 0024). The OIDC publisher PyPI was given is bound to THIS workflow file (ci.yml), so the publish
+    # step must live here; moving it to another file would require re-doing the PyPI setup. Gated
+    # behind the full quality gate + the build/metadata check, so a tag only ships when everything is
+    # green. `id-token: write` lets the action mint the short-lived OIDC token it trades to PyPI; no
+    # other permission is granted. The `pypi` environment is a seam for adding a required-reviewer
+    # rule later (the publisher was registered with environment "any", so none is required today).
+    name: publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [gate, docs, test, build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/araclean
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  docs-deploy:
+    # Versioned docs (issue 0024, story 52): `mike` publishes the tag's docs as a pinned X.Y.Z version
+    # with a moving `latest` alias and makes `latest` the default, so the docs a reader lands on match
+    # the araclean version they installed — a reproducibility requirement (PRD), not a nicety. mike
+    # commits the rendered site to the `gh-pages` branch that GitHub Pages serves; `contents: write`
+    # authorizes that push and is the only permission granted. Runs after the gate + strict docs build
+    # are green, so the site can never be deployed broken.
+    name: deploy versioned docs
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [gate, docs, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # mike appends to the existing gh-pages history it rewrites
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --group docs
+      - name: configure git identity for the gh-pages commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: mike deploy
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          uv run mike deploy --push --update-aliases "$version" latest
+          uv run mike set-default --push latest

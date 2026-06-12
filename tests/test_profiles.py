@@ -668,3 +668,114 @@ def test_social_override_properties_each_default_is_a_one_step_swap() -> None:
     )
     assert "[URL]" in english("see https://x.co")
     assert "[MENTION]" in english("hi @user")
+
+
+# --- Doubled letters survive every profile (roadmap 0.1) -----------------------------------------
+
+# A small frozen lexicon of legitimately doubled-letter words: the assimilated definite article
+# (الله، اللغة، الليل), verb prefix + initial consonant (تتكلم، ننسى), lexical doubles
+# (ممكن، مما). The 0.1 regression these pin: profile elongation reduction triggers only at runs of
+# 3+, so none of these change shape under ANY profile — مما can never fold onto the (deliberately
+# excluded) negation particle ما, and الله can never merge with إله.
+DOUBLED_LEXICON = ("الله", "اللغة", "الليل", "تتكلم", "ننسى", "ممكن", "مما")
+
+
+@pytest.mark.parametrize("profile", ["light", "ml", "classical", "social"])
+@pytest.mark.parametrize("word", DOUBLED_LEXICON)
+def test_doubled_letter_words_are_unchanged_by_letter_preserving_profiles(
+    profile: str, word: str
+) -> None:
+    # These profiles fold no letters, so a doubled-letter word must pass through verbatim.
+    assert normalize(word, profile=profile) == word
+
+
+@pytest.mark.parametrize("word", DOUBLED_LEXICON)
+def test_doubled_letter_words_keep_their_doubles_under_search(word: str) -> None:
+    # SEARCH folds letters (اللغة -> اللغه, ننسى -> ننسي) but must never COLLAPSE a double: the
+    # run length of every letter is preserved exactly.
+    folded = normalize(word, profile="search")
+    assert len(folded) == len(word)
+    for index in range(len(word) - 1):
+        if word[index] == word[index + 1]:
+            assert folded[index] == folded[index + 1], f"{word!r} lost its double under SEARCH"
+
+
+def test_search_does_not_merge_allah_with_ilah() -> None:
+    # The headline 0.1 corruption: cap=1's old runs-of-2 trigger turned الله into اله, which
+    # FoldAlef then merged with إله — two profoundly different words made equal.
+    assert normalize("الله", profile="search") == "الله"
+    assert normalize("الله", profile="search") != normalize("إله", profile="search")
+
+
+def test_emphatic_elongation_still_folds_to_the_canonical_spelling() -> None:
+    # The flip side 0.1 must not lose: a real elongation (3+ run) still merges with the canonical
+    # spelling under ML/SEARCH (cap=1), and caps at the double under SOCIAL (cap=2).
+    elongated = chr(0x062C) + chr(0x0645) + chr(0x064A) * 5 + chr(0x0644)  # جميييييل
+    canonical = chr(0x062C) + chr(0x0645) + chr(0x064A) + chr(0x0644)  # جميل
+    doubled = chr(0x062C) + chr(0x0645) + chr(0x064A) * 2 + chr(0x0644)  # جمييل
+    assert normalize(elongated, profile="ml") == canonical
+    assert normalize(elongated, profile="search") == canonical
+    assert normalize(elongated, profile="social") == doubled
+
+
+# --- The stopword list is a fixed point of every profile (roadmap 0.1 + 0.4) ---------------------
+
+
+def test_every_stopword_entry_is_a_fixed_point_of_every_profile() -> None:
+    # The UCD-style invariant the roadmap asks for: no profile may alter any entry of the bundled
+    # stopword list. Entries ship letter-folded and undiacritized, so every fold is a no-op on
+    # them, and (0.1) their doubled letters (اللتان، اللايي…) survive elongation reduction. This is
+    # what makes "normalize with SEARCH, then remove stopwords" sound: the normalized text still
+    # contains exactly the list's spellings.
+    from araclean import stopwords
+
+    for profile in ("light", "search", "ml", "classical", "social"):
+        for word in stopwords.STOPWORDS:
+            assert normalize(word, profile=profile) == word, (profile, word)
+
+
+# --- SEARCH folds the tanween-fath carrier alef (roadmap Phase 1) --------------------------------
+
+
+def test_search_folds_kitaban_to_kitab_in_both_typed_orders() -> None:
+    # The PyArabic-#70 fold: the adverbial ending matches the bare noun for recall, whichever
+    # order the user typed the alef and the tanween in.
+    kitab = chr(0x0643) + chr(0x062A) + chr(0x0627) + chr(0x0628)  # كتاب
+    alef_first = kitab + chr(0x0627) + chr(0x064B)  # كتاباً
+    mark_first = kitab + chr(0x064B) + chr(0x0627)  # كتابًا
+    assert normalize(alef_first, profile="search") == kitab
+    assert normalize(mark_first, profile="search") == kitab
+
+
+def test_ml_strips_the_tanween_but_keeps_the_carrier_alef() -> None:
+    # The contrast: ML composes no letter folds, so dediacritization leaves كتابا (carrier kept).
+    kitaban = chr(0x0643) + chr(0x062A) + chr(0x0627) + chr(0x0628) + chr(0x0627) + chr(0x064B)
+    assert normalize(kitaban, profile="ml") == (
+        chr(0x0643) + chr(0x062A) + chr(0x0627) + chr(0x0628) + chr(0x0627)
+    )
+
+
+# --- SOCIAL segments hashtags (roadmap Phase 1) ---------------------------------------------------
+
+
+def test_social_segments_an_arabic_hashtag_into_its_words() -> None:
+    # The AraBERT recipe as a profile default: drop '#', '_' -> space, words stay as content.
+    tag = (
+        "#"
+        + chr(0x0627)
+        + chr(0x0644)
+        + chr(0x064A)
+        + chr(0x0648)
+        + chr(0x0645)
+        + "_"
+        + (chr(0x0627) + chr(0x0644) + chr(0x0648) + chr(0x0637) + chr(0x0646) + chr(0x064A))
+    )  # #اليوم_الوطني
+    expected = tag[1:].replace("_", " ")
+    assert normalize(tag, profile="social") == expected
+
+
+def test_social_cleans_the_url_before_its_fragment_can_read_as_a_hashtag() -> None:
+    # The load-bearing CleanURLs-before-CleanHashtags ordering: the #fragment vanishes WITH its
+    # URL into the placeholder instead of being segmented into stray words.
+    out = normalize("see https://x.co/page#section now", profile="social")
+    assert out == "see [" + chr(0x0631) + chr(0x0627) + chr(0x0628) + chr(0x0637) + "] now"

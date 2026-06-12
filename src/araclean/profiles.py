@@ -103,11 +103,16 @@ LIGHT = Profile(
 # note above). So search ⊇ light -- "SEARCH does everything LIGHT does", LIGHT(SEARCH(x)) ==
 # SEARCH(x). Each fold uses its step default, which is exactly what SEARCH wants -- RemoveTashkeel
 # removes every mark class, MapDigits targets ASCII, FoldTehMarbuta targets heh, ReduceElongation
-# caps at 1 -- so no config is pinned here.
+# collapses 3+ runs to a single letter -- so no config is pinned here.
+#
+# FoldTanweenAlef MUST precede RemoveTashkeel: it needs the tanween still present to recognize
+# which final alef is a carrier (كتاباً -> كتاب); once dediacritization strips the mark, a carrier
+# alef is indistinguishable from a genuine final alef.
 SEARCH = Profile(
     name="search",
     steps=[
         *LIGHT.steps,
+        StepSpec(name="FoldTanweenAlef"),  # كتاباً -> كتاب; BEFORE RemoveTashkeel (see above)
         StepSpec(name="RemoveTashkeel"),  # all mark classes (harakat/tanween/shadda/madda/...)
         StepSpec(name="FoldAlef"),
         StepSpec(name="FoldHamza"),
@@ -115,7 +120,7 @@ SEARCH = Profile(
         StepSpec(name="FoldAlefMaqsura"),
         StepSpec(name="MapDigits"),  # -> ASCII (default target)
         StepSpec(name="MapPunctuation"),  # -> Latin , ; ?
-        StepSpec(name="ReduceElongation"),  # cap 1 (default)
+        StepSpec(name="ReduceElongation"),  # collapse 3+ runs to one letter (default cap/min_run)
         # Shared closing tail (see the note above): re-collapse whitespace the folds re-expose, then
         # re-canonicalize. Sits last, after every fold.
         #
@@ -200,9 +205,12 @@ CLASSICAL = Profile(name="classical", steps=[*LIGHT.steps])
 #   - URLs/mentions -> a PLACEHOLDER token, in ARABIC ([رابط] / [مستخدم]), so "a link/user was here"
 #     survives as a feature without a noisy unique value. (The step default token is the English
 #     [URL]/[MENTION]; SOCIAL pins the Arabic ones explicitly.)
+#   - hashtags -> SEGMENTED (the AraBERT recipe: #اليوم_الوطني -> اليوم الوطني), so the tag's words
+#     stay in the text as content rather than one opaque token.
 #   - HTML -> tags stripped (DELETE) and entities unescaped, so you keep the inner text.
 #   - tashkeel -> removed (every mark class), as the PRD SOCIAL composition specifies.
-#   - elongation -> capped at 2 (not 1), so emphasis survives: جمييل stays distinct from جميل.
+#   - elongation -> capped at 2 (not 1), so emphasis survives: جميييل folds to جمييل, distinct
+#     from جميل.
 #   - emoji -> kept (the default; KEEP is a lossless no-op).
 #
 # Two load-bearing ordering decisions:
@@ -210,7 +218,8 @@ CLASSICAL = Profile(name="classical", steps=[*LIGHT.steps])
 #   1. Cleaning runs BEFORE the linguistic folds: strip the URL/mention/HTML noise first, so the
 #      folds never waste work on (or corrupt) a span that is about to become a placeholder, and so
 #      CleanURLs precedes CleanMentions (a URL like https://x/@h contains an @, so the mention
-#      strip must not see it first).
+#      strip must not see it first) and CleanHashtags (a URL fragment …/page#section would
+#      otherwise read as a tag).
 #   2. RemoveTashkeel runs BEFORE ReduceElongation -- the PRD ordering contract (tashkeel removal is
 #      an earlier band than cleanup) and the same reason ML orders them this way: a vocalized
 #      elongation interleaves marks between the repeated letters (يَيَيَ), so the marks must be gone
@@ -232,9 +241,11 @@ SOCIAL = Profile(
     name="social",
     steps=[
         *LIGHT.steps,
-        # Cleaning first; CleanURLs before CleanMentions (a URL can contain an @). Arabic tokens.
+        # Cleaning first; CleanURLs before CleanMentions (a URL can contain an @) and before
+        # CleanHashtags (a URL can contain a #fragment). Arabic tokens.
         StepSpec(name="CleanURLs", config={"mode": "placeholder", "placeholder": "[رابط]"}),
         StepSpec(name="CleanMentions", config={"mode": "placeholder", "placeholder": "[مستخدم]"}),
+        StepSpec(name="CleanHashtags", config={"mode": "segment"}),  # #اليوم_الوطني -> words
         StepSpec(name="CleanHTML"),  # delete (strip tags) + unescape entities -- the defaults
         StepSpec(name="RemoveTashkeel"),  # all mark classes; BEFORE ReduceElongation (see above)
         StepSpec(

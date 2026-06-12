@@ -2,8 +2,46 @@
 
 Arabic text normalization and cleaning — pure-Python, composable, reproducible.
 
-> **Status:** early development. The package installs and imports; normalization
-> behavior is being built slice by slice (see the implementation issues).
+> **Status:** pre-release (`0.x`). The v1 normalization core is complete and fully
+> tested; the API may still shift before 1.0.
+
+araclean is **non-destructive by default**: the bare call is lossless *encoding repair*
+(Unicode form, presentation forms, tatweel, bidi/zero-width characters, look-alike
+letters, whitespace) and never silently strips tashkeel or folds letters. Everything
+lossy is opt-in through named, serializable **profiles** (`SEARCH`, `ML`, `SOCIAL`,
+`CLASSICAL`), so the exact preprocessing a corpus went through can be published and
+reproduced.
+
+```python
+>>> from araclean import normalize
+>>> normalize("العـــربية")                          # lossless encoding repair (default)
+'العربية'
+>>> normalize("اَلسّلامُ عليكم", profile="search")   # opt-in lossy folds for recall
+'السلام عليكم'
+```
+
+## Documentation
+
+Full documentation lives at **<https://mhdmartini.github.io/araclean/>**:
+
+- [Getting started](https://mhdmartini.github.io/araclean/getting-started/) — install,
+  first call, choosing a profile.
+- [Profiles](https://mhdmartini.github.io/araclean/profiles/) — every step each profile
+  applies, lossless vs lossy (generated from the code).
+- Guides — the [CLI](https://mhdmartini.github.io/araclean/guides/cli/),
+  [pandas & polars](https://mhdmartini.github.io/araclean/guides/dataframes/),
+  [tuning](https://mhdmartini.github.io/araclean/guides/tuning-profiles/) and
+  [composing](https://mhdmartini.github.io/araclean/guides/composing-pipelines/)
+  pipelines, [custom steps](https://mhdmartini.github.io/araclean/guides/custom-steps/),
+  [reproducibility](https://mhdmartini.github.io/araclean/guides/reproducibility/), and
+  [stopwords](https://mhdmartini.github.io/araclean/guides/stopwords/).
+- [Why araclean](https://mhdmartini.github.io/araclean/concepts/why-araclean/) — the
+  rationale and what sets it apart.
+- [API reference](https://mhdmartini.github.io/araclean/reference/) and
+  [CLI reference](https://mhdmartini.github.io/araclean/reference/cli/).
+
+Every Python example in the docs is executed as a doctest in CI, and the generated pages
+(profiles, glossary, CLI reference) are drift-checked against the code.
 
 ## Install
 

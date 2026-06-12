@@ -141,14 +141,47 @@ def test_custom_step_participates_in_select_and_batch() -> None:
     assert list(pipe.batch(["ab", "cd"])) == ["AB", "CD"]
 
 
-def test_select_rejects_unknown_and_ambiguous_names() -> None:
+def test_select_rejects_unknown_names_and_treats_equal_duplicates_as_one() -> None:
     # Unknown name -> clear KeyError. LIGHT runs NFC both first and last (the ordering contract),
-    # so addressing "NormalizeUnicode" by name is genuinely ambiguous and is rejected, not guessed.
+    # but the two copies are EQUAL value objects — picking either is no choice at all, so naming
+    # "NormalizeUnicode" works (once, or once per copy wanted) instead of raising.
     light = Pipeline.from_profile(LIGHT)
     with pytest.raises(KeyError, match="No step named 'NotAStep'"):
         light.select("NotAStep")
+    assert repr(light.select("NormalizeUnicode")) == "Pipeline([NormalizeUnicode])"
+    both = light.select("NormalizeUnicode", "StripBidi", "NormalizeUnicode")
+    assert repr(both) == "Pipeline([NormalizeUnicode, StripBidi, NormalizeUnicode])"
+
+
+def test_select_rejects_a_name_matching_differently_configured_steps() -> None:
+    # SEARCH carries CollapseWhitespace twice with DIFFERENT configs (line-preserving mid-pipeline,
+    # line-flattening in the closing tail) — a name genuinely cannot say which one is meant, so
+    # selecting it is rejected, not guessed.
+    from araclean import SEARCH
+
+    search = Pipeline.from_profile(SEARCH)
     with pytest.raises(KeyError, match="ambiguous"):
-        light.select("NormalizeUnicode")
+        search.select("CollapseWhitespace")
+    # The equal NFC bookends of the same profile still select fine.
+    assert repr(search.select("NormalizeUnicode")) == "Pipeline([NormalizeUnicode])"
+
+
+def test_drop_removes_every_match_and_rejects_unknown_names() -> None:
+    # The subtractive adapter: "SEARCH minus MapDigits" is one call, duplicates need no
+    # disambiguation (every match goes), and the original pipeline is untouched.
+    from araclean import SEARCH
+
+    search = Pipeline.from_profile(SEARCH)
+    arabic_indic = chr(0x0661) + chr(0x0662) + chr(0x0663)  # ١٢٣
+    assert search(arabic_indic) == "123"
+    without_digits = search.drop("MapDigits")
+    assert without_digits(arabic_indic) == arabic_indic
+    assert "MapDigits" not in repr(without_digits)
+    assert search(arabic_indic) == "123"  # original unchanged
+    # Dropping a duplicated name removes BOTH copies.
+    assert "CollapseWhitespace" not in repr(search.drop("CollapseWhitespace"))
+    with pytest.raises(KeyError, match="No step named 'NotAStep'"):
+        search.drop("NotAStep")
 
 
 def test_custom_step_runs_inside_pipeline() -> None:

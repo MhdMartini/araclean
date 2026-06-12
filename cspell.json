@@ -1,14 +1,22 @@
 {
   "version": "0.2",
   "language": "en",
-  "ignorePaths": ["cspell.json"],
+  "ignorePaths": [
+    "cspell.json"
+  ],
   "ignoreRegExpList": [
     "/[\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF\\uFB50-\\uFDFF\\uFE70-\\uFEFF]+/g"
   ],
   "dictionaryDefinitions": [
-    { "name": "project-words", "path": ".cspell/project-words.txt" }
+    {
+      "name": "project-words",
+      "path": ".cspell/project-words.txt"
+    }
   ],
-  "dictionaries": ["python", "project-words"],
+  "dictionaries": [
+    "python",
+    "project-words"
+  ],
   "words": [
     "alef",
     "araclean",
@@ -31,6 +39,7 @@
     "dediacritization",
     "dediacritize",
     "dediacritized",
+    "dediacritizes",
     "demojize",
     "demojized",
     "Dhabi",
@@ -179,7 +188,12 @@
     "barree",
     "safha",
     "sakta",
-    "qasr"
+    "qasr",
+    "ilah",
+    "khata",
+    "kitab",
+    "kitaban",
+    "undiacritized"
   ],
   "flagWords": [
     "alif",

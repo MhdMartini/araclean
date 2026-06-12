@@ -133,3 +133,49 @@ def test_main_without_the_cli_extra_exits_nonzero_clearly(
             cli.main()
     assert excinfo.value.code != 0
     assert "araclean[cli]" in capsys.readouterr().err
+
+
+def test_remove_stopwords_flag_passes_through_to_the_facade() -> None:
+    line = "أنا ذاهب إلى البيت"
+    result = runner.invoke(
+        app, ["normalize", "--profile", "search", "--remove-stopwords"], input=line + "\n"
+    )
+    assert result.exit_code == 0
+    assert result.stdout == normalize(line, profile="search", remove_stopwords=True) + "\n"
+
+
+def test_remove_stopwords_flag_off_search_exits_nonzero() -> None:
+    result = runner.invoke(app, ["normalize", "--profile", "ml", "--remove-stopwords"], input="x\n")
+    assert result.exit_code != 0
+    assert "remove_stopwords" in result.output
+
+
+def test_tashkeel_classes_flag_parses_the_comma_list() -> None:
+    vocalized = "نَصّ"  # fatha + shadda
+    result = runner.invoke(
+        app,
+        ["normalize", "--profile", "ml", "--tashkeel-classes", "harakat"],
+        input=vocalized + "\n",
+    )
+    assert result.exit_code == 0
+    assert result.stdout == normalize(vocalized, profile="ml", tashkeel_classes=["harakat"]) + "\n"
+
+
+def test_teh_marbuta_and_collapse_lines_flags_pass_through() -> None:
+    result = runner.invoke(
+        app,
+        ["normalize", "--profile", "search", "--teh-marbuta", "keep", "--no-collapse-lines"],
+        input="مدرسة\n",
+    )
+    assert result.exit_code == 0
+    assert result.stdout == (
+        normalize("مدرسة", profile="search", teh_marbuta="keep", collapse_lines=False) + "\n"
+    )
+
+
+def test_hashtag_mode_flag_passes_through() -> None:
+    result = runner.invoke(
+        app, ["normalize", "--profile", "social", "--hashtag-mode", "keep"], input="#وسم\n"
+    )
+    assert result.exit_code == 0
+    assert result.stdout == normalize("#وسم", profile="social", hashtag_mode="keep") + "\n"

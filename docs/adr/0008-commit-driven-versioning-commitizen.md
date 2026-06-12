@@ -7,8 +7,9 @@ plus a CI `cz check` over every PR — and **computes** the SemVer bump from the
 (`version_provider = "uv"`), regenerating `CHANGELOG.md`, and creating the `vX.Y.Z` tag. The project
 stays in `0.x` (`major_version_zero = true`): a `feat` bumps the minor, a `fix`/other bumps the
 patch, and a breaking change bumps the **minor** (not `1.0.0`) until 1.0 is declared deliberately.
-Bumps are **on-demand** — a maintainer or agent runs `cz bump` to cut a release; automated
-publish-on-merge is deferred to release ops ([`issues/0024`](../../issues/0024-release-ops.md)).
+Bumps are **on-demand** — a maintainer or agent runs `cz bump` to cut a release; release ops
+([`issues/0024`](../../issues/0024-release-ops.md)) then turns the pushed `vX.Y.Z` tag into a PyPI
+publish, rather than publishing on every merge.
 
 Why: the task has two halves — *enforce* the commit convention and *derive* the version from it —
 and Commitizen is the only mainstream tool that does both. It supersedes
@@ -36,5 +37,8 @@ reasons plus a Node action and a weaker Python version-file story.
 - **Merge strategy**: use one that preserves Conventional Commits on `main` (rebase or merge, or a
   Conventional-Commit squash title), since `cz bump` reads `main`'s commit log to decide the bump.
 - Automated tag→PyPI publish (OIDC), versioned docs (`mike`), and the contribution surface
-  (`CONTRIBUTING`, code of conduct, PR templates) remain with
-  [`issues/0024`](../../issues/0024-release-ops.md) — **HITL** (human PyPI/governance setup).
+  (`CONTRIBUTING`, code of conduct, PR templates) are delivered by
+  [`issues/0024`](../../issues/0024-release-ops.md): pushing a `cz bump` tag runs the gate and then
+  publishes to PyPI via Trusted Publishing (the publish job lives in `ci.yml`, the workflow the OIDC
+  publisher is bound to) and deploys the pinned docs version with `mike`. Cutting the release stays
+  on-demand (`cz bump` is run by a maintainer), per the bump policy above.

@@ -28,6 +28,11 @@ testpaths
 excinfo
 capsys
 optionflags
+doctests
+
+# pandas / polars vocabulary (the dataframe-accessor docs, issue 0021/0022)
+dataframes
+tolist
 
 # Typer / CLI vocabulary (issue 0020): Typer's styled-echo helper
 secho
@@ -39,6 +44,7 @@ precomputes
 configurably
 elongatable
 disjointness
+toolkits
 
 # linguistics vocabulary (stopword handling, issue 0017) the bundled dicts lack
 clitics
@@ -70,3 +76,16 @@ superfences
 linenums
 crossrefs
 pycon
+
+# Unicode / regex technical vocabulary (roadmap 0.2/0.3 + Phase 1 steps)
+keycap
+keycaps
+guillemets
+guillemet
+lookaheads
+unflanked
+carrierless
+retargets
+
+# Python API identifiers referenced in prose
+maxunicode

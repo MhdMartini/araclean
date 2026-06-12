@@ -11,8 +11,9 @@ The docs site's two machine-checkable invariants live here so they cannot rot:
      commit-the-generated-output-and-test-it pattern the syrupy snapshots use. Regenerate with
      ``uv run python docs_gen.py``.
 
-The doctested quickstart and the strict `mkdocs build` are guarded further down; the build skips
-cleanly where the `docs` dependency group is absent (it is not in the default `dev` group).
+The doctested examples (every ``>>>`` on every published page) and the strict `mkdocs build` are
+guarded further down; the build skips cleanly where the `docs` dependency group is absent (it is
+not in the default `dev` group).
 """
 
 from __future__ import annotations
@@ -117,19 +118,36 @@ def test_generated_docs_are_committed_and_in_sync(path: Path) -> None:
     )
 
 
-# --- AC1: the homepage quickstart is executed as a doctest, so it cannot rot --------------------
+# --- AC1: every Python example on every docs page is executed as a doctest, so none can rot ------
+
+# Every site page that contains a `>>>` example. ADRs and the abbreviations include are not site
+# pages (mkdocs.yml `exclude_docs`), so they are skipped; everything published is doctested.
+_EXCLUDED_DOC_DIRS = {"adr", "includes"}
+DOC_PAGES_WITH_EXAMPLES = sorted(
+    path
+    for path in docs_gen.DOCS_DIR.rglob("*.md")
+    if not _EXCLUDED_DOC_DIRS.intersection(path.relative_to(docs_gen.DOCS_DIR).parts)
+    and ">>> " in path.read_text(encoding="utf-8")
+)
 
 
-def test_homepage_quickstart_runs_as_a_doctest() -> None:
-    """AC1: every `>>>` example on the docs homepage executes and matches its shown output."""
-    index = docs_gen.DOCS_DIR / "index.md"
+def test_homepage_quickstart_has_doctested_examples() -> None:
+    """AC1: the homepage quickstart carries executable `>>>` examples (run by the test below)."""
+    assert docs_gen.DOCS_DIR / "index.md" in DOC_PAGES_WITH_EXAMPLES
+
+
+@pytest.mark.parametrize(
+    "page", DOC_PAGES_WITH_EXAMPLES, ids=lambda p: str(p.relative_to(docs_gen.DOCS_DIR))
+)
+def test_docs_page_examples_run_as_doctests(page: Path) -> None:
+    """Every `>>>` example on a published docs page executes and matches its shown output."""
     results = doctest.testfile(
-        str(index),
+        str(page),
         module_relative=False,
         encoding="utf-8",
         optionflags=doctest.ELLIPSIS,
     )
-    assert results.attempted > 0, "no doctest examples found in the quickstart"
+    assert results.attempted > 0, f"{page} matched the '>>> ' probe but doctest found no examples"
     assert results.failed == 0
 
 

@@ -37,11 +37,33 @@ def _step_name(step: Step) -> str:
     return name if isinstance(name, str) else type(step).__name__
 
 
+def _check_step_ordering(steps: Sequence[Step]) -> None:
+    """Enforce each step's declared ordering contract at construction (fail fast, not per string).
+
+    A step may declare ``requires_before`` — a tuple of step names that must appear EARLIER in the
+    pipeline (e.g. `RemoveStopwords` requires the folds its folded list assumes). The check is
+    generic: any step, custom ones included, can declare it.
+    """
+    seen: set[str] = set()
+    for step in steps:
+        required: tuple[str, ...] = getattr(step, "requires_before", ())
+        missing = [name for name in required if name not in seen]
+        if missing:
+            raise ValueError(
+                f"Step {_step_name(step)!r} requires {missing} to run before it in the pipeline "
+                "(its matching assumes their transforms have been applied — see the step's "
+                "docstring for the recipe). Add the missing step(s) earlier; they are idempotent, "
+                "so including them is safe even for already-normalized text."
+            )
+        seen.add(_step_name(step))
+
+
 class Pipeline:
     """An ordered, serializable sequence of `Step`s, callable like a single `str -> str`."""
 
     def __init__(self, steps: Sequence[Step]) -> None:
         self._steps: tuple[Step, ...] = tuple(steps)
+        _check_step_ordering(self._steps)
         # Compile the execution plan once: maximal runs of consecutive single-char `str.translate`
         # steps fuse into one combined table applied in a single C-level pass (issue 0018), while
         # the contextual steps stay their own pass, in order. This is purely an execution
@@ -75,7 +97,12 @@ class Pipeline:
         One primitive covers both adapting operations: name a subset to *filter*, or name every
         step in a different order to *reorder*. Steps are addressed by `_step_name` (the registry
         name, or the class name for a custom step). This pipeline is left unchanged. Raises
-        `KeyError` for an unknown name, or if a name matches more than one step (ambiguous).
+        `KeyError` for an unknown name, or if a name matches more than one step *with differing
+        configs* (genuinely ambiguous). EQUAL duplicates are interchangeable, not ambiguous —
+        every profile runs its `NormalizeUnicode` NFC bookends as identical value objects, so
+        naming ``"NormalizeUnicode"`` (once, or once per copy you want) just works; only a name
+        whose duplicates differ (SEARCH's two differently-configured `CollapseWhitespace`) is
+        rejected, because a name cannot say which one you meant.
         """
         by_name: dict[str, list[Step]] = {}
         for step in self._steps:
@@ -85,13 +112,32 @@ class Pipeline:
             matches = by_name.get(name)
             if not matches:
                 raise KeyError(f"No step named {name!r} in this pipeline; have {sorted(by_name)}.")
-            if len(matches) > 1:
+            if any(match != matches[0] for match in matches[1:]):
                 raise KeyError(
-                    f"Step name {name!r} is ambiguous: it matches {len(matches)} steps. "
-                    "select() addresses steps by name, so names must be unique to use it."
+                    f"Step name {name!r} is ambiguous: it matches {len(matches)} differently-"
+                    "configured steps, and a name cannot say which one you meant. Use drop() to "
+                    "remove steps by name, or build the Pipeline from explicit steps."
                 )
             chosen.append(matches[0])
         return Pipeline(chosen)
+
+    def drop(self, *names: str) -> Pipeline:
+        """Build a NEW pipeline WITHOUT every step matching each name (the subtractive adapter).
+
+        The common profile adaptation — "SEARCH minus `MapDigits`" — is subtraction, which
+        `select` cannot express on a built-in profile without re-naming every kept step. `drop`
+        removes ALL steps carrying a name (removing every match is well-defined, so duplicates
+        need no disambiguation) and keeps the rest in order. This pipeline is left unchanged.
+        Raises `KeyError` for a name no step carries, so a typo is never a silent no-op.
+        """
+        present = {_step_name(step) for step in self._steps}
+        unknown = [name for name in names if name not in present]
+        if unknown:
+            raise KeyError(
+                f"No step named {unknown[0]!r} in this pipeline; have {sorted(present)}."
+            )
+        dropped = set(names)
+        return Pipeline([step for step in self._steps if _step_name(step) not in dropped])
 
     def audit(self) -> SafetyReport:
         """Audit this pipeline's safety: is it lossless, and if not, what it loses (story 41).

@@ -81,28 +81,46 @@ class TranslatePass:
         return text.translate(self.table)
 
 
+def _fusible_table(step: Step) -> Mapping[int, str | int | None] | None:
+    """The step's translate table if it is fusible HERE, else ``None``.
+
+    A config-dependent step (`RemoveTashkeel(position="final")`,
+    `MapDigits(map_separators=True)`) keeps the `translate_table` property on its class but raises
+    `AttributeError` in its contextual mode — `isinstance` alone cannot see that, so the table is
+    read eagerly and the raise is read as "not fusible".
+    """
+    if not isinstance(step, SupportsTranslate):
+        return None
+    try:
+        return step.translate_table
+    except AttributeError:
+        return None
+
+
 def build_plan(steps: Sequence[Step]) -> tuple[Callable[[str], str], ...]:
     """Compile a pipeline's steps into an execution plan, fusing each maximal run of consecutive
     `SupportsTranslate` steps into a single `TranslatePass`.
 
     Every non-fusible step (a custom step, or a contextual one: `NormalizeUnicode`, the whitespace/
-    punctuation/elongation/cleaning regex steps) stays its own pass and never moves, so ordering
-    across the contract boundaries is preserved exactly. A run of a single fusible step is left as
-    that step (nothing to fuse); a run of two or more collapses to one combined table.
+    punctuation/elongation/cleaning regex steps, a translate step in a contextual config mode)
+    stays its own pass and never moves, so ordering across the contract boundaries is preserved
+    exactly. A run of a single fusible step is left as that step (nothing to fuse); a run of two or
+    more collapses to one combined table.
     """
     plan: list[Callable[[str], str]] = []
-    run: list[SupportsTranslate] = []
+    run: list[tuple[Step, Mapping[int, str | int | None]]] = []
 
     def flush() -> None:
         if len(run) >= 2:
-            plan.append(TranslatePass(fuse_tables([step.translate_table for step in run])))
+            plan.append(TranslatePass(fuse_tables([table for _step, table in run])))
         elif run:
-            plan.append(run[0])
+            plan.append(run[0][0])
         run.clear()
 
     for step in steps:
-        if isinstance(step, SupportsTranslate):
-            run.append(step)
+        table = _fusible_table(step)
+        if table is not None:
+            run.append((step, table))
         else:
             flush()
             plan.append(step)

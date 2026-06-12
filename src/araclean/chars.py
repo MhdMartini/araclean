@@ -7,8 +7,11 @@ here can later be fused into the single-pass engine (0018) without touching a te
 
 from __future__ import annotations
 
+import functools
 import re
+import sys
 import unicodedata
+from collections.abc import Iterable
 
 # --- FoldPresentationForms table (issue 0003) -------------------------------------------------
 #
@@ -96,7 +99,15 @@ REMOVE_TATWEEL: dict[int, None] = {TATWEEL: None}
 #   Zero-width / BOM -- invisible formatters that are NOT whitespace, so CollapseWhitespace's `\s`
 #   run-collapse cannot reach them; they must be deleted here instead:
 #     U+200B ZERO WIDTH SPACE, U+200C ZERO WIDTH NON-JOINER (ZWNJ),
-#     U+200D ZERO WIDTH JOINER (ZWJ), U+2060 WORD JOINER, U+FEFF ZERO WIDTH NO-BREAK SPACE (BOM).
+#     U+2060 WORD JOINER, U+FEFF ZERO WIDTH NO-BREAK SPACE (BOM).
+#
+# THE ONE CONTEXTUAL EXCEPTION: ZWJ U+200D is NOT in this table. Inside an emoji sequence
+# (👨‍👩‍👧) the joiner is *content* — deleting it unconditionally would split the
+# sequence into its component emoji before HandleEmoji ever sees it (and silently alter emoji
+# semantics under the nominally lossless LIGHT). StripBidi therefore deletes ZWJ through the
+# `ZWJ_OUTSIDE_EMOJI` pattern (defined with the emoji classes below): only a joiner NOT flanked by
+# extended-pictographic code points is stripped. Residual: a ZWJ between an emoji and an Arabic
+# letter still goes — only emoji-internal joiners survive.
 #
 # ZWNJ (U+200C) is stripped by default; a keep/space option for Persian-mixed text is deferred to
 # the config boundary (issue 0016). U+FEFF is handled HERE, not by the presentation-form fold
@@ -115,7 +126,7 @@ _BIDI_CONTROLS: tuple[int, ...] = (
     0x2068,
     0x2069,
 )
-_ZERO_WIDTH: tuple[int, ...] = (0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF)
+_ZERO_WIDTH: tuple[int, ...] = (0x200B, 0x200C, 0x2060, 0xFEFF)
 STRIP_BIDI: dict[int, None] = {cp: None for cp in (*_BIDI_CONTROLS, *_ZERO_WIDTH)}
 
 
@@ -460,9 +471,16 @@ URL: re.Pattern[str] = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
 # A mention: an @ followed by one or more word characters. `\w` is Unicode-aware, so @محمد is a
 # mention as readily as @user. Plain @\w+ with NO lookbehind is deliberate: it keeps the step
 # idempotent (a lookbehind on the preceding character would flip a second pass on abutting mentions
-# like @a@b, since deletion changes that neighbor). Consequence: an @token anywhere matches, so the
-# host of an address like user@example reads as a mention -- email handling is out of v1 scope.
+# like @a@b, since deletion changes that neighbor). Email protection is handled by ALTERNATION, not
+# lookbehind, for the same idempotence reason: MENTION_OR_EMAIL tries the email shape first, and
+# CleanMentions passes an email match through verbatim, so user@example.com survives instead of
+# becoming user[MENTION].com. The email shape requires a dotted domain; a dotless user@example
+# still has its host read as a mention (the documented residual).
 MENTION: re.Pattern[str] = re.compile(r"@\w+")
+EMAIL: re.Pattern[str] = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+# The email alternative is named so the substitution callback can tell which shape matched and
+# pass an email through verbatim.
+MENTION_OR_EMAIL: re.Pattern[str] = re.compile(rf"(?P<email>{EMAIL.pattern})|(?:{MENTION.pattern})")
 
 # An HTML/XML tag: an angle-bracketed run with no interior '>'. A lone '<' with no closing '>' is
 # not a tag and is left in place. CleanHTML strips tags FIRST and then runs html.unescape, so a real
@@ -480,21 +498,40 @@ HTML_TAG: re.Pattern[str] = re.compile(r"<[^>]+>")
 # is consumed only BETWEEN emoji, so a ZWJ sequence (👨‍👩‍👧) strips whole; a standalone ZWJ is
 # invisible formatting owned by StripBidi, not emoji content, so it is never matched on its own.
 #
-# Stated principle: SOUNDNESS, not completeness (like ELONGATABLE_LETTERS). The chosen blocks are
-# essentially all emoji/pictographs and are disjoint from Arabic letters/marks/digits and ASCII, so
-# STRIP never corrupts Arabic text or a number; a rarer emoji-bearing block left out (Mahjong /
-# Dominoes / Playing Cards, the clock subset of Miscellaneous Technical) only leaves an exotic emoji
-# intact. Two adjacent regional indicators (a flag) are stripped as two separate matches, which for
-# deletion is equivalent to removing the flag.
+# Stated principle: SOUNDNESS, not completeness (like ELONGATABLE_LETTERS). The chosen blocks and
+# singletons are pictograph-dominant and disjoint from Arabic letters/marks/digits and ASCII, so
+# STRIP never corrupts Arabic text or a number. Code points whose DOMINANT use is plain-text
+# typography are deliberately excluded even though Unicode lists them as emoji-capable — © U+00A9,
+# ® U+00AE, ™ U+2122, ℹ U+2139, the ↔/↩ arrows, Ⓜ U+24C2, the CJK 〰/〽/㊗/㊙ set — stripping
+# those without an emoji presentation request would corrupt ordinary typography. The dual-use
+# singletons kept IN (‼ ⁉ ▶ ◀ and the geometric shapes) are top-200 emoji whose plain-text use is
+# marginal; they ride with their FE0F variation selector when present. Two adjacent regional
+# indicators (a flag) are stripped as two separate matches, which for deletion is equivalent to
+# removing the flag.
 _EMOJI_BASE_RANGES: tuple[tuple[int, int], ...] = (
+    (0x1F000, 0x1F0FF),  # Mahjong Tiles / Domino Tiles / Playing Cards (🀄 🃏)
+    (0x1F100, 0x1F1FF),  # Enclosed Alphanumeric Supplement: 🅰 🆗 🆘 + Regional Indicators (flags)
+    (0x1F200, 0x1F2FF),  # Enclosed Ideographic Supplement (🈁 🈯 🉐)
     (0x1F300, 0x1F5FF),  # Miscellaneous Symbols and Pictographs
     (0x1F600, 0x1F64F),  # Emoticons
     (0x1F680, 0x1F6FF),  # Transport and Map Symbols
     (0x1F900, 0x1F9FF),  # Supplemental Symbols and Pictographs
     (0x1FA00, 0x1FAFF),  # Symbols and Pictographs Extended-A
-    (0x1F1E6, 0x1F1FF),  # Regional Indicator Symbols (flags)
+    (0x203C, 0x203C),  # ‼ double exclamation mark
+    (0x2049, 0x2049),  # ⁉ exclamation question mark
+    (0x231A, 0x231B),  # ⌚ watch, ⌛ hourglass (the emoji pair of Miscellaneous Technical)
+    (0x23E9, 0x23F3),  # ⏩..⏳ media controls, alarm clock, stopwatch, timer, hourglass
+    (0x23F8, 0x23FA),  # ⏸ ⏹ ⏺ pause / stop / record
+    (0x25AA, 0x25AB),  # ▪ ▫ small squares (the emoji subset of Geometric Shapes)
+    (0x25B6, 0x25B6),  # ▶ play button
+    (0x25C0, 0x25C0),  # ◀ reverse button
+    (0x25FB, 0x25FE),  # ◻ ◼ ◽ ◾ medium squares
     (0x2600, 0x26FF),  # Miscellaneous Symbols
     (0x2700, 0x27BF),  # Dingbats
+    (0x2B05, 0x2B07),  # ⬅ ⬆ ⬇ heavy arrows (the emoji subset of Misc. Symbols and Arrows)
+    (0x2B1B, 0x2B1C),  # ⬛ ⬜ large squares
+    (0x2B50, 0x2B50),  # ⭐ star
+    (0x2B55, 0x2B55),  # ⭕ heavy large circle
 )
 # Modifiers that extend a preceding base emoji: the emoji variation selector and the skin tones.
 _EMOJI_MODIFIER_RANGES: tuple[tuple[int, int], ...] = (
@@ -502,6 +539,11 @@ _EMOJI_MODIFIER_RANGES: tuple[tuple[int, int], ...] = (
     (0x1F3FB, 0x1F3FF),  # Emoji modifiers Fitzpatrick types 1-2 .. 6 (skin tone)
 )
 ZERO_WIDTH_JOINER = 0x200D
+# The combining enclosing keycap: 1️⃣ is [0-9#*] + optional FE0F + U+20E3. The ASCII base is part
+# of the keycap sequence (stripping 1️⃣ removes the digit too); a stray keycap mark with no ASCII
+# base strips alone, leaving its carrier — an Arabic-Indic digit under a keycap keeps its digit, so
+# numbers are never corrupted (the soundness contract).
+COMBINING_KEYCAP = 0x20E3
 
 
 def _char_class_body(ranges: tuple[tuple[int, int], ...]) -> str:
@@ -514,8 +556,181 @@ def _char_class_body(ranges: tuple[tuple[int, int], ...]) -> str:
 
 _EMOJI_BASE_CLASS = _char_class_body(_EMOJI_BASE_RANGES)
 _EMOJI_MODIFIER_CLASS = _char_class_body(_EMOJI_MODIFIER_RANGES)
-# A base emoji with any trailing modifiers, then any number of ZWJ-joined further emoji+modifiers.
+_ZWJ = re.escape(chr(ZERO_WIDTH_JOINER))
+_KEYCAP = re.escape(chr(COMBINING_KEYCAP))
+_VS16 = re.escape(chr(0xFE0F))
+# A keycap sequence (ASCII base + optional VS16 + keycap) or a stray keycap mark, tried FIRST so
+# the ASCII base is consumed with its keycap; else a base emoji with any trailing modifiers, then
+# any number of ZWJ-joined further emoji+modifiers.
 EMOJI: re.Pattern[str] = re.compile(
+    rf"(?:[0-9#*]{_VS16}?{_KEYCAP})|{_KEYCAP}|"
     rf"[{_EMOJI_BASE_CLASS}][{_EMOJI_MODIFIER_CLASS}]*"
-    rf"(?:{re.escape(chr(ZERO_WIDTH_JOINER))}[{_EMOJI_BASE_CLASS}][{_EMOJI_MODIFIER_CLASS}]*)*"
+    rf"(?:{_ZWJ}[{_EMOJI_BASE_CLASS}][{_EMOJI_MODIFIER_CLASS}]*)*"
 )
+
+# StripBidi's contextual ZWJ rule (see the STRIP_BIDI note): delete a ZWJ UNLESS it joins two
+# emoji — i.e. unless it is directly preceded by a base emoji or emoji modifier (the tail of the
+# previous element, e.g. ❤️‍🔥 has VS16 before its joiner) AND directly followed by a base emoji.
+# The two alternatives each match the single joiner character, so substitution deletes exactly the
+# unflanked joiners; emoji-internal ones are never matched. Mirrors how EMOJI above consumes a ZWJ
+# only between emoji.
+ZWJ_OUTSIDE_EMOJI: re.Pattern[str] = re.compile(
+    rf"(?<![{_EMOJI_BASE_CLASS}{_EMOJI_MODIFIER_CLASS}]){_ZWJ}|{_ZWJ}(?![{_EMOJI_BASE_CLASS}])"
+)
+
+
+# --- CleanHashtags pattern (roadmap Phase 1) ----------------------------------------------------
+#
+# A hashtag: '#' followed by one or more word characters. `\w` is Unicode-aware, so an Arabic tag
+# (#اليوم_الوطني_السعودي) matches as readily as #latin_tag, and it includes the underscore the
+# SEGMENT mode rewrites to a space (the entrenched AraBERT recipe: drop '#', '_' -> ' '). The tag
+# body is captured so the segmenting substitution can reuse it. In SOCIAL, CleanURLs runs FIRST so
+# a URL fragment (https://x/page#section) is gone before this pattern could mistake it for a tag.
+HASHTAG: re.Pattern[str] = re.compile(r"#(\w+)")
+
+
+# --- Arabic word-interior class (RemoveTashkeel position="final", FoldTanweenAlef) --------------
+#
+# The word-end lookaheads below need "the next character does not continue an Arabic word". `\w`
+# cannot express that: Python's `re` does NOT count combining marks as word characters (verified —
+# a tashkeel mark is not `\w`), so a vocalized word would read as ending early. This class is the
+# explicit answer: every code point in the Arabic-script blocks whose general category is a letter
+# (L*) or a combining mark (M*), re-derived from the live UCD at import so it tracks Unicode
+# releases (the 0006 discipline). A character outside this class — whitespace, punctuation, a
+# digit, a Latin letter, end of text — ends the Arabic word.
+_ARABIC_SCRIPT_BLOCKS: tuple[tuple[int, int], ...] = (
+    (0x0600, 0x06FF),  # Arabic
+    (0x0750, 0x077F),  # Arabic Supplement
+    (0x0870, 0x089F),  # Arabic Extended-B
+    (0x08A0, 0x08FF),  # Arabic Extended-A
+    (0xFB50, 0xFDFF),  # Arabic Presentation Forms-A
+    (0xFE70, 0xFEFF),  # Arabic Presentation Forms-B
+    (0x10EC0, 0x10EFF),  # Arabic Extended-C
+)
+
+
+def _ranges_from_code_points(code_points: Iterable[int]) -> tuple[tuple[int, int], ...]:
+    """Compress a set of code points into maximal inclusive ranges (for a compact regex class)."""
+    ranges: list[tuple[int, int]] = []
+    for cp in sorted(code_points):
+        if ranges and cp == ranges[-1][1] + 1:
+            ranges[-1] = (ranges[-1][0], cp)
+        else:
+            ranges.append((cp, cp))
+    return tuple(ranges)
+
+
+def _build_arabic_word_class() -> str:
+    code_points = [
+        cp
+        for lo, hi in _ARABIC_SCRIPT_BLOCKS
+        for cp in range(lo, hi + 1)
+        if unicodedata.category(chr(cp))[0] in "LM"
+    ]
+    return _char_class_body(_ranges_from_code_points(code_points))
+
+
+ARABIC_WORD_CLASS: str = _build_arabic_word_class()
+
+
+# --- FoldTanweenAlef pattern (roadmap Phase 1) ---------------------------------------------------
+#
+# The adverbial-accusative spelling carries its tanween-fath on a FINAL CARRIER ALEF: كتاباً (or
+# the same two code points typed in the other order, كتابًا). For recall (SEARCH) the whole ending
+# folds away — RemoveTashkeel alone would strip only the mark and leave كتابا, a spelling that no
+# longer matches the bare كتاب. So this fold drops the carrier alef AND its fathatan together,
+# word-finally, BEFORE RemoveTashkeel runs (once the mark is gone, a carrier alef is
+# indistinguishable from a genuine final alef — the ordering is load-bearing). A tanween seated
+# directly on a letter (خطأً، مدرسةً) has no carrier alef and is left for RemoveTashkeel. Only the
+# standard fathatan U+064B participates; the Qur'anic typographic variants ride in QURANIC.
+FATHATAN: int = 0x064B
+_TANWEEN_ALEF_BODY = (
+    rf"(?:{re.escape(chr(BARE_ALEF))}{re.escape(chr(FATHATAN))}"
+    rf"|{re.escape(chr(FATHATAN))}{re.escape(chr(BARE_ALEF))})"
+)
+TANWEEN_ALEF: re.Pattern[str] = re.compile(rf"{_TANWEEN_ALEF_BODY}(?![{ARABIC_WORD_CLASS}])")
+
+
+# --- MapQuotes table (roadmap Phase 1) ------------------------------------------------------------
+#
+# Typographic quotation marks -> the straight ASCII pair, by visual family: the double-quote
+# family (guillemets «», the curly/low-9/reversed double quotes) -> '"', the single-quote family
+# (single guillemets ‹›, the curly/low-9/reversed single quotes) -> "'". One stated principle:
+# every Unicode Pi/Pf/Ps QUOTATION MARK pair that ordinary word processors and news sites emit is
+# folded; nothing else (no primes ′″ — those are measurement marks, not quotes). Arabic text uses
+# «» as its standard quotation style, so this is the tokenizer-uniformity fold for quoted Arabic.
+MAP_QUOTES: dict[int, str] = {
+    0x00AB: '"',  # « left guillemet
+    0x00BB: '"',  # » right guillemet
+    0x201C: '"',  # " left curly double
+    0x201D: '"',  # " right curly double
+    0x201E: '"',  # „ low-9 double
+    0x201F: '"',  # ‟ reversed double
+    0x2039: "'",  # ‹ single left guillemet
+    0x203A: "'",  # › single right guillemet
+    0x2018: "'",  # ' left curly single
+    0x2019: "'",  # ' right curly single
+    0x201A: "'",  # ‚ low-9 single
+    0x201B: "'",  # ‛ reversed single
+}
+
+
+# --- MapDigits dedicated-separator rule (roadmap 0.5) --------------------------------------------
+#
+# The DEDICATED Arabic number separators: decimal ٫ U+066B and thousands ٬ U+066C. MapDigits maps
+# the digits around them but deliberately leaves the separators to an opt-in knob
+# (`map_separators`), because rewriting them changes the number's script punctuation, not a digit
+# value. When the knob is on, a separator is rewritten ONLY when digit-flanked on both sides — the
+# inverse of MapPunctuation's guard, same contextual idea: between digits it IS a number
+# separator (٫ -> '.', ٬ -> ','); anywhere else it is left alone. `\d` matches all three digit
+# systems, so the guard holds whether the digit fold ran first or not. The date separator U+060D
+# stays out of scope (it has no ASCII equivalent that round-trips a date).
+ARABIC_NUMBER_SEPARATORS: dict[str, str] = {
+    chr(0x066B): ".",  # ٫ arabic decimal separator
+    chr(0x066C): ",",  # ٬ arabic thousands separator
+}
+_SEPARATOR_CHARS: str = "".join(re.escape(ch) for ch in ARABIC_NUMBER_SEPARATORS)
+NUMBER_SEPARATOR_BETWEEN_DIGITS: re.Pattern[str] = re.compile(rf"(?<=\d)[{_SEPARATOR_CHARS}](?=\d)")
+
+
+# --- RemovePunctuation code points (roadmap Phase 1) ----------------------------------------------
+#
+# Everything Unicode calls punctuation: general category P* (Po/Pd/Ps/Pe/Pi/Pf/Pc), which covers
+# the Arabic marks ، ؛ ؟ ۔ ٪ the ASCII set, and every other script's punctuation in one stated
+# principle. Computed LAZILY (a full-repertoire UCD scan is too slow for import time) and cached:
+# the first RemovePunctuation construction pays it once per process.
+@functools.cache
+def punctuation_code_points() -> frozenset[int]:
+    """Every code point with general category P*, scanned once from the live UCD."""
+    return frozenset(
+        cp for cp in range(sys.maxunicode + 1) if unicodedata.category(chr(cp)).startswith("P")
+    )
+
+
+# --- RemoveForeign pattern (roadmap Phase 1) ------------------------------------------------------
+#
+# A foreign span: a maximal run of non-Arabic-script LETTERS (with any combining marks riding
+# along, so a decomposed é travels with its e). One stated principle: a span must START with a
+# letter (category L*) outside the Arabic-script blocks; marks (M*) only CONTINUE a run. Starting
+# at a letter is load-bearing: a combining mark that follows a non-letter (e.g. the VS16 after an
+# emoji, a stray accent) never opens a span, so emoji presentation and Arabic text are untouched.
+# Digits, punctuation, whitespace, symbols and emoji are not letters and pass through — script
+# filtering removes foreign WORDS, not structure (RemovePunctuation/MapDigits own those concerns).
+# Computed lazily like the punctuation table (a full-repertoire UCD scan).
+@functools.cache
+def foreign_span_pattern() -> re.Pattern[str]:
+    """The compiled foreign-span matcher, built once per process from the live UCD."""
+    arabic = {cp for lo, hi in _ARABIC_SCRIPT_BLOCKS for cp in range(lo, hi + 1)}
+    letters: list[int] = []
+    marks: list[int] = []
+    for cp in range(sys.maxunicode + 1):
+        if cp in arabic:
+            continue
+        category = unicodedata.category(chr(cp))
+        if category.startswith("L"):
+            letters.append(cp)
+        elif category.startswith("M"):
+            marks.append(cp)
+    letter_class = _char_class_body(_ranges_from_code_points(letters))
+    mark_class = _char_class_body(_ranges_from_code_points(marks))
+    return re.compile(rf"[{letter_class}][{letter_class}{mark_class}]*")

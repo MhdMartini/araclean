@@ -8,6 +8,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from araclean import (
+    CleanHashtags,
     CleanHTML,
     CleanMentions,
     CleanMode,
@@ -20,21 +21,28 @@ from araclean import (
     FoldAlefMaqsura,
     FoldHamza,
     FoldPresentationForms,
+    FoldTanweenAlef,
     FoldTehMarbuta,
     HandleEmoji,
+    HashtagMode,
     MapDigits,
     MapPunctuation,
+    MapQuotes,
     MarkClass,
     NormalizeUnicode,
     Pipeline,
     ReduceElongation,
+    RemoveForeign,
+    RemovePunctuation,
     RemoveStopwords,
     RemoveTashkeel,
     RemoveTatweel,
     SafetyClass,
     StripBidi,
     TehMarbutaTarget,
+    Trim,
     UnifyLookalikes,
+    clean_hashtags,
     clean_html,
     clean_mentions,
     clean_urls,
@@ -43,18 +51,23 @@ from araclean import (
     fold_alef_maqsura,
     fold_hamza,
     fold_presentation_forms,
+    fold_tanween_alef,
     fold_teh_marbuta,
     handle_emoji,
     map_digits,
     map_punctuation,
+    map_quotes,
     normalize_unicode,
     reduce_elongation,
     registry,
+    remove_foreign,
+    remove_punctuation,
     remove_stopwords,
     remove_tashkeel,
     remove_tatweel,
     stopwords,
     strip_bidi,
+    trim,
     unify_lookalikes,
 )
 
@@ -474,7 +487,7 @@ def test_remove_tashkeel_serializes_its_selection() -> None:
     spec = step.to_dict()
     assert spec == {
         "name": "RemoveTashkeel",
-        "config": {"classes": ["harakat", "shadda"]},
+        "config": {"classes": ["harakat", "shadda"], "position": "all"},
     }
     rebuilt = RemoveTashkeel.from_dict(spec["config"])
     assert rebuilt == step  # value-equal (the precomputed table is excluded from equality)
@@ -962,7 +975,10 @@ def test_map_digits_safety_is_linguistic_folding() -> None:
 def test_map_digits_serializes_its_target() -> None:
     # The target round-trips so a digit-folding pipeline can be pinned and reproduced (0016).
     step = MapDigits(target=DigitTarget.ARABIC_INDIC)
-    assert step.to_dict() == {"name": "MapDigits", "config": {"target": "arabic_indic"}}
+    assert step.to_dict() == {
+        "name": "MapDigits",
+        "config": {"target": "arabic_indic", "map_separators": False},
+    }
     rebuilt = MapDigits.from_dict(step.to_dict()["config"])
     assert rebuilt == step
     assert rebuilt("123") == ARABIC_INDIC_123
@@ -1123,9 +1139,11 @@ def test_reduce_elongation_free_function_agrees_with_step() -> None:
 
 
 def test_reduce_elongation_serializes_its_cap() -> None:
-    # The cap round-trips so an elongation-reducing pipeline can be pinned and reproduced (0016).
+    # The cap AND the resolved trigger round-trip so an elongation-reducing pipeline can be pinned
+    # and reproduced (0016): min_run=None resolves to max(cap+1, 3) at construction, so the
+    # serialized form never carries the placeholder.
     step = ReduceElongation(cap=2)
-    assert step.to_dict() == {"name": "ReduceElongation", "config": {"cap": 2}}
+    assert step.to_dict() == {"name": "ReduceElongation", "config": {"cap": 2, "min_run": 3}}
     rebuilt = ReduceElongation.from_dict(step.to_dict()["config"])
     assert rebuilt == step
     assert rebuilt(ELONGATED) == REDUCED_CAP2
@@ -1439,15 +1457,24 @@ def test_handle_emoji_keep_and_strip_are_total_and_idempotent(text: str) -> None
 
 # --- RemoveStopwords (issue 0017, stories 36/37) — flat curated stopword list ------------------
 
-# الكتاب على الطاولة — "the book on the table". "على" (on) is a listed stopword; the two content
-# words keep their definite-article "ال" prefix (the list is flat, not clitic-aware — ADR-0001).
-_SENTENCE = "الكتاب على الطاولة"
+# الكتاب علي الطاولة — "the book on the table" in FOLDED form (the list ships folded, so the
+# preposition على reads علي after FoldAlefMaqsura — the text RemoveStopwords actually sees). The
+# two content words keep their definite-article "ال" prefix (flat, not clitic-aware — ADR-0001).
+_SENTENCE = "الكتاب علي الطاولة"
+_RAW_SENTENCE = "الكتاب على الطاولة"  # the unfolded spelling, as a user would type it
 
 
 def test_remove_stopwords_removes_listed_stopwords_keeping_content() -> None:
     # The stopword is deleted in place; the surrounding whitespace is left as written (so a gap is
-    # left where "على" was), exactly like the other delete-style cleaning steps (CleanURLs, 0012).
+    # left where the preposition was), exactly like the delete-style cleaning steps (CleanURLs).
     assert RemoveStopwords()(_SENTENCE) == "الكتاب  الطاولة"
+
+
+def test_remove_stopwords_matches_only_the_folded_spelling() -> None:
+    # The version-2 contract: the list ships FOLDED, so the bare step does nothing to an unfolded
+    # spelling (على with alef maqsura) — the required folds are what route every variant onto the
+    # list entry (the Pipeline enforces them; see the end-to-end test below).
+    assert RemoveStopwords()(_RAW_SENTENCE) == _RAW_SENTENCE
 
 
 def test_remove_stopwords_keeps_negation_particles() -> None:
@@ -1511,10 +1538,589 @@ def test_remove_stopwords_is_total_and_idempotent(text: str) -> None:
 
 
 def test_remove_stopwords_works_end_to_end_in_a_pipeline() -> None:
-    # End-to-end through Pipeline (story 36): the step composes, and a downstream CollapseWhitespace
-    # tidies the gaps a removal leaves, giving clean single-spaced content-word output.
-    pipe = Pipeline([RemoveStopwords(), CollapseWhitespace()])
-    assert pipe(_SENTENCE) == "الكتاب الطاولة"
+    # End-to-end through Pipeline (story 36): the required folds run first (the version-2 ordering
+    # contract), routing the RAW spelling (على with alef maqsura, hamza spellings, vocalization)
+    # onto the folded list; a downstream CollapseWhitespace tidies the gaps a removal leaves.
+    pipe = Pipeline(
+        [
+            RemoveTashkeel(),
+            FoldAlef(),
+            FoldAlefMaqsura(),
+            FoldHamza(),
+            RemoveStopwords(),
+            CollapseWhitespace(),
+        ]
+    )
+    assert pipe(_RAW_SENTENCE) == "الكتاب الطاولة"
+    # Robustness across real typed variants: canonical hamza, hamza-less, and vocalized spellings
+    # of "I am going to the house" all reduce to the same content words.
+    assert pipe("أنا ذاهب إلى البيت") == pipe("انا ذاهب الى البيت") == " ذاهب البيت"
+    assert pipe("فِي البيت") == " البيت"
     # The pipeline (and so the pinned list version) round-trips through (de)serialization.
     rebuilt = Pipeline.from_dict(pipe.to_dict())
-    assert rebuilt(_SENTENCE) == pipe(_SENTENCE)
+    assert rebuilt(_RAW_SENTENCE) == pipe(_RAW_SENTENCE)
+
+
+def test_remove_stopwords_ordering_contract_is_enforced_at_construction() -> None:
+    # The folded list assumes the folds ran first; a pipeline missing any of them is rejected when
+    # BUILT (fail fast, never a silent recall hole), naming what is missing.
+    with pytest.raises(ValueError, match="requires"):
+        Pipeline([RemoveStopwords()])
+    with pytest.raises(ValueError, match="FoldHamza"):
+        Pipeline([RemoveTashkeel(), FoldAlef(), FoldAlefMaqsura(), RemoveStopwords()])
+    # With every required fold ahead of it, construction succeeds.
+    Pipeline([RemoveTashkeel(), FoldAlef(), FoldAlefMaqsura(), FoldHamza(), RemoveStopwords()])
+
+
+# --- ReduceElongation min_run: the trigger knob (roadmap 0.1) -----------------------------------
+
+# Legitimately doubled-letter words (assimilated definite article, verb prefix, lexical doubles) —
+# the words cap=1's old runs-of-2 trigger used to corrupt.
+_DOUBLED_WORDS = ["الله", "اللغة", "الليل", "تتكلم", "ممكن", "مما"]
+
+
+@pytest.mark.parametrize("word", _DOUBLED_WORDS)
+def test_reduce_elongation_default_trigger_spares_legitimate_doubles(word: str) -> None:
+    # The 0.1 fix: with the default trigger (min_run = max(cap+1, 3) = 3 for cap=1), a legitimate
+    # doubled letter is NOT elongation — الله stays الله, ممكن stays ممكن, مما never becomes the
+    # negation particle ما.
+    assert ReduceElongation()(word) == word
+
+
+def test_reduce_elongation_default_trigger_still_collapses_triples() -> None:
+    # A TRIPLED letter is virtually nonexistent in real spelling, so 3+ is the elongation signal:
+    # a 3-run collapses all the way to the canonical single letter under cap=1.
+    triple = chr(0x062C) + chr(0x0645) + chr(0x064A) * 3 + chr(0x0644)  # جميييل
+    single = chr(0x062C) + chr(0x0645) + chr(0x064A) + chr(0x0644)  # جميل
+    assert ReduceElongation()(triple) == single
+
+
+def test_reduce_elongation_explicit_min_run_two_restores_the_aggressive_collapse() -> None:
+    # The trigger is a knob: min_run=2 deliberately opts back into collapsing doubles.
+    assert ReduceElongation(min_run=2)("ممكن") == "مكن"
+    assert reduce_elongation("ممكن", min_run=2) == "مكن"
+
+
+def test_reduce_elongation_resolves_and_round_trips_an_explicit_min_run() -> None:
+    step = ReduceElongation(cap=1, min_run=4)
+    assert step.to_dict() == {"name": "ReduceElongation", "config": {"cap": 1, "min_run": 4}}
+    rebuilt = ReduceElongation.from_dict(step.to_dict()["config"])
+    assert rebuilt == step
+    quad = chr(0x064A) * 4
+    assert rebuilt("ج" + quad) == "ج" + chr(0x064A)  # a 4-run collapses
+    assert rebuilt("ج" + chr(0x064A) * 3) == "ج" + chr(0x064A) * 3  # a 3-run is below the trigger
+    # An unset min_run resolves at construction, so equality is canonical either way.
+    assert ReduceElongation(cap=1) == ReduceElongation(cap=1, min_run=3)
+
+
+@pytest.mark.parametrize(("cap", "min_run"), [(1, 1), (2, 2), (2, 1), (3, 2)])
+def test_reduce_elongation_rejects_a_trigger_at_or_below_the_cap(cap: int, min_run: int) -> None:
+    # min_run <= cap would EXPAND short runs up to the cap instead of collapsing long ones.
+    with pytest.raises(ValueError, match="min_run"):
+        ReduceElongation(cap=cap, min_run=min_run)
+    with pytest.raises(ValueError, match="min_run"):
+        reduce_elongation("نص", cap=cap, min_run=min_run)
+
+
+@given(st.text())
+def test_reduce_elongation_with_min_run_is_total_and_idempotent(text: str) -> None:
+    for cap, min_run in ((1, None), (1, 2), (2, None), (1, 5)):
+        once = reduce_elongation(text, cap=cap, min_run=min_run)
+        assert reduce_elongation(once, cap=cap, min_run=min_run) == once
+
+
+# --- StripBidi: the contextual ZWJ rule (roadmap 0.2) -------------------------------------------
+
+_FAMILY = chr(0x1F468) + chr(0x200D) + chr(0x1F469) + chr(0x200D) + chr(0x1F467)  # 👨‍👩‍👧
+_DOCTOR = chr(0x1F468) + chr(0x200D) + chr(0x2695) + chr(0xFE0F)  # 👨‍⚕️
+_HEART_ON_FIRE = chr(0x2764) + chr(0xFE0F) + chr(0x200D) + chr(0x1F525)  # ❤️‍🔥 (VS16 before ZWJ)
+
+
+@pytest.mark.parametrize("sequence", [_FAMILY, _DOCTOR, _HEART_ON_FIRE])
+def test_strip_bidi_keeps_the_joiner_inside_an_emoji_sequence(sequence: str) -> None:
+    # Inside an emoji sequence the ZWJ is CONTENT: stripping it would split 👨‍👩‍👧 into three
+    # emoji (and change what a later HandleEmoji sees), so an emoji-flanked joiner survives.
+    assert StripBidi()(sequence) == sequence
+
+
+def test_strip_bidi_still_strips_the_joiner_between_arabic_letters() -> None:
+    # Outside emoji the ZWJ is invisible formatting, exactly as before.
+    assert StripBidi()(chr(0x0645) + chr(0x200D) + chr(0x062D)) == chr(0x0645) + chr(0x062D)
+
+
+def test_strip_bidi_strips_the_joiner_on_an_emoji_to_arabic_boundary() -> None:
+    # The documented residual: only an emoji-to-emoji joiner is content; one joining an emoji to
+    # an Arabic letter still goes.
+    text = chr(0x1F468) + chr(0x200D) + chr(0x0645)
+    assert StripBidi()(text) == chr(0x1F468) + chr(0x0645)
+
+
+def test_strip_bidi_then_emoji_strip_removes_a_sequence_whole() -> None:
+    # The 0.2 composition this fix exists for: LIGHT's StripBidi no longer pre-splits a ZWJ
+    # sequence, so a later HandleEmoji(strip) removes it as ONE unit, never leaving fragments.
+    pipe = Pipeline([StripBidi(), HandleEmoji(mode=EmojiMode.STRIP)])
+    assert pipe("a" + _FAMILY + "b") == "ab"
+    assert pipe("a" + _DOCTOR + "b") == "ab"
+
+
+# --- HandleEmoji: extended ranges + keycaps (roadmap 0.3) ---------------------------------------
+
+
+@pytest.mark.parametrize(
+    "emoji_char",
+    [
+        chr(0x2B50),  # ⭐ star
+        chr(0x23F0),  # ⏰ alarm clock
+        chr(0x231A),  # ⌚ watch
+        chr(0x23F3),  # ⏳ hourglass
+        chr(0x25B6) + chr(0xFE0F),  # ▶️ play (text-default + VS16)
+        chr(0x25C0) + chr(0xFE0F),  # ◀️ reverse
+        chr(0x1F197),  # 🆗 OK button
+        chr(0x1F170) + chr(0xFE0F),  # 🅰️ A button
+        chr(0x203C) + chr(0xFE0F),  # ‼️ double exclamation
+        chr(0x2049) + chr(0xFE0F),  # ⁉️ exclamation question
+        chr(0x1F0CF),  # 🃏 joker
+        chr(0x1F004),  # 🀄 mahjong red dragon
+        chr(0x2B55),  # ⭕ heavy circle
+        chr(0x2B05) + chr(0xFE0F),  # ⬅️ left arrow
+    ],
+)
+def test_handle_emoji_strip_covers_the_supplementary_singletons(emoji_char: str) -> None:
+    # The 0.3 gap: these are top-frequency emoji from blocks outside the original ranges (and the
+    # text-default singletons riding their VS16); strip removes each cleanly.
+    assert HandleEmoji(mode=EmojiMode.STRIP)(f"x{emoji_char}y") == "xy"
+
+
+def test_handle_emoji_strip_removes_a_keycap_sequence_with_its_ascii_base() -> None:
+    # A keycap emoji is [0-9#*] + optional VS16 + U+20E3; the ASCII base is part of the emoji, so
+    # 1️⃣ strips whole — no stray "1" is left behind.
+    keycap_one = "1" + chr(0xFE0F) + chr(0x20E3)
+    keycap_hash = "#" + chr(0x20E3)
+    assert HandleEmoji(mode=EmojiMode.STRIP)(f"a{keycap_one}b{keycap_hash}c") == "abc"
+
+
+def test_handle_emoji_strip_keycap_soundness_never_consumes_an_arabic_digit() -> None:
+    # Soundness: only the ASCII keycap bases join the sequence. A stray keycap mark on an
+    # Arabic-Indic digit strips alone, keeping the digit — numbers are never corrupted.
+    arabic_keycap = chr(0x0661) + chr(0x20E3)  # ١ + combining keycap
+    assert HandleEmoji(mode=EmojiMode.STRIP)(arabic_keycap) == chr(0x0661)
+    # And ordinary digits/text (no keycap) are untouched, as ever.
+    assert HandleEmoji(mode=EmojiMode.STRIP)("42 #tag") == "42 #tag"
+
+
+def test_handle_emoji_strip_leaves_plain_text_typography_alone() -> None:
+    # The stated exclusions: ©/®/™ are emoji-capable but their DOMINANT use is plain typography,
+    # so stripping them would corrupt ordinary text; they stay out of the set.
+    legal = "© 2026 araclean® — Arabic™"
+    assert HandleEmoji(mode=EmojiMode.STRIP)(legal) == legal
+
+
+# --- CleanMentions: email awareness (roadmap 0.5) -----------------------------------------------
+
+
+def test_clean_mentions_keeps_an_email_address_verbatim() -> None:
+    # user@example.com is an ADDRESS, not a mention: the email shape is matched first and passed
+    # through, in both delete and placeholder modes.
+    text = "راسلني user@example.com الآن"
+    assert CleanMentions()(text) == text
+    assert CleanMentions(mode=CleanMode.PLACEHOLDER)(text) == text
+
+
+def test_clean_mentions_still_rewrites_a_real_mention_next_to_an_email() -> None:
+    text = "via @user user@example.com"
+    assert CleanMentions()(text) == "via  user@example.com"
+
+
+def test_clean_mentions_dotless_host_residual_still_reads_as_a_mention() -> None:
+    # The documented residual: the email shape requires a dotted domain, so a dotless user@example
+    # has its host consumed as a mention (unchanged v1 behavior).
+    assert CleanMentions()("user@example") == "user"
+
+
+@given(st.text())
+def test_clean_mentions_email_aware_matching_is_total_and_idempotent(text: str) -> None:
+    for mode in (CleanMode.DELETE, CleanMode.PLACEHOLDER):
+        step = CleanMentions(mode=mode)
+        once = step(text)
+        assert step(once) == once
+
+
+# --- MapDigits: the dedicated-separator knob (roadmap 0.5) --------------------------------------
+
+_ARABIC_DECIMAL = chr(0x0661) + chr(0x0662) + chr(0x066B) + chr(0x0665)  # ١٢٫٥
+_ARABIC_GROUPED = chr(0x0661) + chr(0x066C) + chr(0x0660) * 3  # ١٬٠٠٠
+
+
+def test_map_digits_keeps_dedicated_separators_by_default() -> None:
+    # Without the knob the separators stay, producing the mixed-script number the roadmap flags.
+    assert MapDigits()(_ARABIC_DECIMAL) == "12" + chr(0x066B) + "5"
+
+
+def test_map_digits_map_separators_rewrites_digit_flanked_separators() -> None:
+    # Opt-in: a digit-flanked ٫ becomes '.' and ٬ becomes ',', so the number parses as ASCII.
+    step = MapDigits(map_separators=True)
+    assert step(_ARABIC_DECIMAL) == "12.5"
+    assert step(_ARABIC_GROUPED) == "1,000"
+    assert map_digits(_ARABIC_DECIMAL, map_separators=True) == "12.5"
+
+
+def test_map_digits_map_separators_leaves_a_stray_separator_alone() -> None:
+    # The digit-flanked guard (the inverse of MapPunctuation's): a separator NOT between digits is
+    # not a number separator, so it is left as written.
+    stray = "نص " + chr(0x066B) + " نص"
+    assert MapDigits(map_separators=True)(stray) == stray
+
+
+def test_map_digits_map_separators_serializes_and_round_trips() -> None:
+    step = MapDigits(map_separators=True)
+    assert step.to_dict() == {
+        "name": "MapDigits",
+        "config": {"target": "ascii", "map_separators": True},
+    }
+    rebuilt = MapDigits.from_dict(step.to_dict()["config"])
+    assert rebuilt == step
+    assert rebuilt(_ARABIC_DECIMAL) == "12.5"
+
+
+@given(st.text())
+def test_map_digits_map_separators_is_total_and_idempotent(text: str) -> None:
+    once = map_digits(text, map_separators=True)
+    assert map_digits(once, map_separators=True) == once
+
+
+# --- RemoveTashkeel: the position knob (roadmap Phase 1, PyArabic strip_lastharaka parity) ------
+
+_VOCALIZED_BOOK = (
+    chr(0x0643) + chr(0x0650) + chr(0x062A) + chr(0x064E) + chr(0x0627) + chr(0x0628) + chr(0x064C)
+)  # كِتَابٌ
+_BOOK_NO_FINAL = _VOCALIZED_BOOK[:-1]  # كِتَاب — word-internal vocalization kept
+
+
+def test_remove_tashkeel_final_drops_only_the_word_final_run() -> None:
+    # The i3rab fold: the case vowel at the word end goes; the internal vocalization stays.
+    assert RemoveTashkeel(position="final")(_VOCALIZED_BOOK) == _BOOK_NO_FINAL
+    assert remove_tashkeel(_VOCALIZED_BOOK, position="final") == _BOOK_NO_FINAL
+
+
+def test_remove_tashkeel_final_handles_every_word_in_a_sentence() -> None:
+    vocalized = _VOCALIZED_BOOK + " " + chr(0x0643) + chr(0x064E) + chr(0x062A) + chr(0x064E)
+    expected = _BOOK_NO_FINAL + " " + chr(0x0643) + chr(0x064E) + chr(0x062A)
+    assert RemoveTashkeel(position="final")(vocalized) == expected
+
+
+def test_remove_tashkeel_final_respects_the_class_selection() -> None:
+    # Only SELECTED classes are removed at the final position: with HARAKAT alone, a final
+    # shadda+fatha stack keeps its shadda (shadda is not selected; the fatha after it goes).
+    word = chr(0x062F) + chr(0x0651) + chr(0x064E)  # د + shadda + fatha
+    kept_shadda = chr(0x062F) + chr(0x0651)
+    assert RemoveTashkeel(classes={MarkClass.HARAKAT}, position="final")(word) == kept_shadda
+    # With every class selected the whole final run goes.
+    assert RemoveTashkeel(position="final")(word) == chr(0x062F)
+
+
+def test_remove_tashkeel_final_serializes_and_round_trips() -> None:
+    step = RemoveTashkeel(classes={MarkClass.HARAKAT, MarkClass.TANWEEN}, position="final")
+    spec = step.to_dict()
+    assert spec == {
+        "name": "RemoveTashkeel",
+        "config": {"classes": ["harakat", "tanween"], "position": "final"},
+    }
+    rebuilt = RemoveTashkeel.from_dict(spec["config"])
+    assert rebuilt == step
+    assert rebuilt(_VOCALIZED_BOOK) == step(_VOCALIZED_BOOK)
+    # A pre-position serialized form (no "position" key) still rehydrates to the default.
+    assert RemoveTashkeel.from_dict({"classes": ["harakat"]}).position == "all"
+
+
+def test_remove_tashkeel_rejects_an_unknown_position() -> None:
+    with pytest.raises(ValueError, match="position"):
+        RemoveTashkeel(position="middle")  # type: ignore[arg-type]  # prove runtime validation
+
+
+@given(st.text())
+def test_remove_tashkeel_final_is_total_and_idempotent(text: str) -> None:
+    once = remove_tashkeel(text, position="final")
+    assert remove_tashkeel(once, position="final") == once
+
+
+# --- CleanHashtags (roadmap Phase 1) -------------------------------------------------------------
+
+_ARABIC_TAG = (
+    "#"
+    + chr(0x0627)
+    + chr(0x0644)
+    + chr(0x064A)
+    + chr(0x0648)
+    + chr(0x0645)
+    + "_"
+    + (chr(0x0627) + chr(0x0644) + chr(0x0648) + chr(0x0637) + chr(0x0646) + chr(0x064A))
+)  # #اليوم_الوطني
+_SEGMENTED_TAG = _ARABIC_TAG[1:].replace("_", " ")  # اليوم الوطني
+
+
+def test_clean_hashtags_segment_drops_hash_and_maps_underscore_to_space() -> None:
+    # The entrenched AraBERT recipe (the SEGMENT default): the tag's words stay as content.
+    assert CleanHashtags()(_ARABIC_TAG) == _SEGMENTED_TAG
+    assert clean_hashtags(f"x {_ARABIC_TAG} y") == f"x {_SEGMENTED_TAG} y"
+
+
+def test_clean_hashtags_delete_placeholder_and_keep_modes() -> None:
+    assert CleanHashtags(mode=HashtagMode.DELETE)(f"x {_ARABIC_TAG} y") == "x  y"
+    assert CleanHashtags(mode=HashtagMode.PLACEHOLDER)(_ARABIC_TAG) == "[HASHTAG]"
+    token = "[" + chr(0x0648) + chr(0x0633) + chr(0x0645) + "]"  # [وسم]
+    assert CleanHashtags(mode=HashtagMode.PLACEHOLDER, placeholder=token)(_ARABIC_TAG) == token
+    assert CleanHashtags(mode=HashtagMode.KEEP)(_ARABIC_TAG) == _ARABIC_TAG
+
+
+def test_clean_hashtags_leaves_a_bare_hash_sign_alone() -> None:
+    assert CleanHashtags()("C# and # alone") == "C# and # alone"
+
+
+def test_clean_hashtags_safety_is_mode_dependent() -> None:
+    # KEEP is a lossless no-op; the rewriting modes discard social-metadata markup (ADR-0011).
+    assert CleanHashtags(mode=HashtagMode.KEEP).safety is SafetyClass.ENCODING_REPAIR
+    for mode in (HashtagMode.SEGMENT, HashtagMode.DELETE, HashtagMode.PLACEHOLDER):
+        assert CleanHashtags(mode=mode).safety is SafetyClass.CLEANING
+
+
+def test_clean_hashtags_free_function_agrees_with_step() -> None:
+    text = f"قال {_ARABIC_TAG} #tag_b"
+    assert clean_hashtags(text) == CleanHashtags()(text)
+    assert clean_hashtags(text, mode=HashtagMode.DELETE) == CleanHashtags(mode=HashtagMode.DELETE)(
+        text
+    )
+
+
+def test_clean_hashtags_serializes_its_mode_and_token_and_round_trips() -> None:
+    step = CleanHashtags(mode=HashtagMode.PLACEHOLDER, placeholder="[TAG]")
+    assert step.to_dict() == {
+        "name": "CleanHashtags",
+        "config": {"mode": "placeholder", "placeholder": "[TAG]"},
+    }
+    assert CleanHashtags.from_dict(step.to_dict()["config"]) == step
+    built = registry.build("CleanHashtags", {})  # bare config -> the segment default
+    assert isinstance(built, CleanHashtags)
+    assert built(_ARABIC_TAG) == _SEGMENTED_TAG
+
+
+@given(st.text())
+def test_clean_hashtags_is_total_and_idempotent(text: str) -> None:
+    for mode in HashtagMode:
+        step = CleanHashtags(mode=mode)
+        once = step(text)
+        assert step(once) == once
+
+
+# --- RemovePunctuation (roadmap Phase 1) ----------------------------------------------------------
+
+
+def test_remove_punctuation_deletes_arabic_and_ascii_punctuation_alike() -> None:
+    # One stated principle (category P*): the Arabic marks and the ASCII set go in the same pass.
+    text = "كتاب" + chr(0x060C) + " قلم" + chr(0x061F) + ' "نعم"! (j.k.)'
+    assert RemovePunctuation()(text) == "كتاب قلم نعم jk"
+    assert remove_punctuation(text) == RemovePunctuation()(text)
+
+
+def test_remove_punctuation_leaves_symbols_digits_and_letters() -> None:
+    # S* (math/currency), digits and letters are NOT punctuation; the boundary is the category.
+    text = "x + y = 3 $5 ١٢٣"
+    assert RemovePunctuation()(text) == text
+
+
+def test_remove_punctuation_keep_set_preserves_named_characters() -> None:
+    step = RemovePunctuation(keep=("-",))
+    assert step("a-b, c") == "a-b c"
+    with pytest.raises(ValueError, match="single character"):
+        RemovePunctuation(keep=("--",))
+
+
+def test_remove_punctuation_is_fusible_and_serializes_its_keep_set() -> None:
+    step = RemovePunctuation(keep=("-",))
+    assert step.to_dict() == {"name": "RemovePunctuation", "config": {"keep": ["-"]}}
+    assert RemovePunctuation.from_dict(step.to_dict()["config"]) == step
+    assert isinstance(registry.build("RemovePunctuation", {}), RemovePunctuation)
+    # The whole behavior is one translate table (the fused-engine seam).
+    assert step.translate_table[ord(",")] is None
+    assert ord("-") not in step.translate_table
+
+
+def test_remove_punctuation_safety_is_linguistic_folding() -> None:
+    assert RemovePunctuation().safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+@given(st.text())
+def test_remove_punctuation_is_total_and_idempotent(text: str) -> None:
+    once = remove_punctuation(text)
+    assert remove_punctuation(once) == once
+
+
+# --- FoldTanweenAlef (roadmap Phase 1) ------------------------------------------------------------
+
+_KITAB = chr(0x0643) + chr(0x062A) + chr(0x0627) + chr(0x0628)  # كتاب
+_KITABAN_ALEF_FIRST = _KITAB + chr(0x0627) + chr(0x064B)  # كتاباً (alef then fathatan)
+_KITABAN_MARK_FIRST = _KITAB + chr(0x064B) + chr(0x0627)  # كتابًا (fathatan then alef)
+
+
+def test_fold_tanween_alef_drops_the_carrier_in_both_typed_orders() -> None:
+    assert FoldTanweenAlef()(_KITABAN_ALEF_FIRST) == _KITAB
+    assert FoldTanweenAlef()(_KITABAN_MARK_FIRST) == _KITAB
+    assert fold_tanween_alef(_KITABAN_ALEF_FIRST) == _KITAB
+
+
+def test_fold_tanween_alef_only_fires_word_finally() -> None:
+    # A word-internal alef+fathatan pair (not the adverbial ending) is left alone.
+    internal = chr(0x0628) + chr(0x0627) + chr(0x064B) + chr(0x0628)  # باًب
+    assert FoldTanweenAlef()(internal) == internal
+
+
+def test_fold_tanween_alef_leaves_a_carrierless_tanween_to_remove_tashkeel() -> None:
+    # A tanween seated directly on a letter (خطأً) has no carrier alef: out of scope here.
+    khata = chr(0x062E) + chr(0x0637) + chr(0x0623) + chr(0x064B)  # خطأً
+    assert FoldTanweenAlef()(khata) == khata
+
+
+def test_fold_tanween_alef_safety_is_linguistic_folding() -> None:
+    assert FoldTanweenAlef().safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_fold_tanween_alef_serializes_and_round_trips() -> None:
+    step = FoldTanweenAlef()
+    assert step.to_dict() == {"name": "FoldTanweenAlef", "config": {}}
+    assert FoldTanweenAlef.from_dict({}) == step
+    assert isinstance(registry.build("FoldTanweenAlef", {}), FoldTanweenAlef)
+
+
+@given(st.text())
+def test_fold_tanween_alef_is_total_and_idempotent(text: str) -> None:
+    once = fold_tanween_alef(text)
+    assert fold_tanween_alef(once) == once
+
+
+# --- RemoveForeign (roadmap Phase 1) --------------------------------------------------------------
+
+
+def test_remove_foreign_deletes_non_arabic_letter_spans() -> None:
+    text = "النص hello world نص"
+    assert RemoveForeign()(text) == "النص   نص"
+    assert remove_foreign(text) == RemoveForeign()(text)
+
+
+def test_remove_foreign_takes_combining_marks_with_their_letters() -> None:
+    # A decomposed café (e + combining acute) travels whole — no orphaned accent is left.
+    decomposed = "caf" + "e" + chr(0x0301)
+    assert RemoveForeign()(f"نص {decomposed} نص") == "نص  نص"
+
+
+def test_remove_foreign_keeps_digits_punctuation_symbols_and_emoji() -> None:
+    # Script filtering removes foreign WORDS, not structure: digits (any system), punctuation,
+    # symbols and emoji — including the VS16 riding an emoji — pass through.
+    text = "نص 42 ١٢٣ ،؟ $+ " + chr(0x25B6) + chr(0xFE0F)
+    assert RemoveForeign()(text) == text
+
+
+def test_remove_foreign_placeholder_mode_swaps_in_the_token() -> None:
+    token = "[" + chr(0x0623) + chr(0x062C) + chr(0x0646) + chr(0x0628) + chr(0x064A) + "]"
+    step = RemoveForeign(mode=CleanMode.PLACEHOLDER, placeholder=token)
+    assert step("نص hello نص") == f"نص {token} نص"
+
+
+def test_remove_foreign_safety_is_cleaning() -> None:
+    assert RemoveForeign().safety is SafetyClass.CLEANING
+
+
+def test_remove_foreign_serializes_its_mode_and_token_and_round_trips() -> None:
+    step = RemoveForeign(mode=CleanMode.PLACEHOLDER, placeholder="[X]")
+    assert step.to_dict() == {
+        "name": "RemoveForeign",
+        "config": {"mode": "placeholder", "placeholder": "[X]"},
+    }
+    assert RemoveForeign.from_dict(step.to_dict()["config"]) == step
+    assert isinstance(registry.build("RemoveForeign", {}), RemoveForeign)
+
+
+@given(st.text())
+def test_remove_foreign_is_total_and_idempotent(text: str) -> None:
+    once = remove_foreign(text)
+    assert remove_foreign(once) == once
+
+
+# --- Trim (roadmap Phase 1) -----------------------------------------------------------------------
+
+
+def test_trim_strips_leading_and_trailing_unicode_whitespace() -> None:
+    text = chr(0x00A0) + " نص داخلي محفوظ \n"
+    assert Trim()(text) == "نص داخلي محفوظ"
+    assert trim(text) == Trim()(text)
+
+
+def test_trim_complements_collapse_whitespace_which_never_trims() -> None:
+    # The two contracts stay separate: collapse keeps an edge run (as one space); trim removes it.
+    edge = "  نص  "
+    assert CollapseWhitespace()(edge) == " نص "
+    assert Pipeline([CollapseWhitespace(), Trim()])(edge) == "نص"
+
+
+def test_trim_safety_is_encoding_repair() -> None:
+    assert Trim().safety is SafetyClass.ENCODING_REPAIR
+
+
+def test_trim_serializes_and_round_trips() -> None:
+    assert Trim().to_dict() == {"name": "Trim", "config": {}}
+    assert Trim.from_dict({}) == Trim()
+    assert isinstance(registry.build("Trim", {}), Trim)
+
+
+@given(st.text())
+def test_trim_is_total_and_idempotent(text: str) -> None:
+    once = trim(text)
+    assert trim(once) == once
+
+
+# --- MapQuotes (roadmap Phase 1) ------------------------------------------------------------------
+
+
+def test_map_quotes_folds_typographic_quotes_by_visual_family() -> None:
+    # Arabic's standard «» and the word-processor curly/low-9 variants land on the ASCII pair.
+    text = (
+        chr(0x00AB)
+        + "نص"
+        + chr(0x00BB)
+        + " "
+        + chr(0x201C)
+        + "x"
+        + chr(0x201D)
+        + " "
+        + chr(0x2018)
+        + "y"
+        + chr(0x2019)
+        + " "
+        + chr(0x201E)
+        + "z"
+        + chr(0x201F)
+    )
+    assert MapQuotes()(text) == '"نص" "x" \'y\' "z"'
+    assert map_quotes(text) == MapQuotes()(text)
+
+
+def test_map_quotes_leaves_ascii_quotes_and_primes_alone() -> None:
+    # Already-straight quotes are untouched; primes are measurement marks, not quotes.
+    text = "\"x\" 'y' 5" + chr(0x2032) + " 10" + chr(0x2033)
+    assert MapQuotes()(text) == text
+
+
+def test_map_quotes_safety_is_linguistic_folding() -> None:
+    assert MapQuotes().safety is SafetyClass.LINGUISTIC_FOLDING
+
+
+def test_map_quotes_is_fusible_and_serializes() -> None:
+    step = MapQuotes()
+    assert step.translate_table[0x00AB] == '"'
+    assert step.to_dict() == {"name": "MapQuotes", "config": {}}
+    assert MapQuotes.from_dict({}) == step
+    assert isinstance(registry.build("MapQuotes", {}), MapQuotes)
+
+
+@given(st.text())
+def test_map_quotes_is_total_and_idempotent(text: str) -> None:
+    once = map_quotes(text)
+    assert map_quotes(once) == once

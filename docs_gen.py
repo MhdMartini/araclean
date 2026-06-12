@@ -1,7 +1,7 @@
 """Generate the parts of the docs site that must never drift from the source of truth (0023).
 
 This is **build-time tooling, not part of the shipped package** — it lives at the repo root, outside
-`src/araclean`, so it never enters the wheel. It renders three kinds of artifact from their single
+`src/araclean`, so it never enters the wheel. It renders four kinds of artifact from their single
 source of truth and writes them under `docs/`:
 
   - **per-profile pages** (`docs/profiles/<name>.md`) — from `araclean`'s assembled `Pipeline`, so a
@@ -9,7 +9,10 @@ source of truth and writes them under `docs/`:
     safety class (lossless `encoding_repair` vs lossy `linguistic_folding` / `cleaning`, ADR-0004);
   - the **glossary page** (`docs/glossary.md`) and the **abbreviation include**
     (`docs/includes/abbreviations.md`) — both parsed from `GLOSSARY.md`, so the hover tooltips and
-    the rendered glossary cannot drift from the canonical terminology (ADR-0007).
+    the rendered glossary cannot drift from the canonical terminology (ADR-0007);
+  - the **CLI reference** (`docs/reference/cli.md`) — from the Typer/click command the `araclean`
+    entry point actually executes, so the published flags, accepted values, defaults and help text
+    cannot drift from the installed CLI (issue 0020's adapter, same discipline as the profiles).
 
 The generated files are committed; `tests/test_docs.py` regenerates in memory and fails if the
 committed copy is stale, the same commit-the-output-and-test-it discipline the syrupy snapshots use.
@@ -22,7 +25,9 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
+from typing import Any
 
 from araclean.config import ProfileName
 from araclean.pipeline import Pipeline
@@ -119,6 +124,106 @@ def render_profile_page(profile_name: str) -> str:
     lines += [
         "",
         "See the [API reference](../reference.md) for what each step does and how to configure it.",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def render_cli_page() -> str:
+    """Render the CLI reference page from the Typer app the `araclean` entry point executes.
+
+    Walks the click command `typer.main.get_command` builds from `araclean.cli.build_app()` — the
+    same object a real invocation runs — so the published option table (flags, accepted values,
+    defaults, help text) can never drift from the installed CLI. Needs Typer (the `[cli]` extra),
+    which the dev and docs environments both carry; the imports are local so importing this module
+    stays Typer-free. Parameters are read duck-typed (`param_type_name`, `opts`, `type.choices`):
+    Typer may vendor its own click shim, so `isinstance` checks against the standalone `click`
+    package are not reliable.
+    """
+    import typer.main
+
+    from araclean.cli import build_app
+
+    root = typer.main.get_command(build_app())
+    commands: dict[str, Any] = getattr(root, "commands", {})
+    command = commands["normalize"]
+
+    def flags(param: Any) -> str:
+        """The option/argument syntax cell: `[INPUT]`, or `--flag`, `-f` (and its off-switch)."""
+        if param.param_type_name == "argument":
+            return f"`{param.metavar or str(param.name or '').upper()}`"
+        rendered = ", ".join(f"`{opt}`" for opt in param.opts)
+        if param.secondary_opts:
+            rendered += " / " + ", ".join(f"`{opt}`" for opt in param.secondary_opts)
+        return rendered
+
+    def values(param: Any) -> str:
+        """The accepted-values cell: the closed choice set, `flag`, or the click type name."""
+        choices = getattr(param.type, "choices", None)
+        if choices:
+            return " · ".join(f"`{choice}`" for choice in choices)
+        if param.type.name == "boolean":
+            return "flag"
+        return f"`{param.type.name}`"
+
+    def default(param: Any) -> str:
+        """The default cell; `—` for None (= "use the profile's own default for that step")."""
+        value: object = param.default
+        if value is None:
+            return "—"
+        if isinstance(value, StrEnum):
+            value = value.value
+        if isinstance(value, bool):
+            return f"`{str(value).lower()}`"
+        return f"`{value}`"
+
+    lines = [
+        _GENERATED_BANNER,
+        "",
+        "# CLI reference",
+        "",
+        "The `araclean` command ships with the `[cli]` extra "
+        "(`pip install 'araclean[cli]'`). This page is generated from the CLI definition "
+        "itself, so it always matches the installed command; see the "
+        "[command-line guide](../guides/cli.md) for task-oriented examples.",
+        "",
+        "## `araclean normalize`",
+        "",
+        command.help or "",
+        "",
+        "```text",
+        "araclean normalize [OPTIONS] [INPUT]",
+        "```",
+        "",
+        "Reads UTF-8 text line by line — from `INPUT`, or stdin when it is omitted or `-` — and "
+        "writes each normalized line to stdout (or `--output`). The pipeline is built **once**, "
+        "then the text streams through it, so input larger than memory is fine. Option values are "
+        "validated before any input is read; an override that does not apply to the chosen "
+        "profile is rejected, never a silent no-op.",
+        "",
+        "| Option | Values | Default | What it does |",
+        "|--------|--------|---------|--------------|",
+    ]
+    for param in command.params:
+        if getattr(param, "hidden", False):
+            continue
+        help_text = str(getattr(param, "help", None) or "")
+        lines.append(f"| {flags(param)} | {values(param)} | {default(param)} | {help_text} |")
+    lines += [
+        "",
+        'A `—` default means "use the chosen profile\'s own default for that step".',
+        "",
+        "## Exit status",
+        "",
+        "| Code | Meaning |",
+        "|------|---------|",
+        "| `0` | Success. |",
+        "| `1` | A streaming failure: unreadable input/output, or an invalid `--jsonl` record "
+        "(the error names the line number). |",
+        "| `2` | Invalid options — an unknown profile, knob, or value — or the `[cli]` extra is "
+        "not installed. Nothing is read. |",
+        "",
+        "Errors go to stderr; normalized text is the only thing written to stdout.",
         "",
     ]
     return "\n".join(lines)
@@ -239,6 +344,7 @@ def generated_files() -> dict[Path, str]:
     files: dict[Path, str] = {
         DOCS_DIR / "glossary.md": render_glossary_page(entries),
         DOCS_DIR / "includes" / "abbreviations.md": render_abbreviations(entries),
+        DOCS_DIR / "reference" / "cli.md": render_cli_page(),
     }
     for member in ProfileName:
         files[DOCS_DIR / "profiles" / f"{member.value}.md"] = render_profile_page(member.value)

@@ -24,6 +24,7 @@ def test_audit_enumerates_the_linguistic_folding_steps_in_search_and_ml() -> Non
     search = Pipeline.from_profile(SEARCH).audit()
     assert not search.lossless
     assert set(search.linguistic_folding) == {
+        "FoldTanweenAlef",
         "RemoveTashkeel",
         "FoldAlef",
         "FoldHamza",
@@ -42,10 +43,11 @@ def test_audit_enumerates_the_linguistic_folding_steps_in_search_and_ml() -> Non
 
 def test_audit_separates_cleaning_from_linguistic_folding_in_social() -> None:
     # SOCIAL loses both kinds: the audit reports them in distinct buckets (ADR-0011) so an auditor
-    # sees it strips noise (URLs/mentions/HTML) AND folds the language (tashkeel/elongation).
+    # sees it strips noise (URLs/mentions/hashtags/HTML) AND folds the language
+    # (tashkeel/elongation).
     social = Pipeline.from_profile(SOCIAL).audit()
     assert not social.lossless
-    assert set(social.cleaning) == {"CleanURLs", "CleanMentions", "CleanHTML"}
+    assert set(social.cleaning) == {"CleanURLs", "CleanMentions", "CleanHashtags", "CleanHTML"}
     assert set(social.linguistic_folding) == {"RemoveTashkeel", "ReduceElongation"}
     # HandleEmoji(keep) is a lossless no-op, so it audits as ENCODING_REPAIR, not as loss.
     assert "HandleEmoji" in social.encoding_repair
@@ -260,3 +262,108 @@ def test_the_facade_validates_but_the_per_string_core_does_not() -> None:
     assert not hasattr(Pipeline.batch, "raw_function")
     assert not hasattr(reduce_elongation, "raw_function")
     assert not hasattr(remove_tashkeel, "raw_function")
+
+
+# --- map_digits is ML-only (roadmap 0.5) ----------------------------------------------------------
+
+
+@pytest.mark.parametrize("profile", ["light", "classical", "social", "search"])
+def test_map_digits_is_rejected_off_its_owner_profile(profile: str) -> None:
+    # The one override that used to escape the "must name a step the profile has" rule: it
+    # APPENDED a lossy step to any profile, silently making the lossless default lossy. Now it is
+    # ML's knob alone; everywhere else it fails loudly with the alternative named.
+    with pytest.raises(ValueError, match="map_digits"):
+        normalize(_ARABIC_INDIC_123, profile=profile, map_digits=True)
+
+
+def test_map_digits_false_is_accepted_everywhere() -> None:
+    # The default (off) is not an override — passing it explicitly anywhere stays a no-op.
+    assert normalize(_ARABIC_INDIC_123, profile="light", map_digits=False) == _ARABIC_INDIC_123
+
+
+# --- remove_stopwords: SEARCH's opt-in stopword removal (roadmap 0.4 / Phase 1 knob tier) --------
+
+
+def test_search_remove_stopwords_removes_across_spelling_variants() -> None:
+    # The folded-list design end to end: canonical hamza spellings, hamza-less typed text and
+    # vocalized text all reduce to the same content words, and the closing Trim drops the edge gap.
+    canonical = normalize("أنا ذاهب إلى البيت", profile="search", remove_stopwords=True)
+    typed = normalize("انا ذاهب الى البيت", profile="search", remove_stopwords=True)
+    vocalized = normalize("فِي البيتِ", profile="search", remove_stopwords=True)
+    assert canonical == typed == "ذاهب البيت"
+    assert vocalized == "البيت"
+
+
+def test_search_remove_stopwords_keeps_negation() -> None:
+    # Negation safety survives the knob: the polarity particles are not in the list.
+    out = normalize("هذا ليس صحيحا", profile="search", remove_stopwords=True)
+    assert "ليس" in out
+
+
+def test_remove_stopwords_is_rejected_off_search() -> None:
+    for profile in ("light", "ml", "classical", "social"):
+        with pytest.raises(ValueError, match="remove_stopwords"):
+            normalize("x", profile=profile, remove_stopwords=True)
+
+
+def test_search_remove_stopwords_resolved_profile_orders_the_steps_correctly() -> None:
+    # The resolved profile inserts RemoveStopwords after every fold and before the closing
+    # whitespace/NFC tail, then appends Trim — so the ordering contract holds by construction.
+    from araclean import NormalizeConfig
+
+    resolved = NormalizeConfig.model_validate(
+        {"profile": "search", "remove_stopwords": True}
+    ).resolve()
+    names = [spec.name for spec in resolved.steps]
+    assert names.index("RemoveStopwords") > names.index("FoldHamza")
+    assert names[-3:] == ["CollapseWhitespace", "NormalizeUnicode", "Trim"]
+    Pipeline.from_profile(resolved)  # constructs: the enforcement check passes
+
+
+# --- The new patch-knob tier: teh_marbuta, tashkeel_classes, collapse_lines, hashtags ------------
+
+
+def test_teh_marbuta_override_retargets_the_search_fold() -> None:
+    # SEARCH folds ة -> heh by default; the knob retargets to teh or pins "keep".
+    assert normalize(_MADRASA, profile="search").endswith(chr(0x0647))  # default -> heh
+    as_teh = normalize(_MADRASA, profile="search", teh_marbuta="teh")
+    assert as_teh.endswith(chr(0x062A))
+    kept = normalize(_MADRASA, profile="search", teh_marbuta="keep")
+    assert kept.endswith(chr(0x0629))
+    with pytest.raises(ValueError, match="teh_marbuta"):
+        normalize(_MADRASA, profile="light", teh_marbuta="teh")  # LIGHT has no fold to configure
+
+
+def test_tashkeel_classes_override_selects_the_marks_to_remove() -> None:
+    # ML removes every class by default; selecting only HARAKAT keeps a meaningful shadda.
+    vocalized = chr(0x0646) + chr(0x064E) + chr(0x0635) + chr(0x0651)  # نَصّ
+    assert normalize(vocalized, profile="ml") == chr(0x0646) + chr(0x0635)
+    kept_shadda = normalize(vocalized, profile="ml", tashkeel_classes=["harakat"])
+    assert kept_shadda == chr(0x0646) + chr(0x0635) + chr(0x0651)
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        normalize(vocalized, profile="ml", tashkeel_classes=["nonsense"])
+
+
+def test_collapse_lines_override_flips_line_handling_both_ways() -> None:
+    # ADR-0010 as a knob: SEARCH flattens lines by default but can preserve them; LIGHT preserves
+    # by default but can flatten (an explicit, audit-visible choice).
+    text = "a\nb"
+    assert normalize(text, profile="search") == "a b"  # default flattens
+    assert normalize(text, profile="search", collapse_lines=False) == "a\nb"
+    assert normalize(text, profile="light") == "a\nb"  # default preserves
+    assert normalize(text, profile="light", collapse_lines=True) == "a b"
+
+
+def test_hashtag_mode_and_token_overrides_reconfigure_social() -> None:
+    tag = "#" + chr(0x0648) + chr(0x0633) + chr(0x0645)  # #وسم
+    assert normalize(tag, profile="social") == tag[1:]  # default segments
+    assert normalize(tag, profile="social", hashtag_mode="keep") == tag
+    assert normalize(tag, profile="social", hashtag_mode="delete") == ""
+    token = "[TAG]"
+    assert (
+        normalize(tag, profile="social", hashtag_mode="placeholder", hashtag_token=token) == token
+    )
+    with pytest.raises(ValueError, match="hashtag"):
+        normalize(tag, profile="light", hashtag_mode="keep")

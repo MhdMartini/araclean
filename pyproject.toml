@@ -109,6 +109,12 @@ docs = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.4",
+    # `mike` publishes versioned docs to the `gh-pages` branch (issue 0024, story 52): each release
+    # tag deploys a pinned X.Y.Z version with a moving `latest` alias, so the docs a reader sees match
+    # the araclean version they installed. Only the CI `docs-deploy` job invokes it; a plain
+    # `mkdocs build` never needs it (the theme's version selector reads gh-pages' versions.json at
+    # runtime, so it adds no build-time requirement and the `docs` strict-build job stays unaffected).
+    "mike>=2.1",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -126,7 +132,14 @@ src = ["src", "tests"]
 # check still guards the rest of the codebase. Extend as later steps introduce more Arabic.
 # Digits (issue 0008): the Arabic-Indic / Extended zero ٠ ۰ look like ".", the one ١ like "l", and
 # the decimal separator ٫ like ",". They are documented in MapDigits/MapPunctuation prose on purpose.
-allowed-confusables = ["ا", "ه", "ہ", "ە", "ھ", "٠", "۰", "١", "٫"]
+# Quote/typography glyphs (MapQuotes, roadmap Phase 1) and emoji-exclusion prose (roadmap 0.3):
+# the single guillemets ‹ ›, the low-9/reversed singles ‚ ‛, the prime ′ and the info source ℹ are
+# named deliberately in comments documenting what a table folds or deliberately excludes; the
+# Arabic full stop ۔ and Arabic-Indic five ٥ likewise (RemovePunctuation / the stopword policy).
+allowed-confusables = [
+    "ا", "ه", "ہ", "ە", "ھ", "٠", "۰", "١", "٫",
+    "‹", "›", "‚", "‛", "′", "ℹ", "۔", "٥",
+]
 select = [
     "E",   # pycodestyle errors
     "W",   # pycodestyle warnings

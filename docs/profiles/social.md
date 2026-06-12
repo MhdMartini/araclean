@@ -2,7 +2,7 @@
 
 # `SOCIAL` profile
 
-**Lossy — opt-in.** Alongside 10 lossless encoding-repair steps it applies 2 lossy *linguistic folding* steps and 3 *cleaning* steps that discard information, so it is never the default (ADR-0004).
+**Lossy — opt-in.** Alongside 10 lossless encoding-repair steps it applies 2 lossy *linguistic folding* steps and 4 *cleaning* steps that discard information, so it is never the default (ADR-0004).
 
 It assembles these steps, in order:
 
@@ -17,11 +17,12 @@ It assembles these steps, in order:
 | 7 | `NormalizeUnicode` | `encoding_repair` | ✓ lossless |
 | 8 | `CleanURLs` | `cleaning` | ✗ lossy — non-linguistic noise |
 | 9 | `CleanMentions` | `cleaning` | ✗ lossy — non-linguistic noise |
-| 10 | `CleanHTML` | `cleaning` | ✗ lossy — non-linguistic noise |
-| 11 | `RemoveTashkeel` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 12 | `ReduceElongation` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
-| 13 | `HandleEmoji` | `encoding_repair` | ✓ lossless |
-| 14 | `CollapseWhitespace` | `encoding_repair` | ✓ lossless |
-| 15 | `NormalizeUnicode` | `encoding_repair` | ✓ lossless |
+| 10 | `CleanHashtags` | `cleaning` | ✗ lossy — non-linguistic noise |
+| 11 | `CleanHTML` | `cleaning` | ✗ lossy — non-linguistic noise |
+| 12 | `RemoveTashkeel` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 13 | `ReduceElongation` | `linguistic_folding` | ✗ lossy — a linguistic distinction |
+| 14 | `HandleEmoji` | `encoding_repair` | ✓ lossless |
+| 15 | `CollapseWhitespace` | `encoding_repair` | ✓ lossless |
+| 16 | `NormalizeUnicode` | `encoding_repair` | ✓ lossless |
 
 See the [API reference](../reference.md) for what each step does and how to configure it.

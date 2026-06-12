@@ -12,7 +12,8 @@ profile is only as lossy as its steps:
   signal. The default `LIGHT` profile is *only* encoding repair.
 - **`linguistic_folding`** — lossy. Discards a linguistic distinction *within* the Arabic text
   (dediacritization, alef/hamza/teh-marbuta/alef-maqsura folding, digit/punctuation mapping).
-- **`cleaning`** — lossy. Removes *non-linguistic noise* around the text (URLs, mentions, HTML).
+- **`cleaning`** — lossy. Removes *non-linguistic noise* around the text (URLs, mentions,
+  hashtags, HTML, foreign-script spans).
 
 Each profile page below enumerates exactly the steps it applies, in order, and labels each one
 lossless or lossy — so you can choose with full knowledge of the trade-off.
@@ -27,3 +28,8 @@ lossless or lossy — so you can choose with full knowledge of the trade-off.
 
 The lossless/lossy labels and the per-profile step lists are generated from the assembled pipeline
 itself, so they always match what the code actually does.
+
+A profile is a starting point, not a take-it-or-leave-it bundle: per-knob overrides adjust one
+behavior with loud validation (see [Tuning profiles](../guides/tuning-profiles.md)), and `drop`/
+`select`/explicit construction give you full control of the step sequence (see
+[Composing pipelines](../guides/composing-pipelines.md)).

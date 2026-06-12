@@ -95,6 +95,12 @@ class SupportsTranslate(Step, Protocol):
     *contextual* steps (`NormalizeUnicode`, and the regex `CollapseWhitespace` / `MapPunctuation` /
     `ReduceElongation` / cleaning steps) do not implement this and stay their own pass, so ordering
     across them is never disturbed.
+
+    A step whose fusibility depends on its CONFIG (`RemoveTashkeel` is pure translate for
+    ``position="all"`` but contextual for ``"final"``; `MapDigits` likewise with
+    ``map_separators=True``) raises `AttributeError` from `translate_table` in its contextual
+    mode — the fusion planner reads that as "not fusible here" and leaves the step its own pass.
+    (An ``isinstance`` check alone cannot see this: the property exists on the class either way.)
     """
 
     @property
@@ -211,7 +217,7 @@ registry.register(RemoveTatweel.name, RemoveTatweel.from_dict)
 
 def strip_bidi(s: str, /) -> str:
     """Remove bidi controls, zero-width characters and the BOM — lossless encoding repair."""
-    return s.translate(chars.STRIP_BIDI)
+    return chars.ZWJ_OUTSIDE_EMOJI.sub("", s).translate(chars.STRIP_BIDI)
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,8 +225,15 @@ class StripBidi:
     """Remove bidi controls, zero-width characters and the BOM — lossless encoding repair.
 
     English: *bidi/zero-width stripping*. RLM/LRM/ALM and the embedding/isolate controls, the
-    zero-width joiner/non-joiner/space/word-joiner, and the BOM are invisible: they carry no
-    Arabic letter content yet break equality and tokenization, so they are deleted outright.
+    zero-width non-joiner/space/word-joiner, and the BOM are invisible: they carry no Arabic
+    letter content yet break equality and tokenization, so they are deleted outright.
+
+    The zero-width JOINER U+200D is the one CONTEXTUAL case: inside an emoji sequence (👨‍👩‍👧,
+    👨‍⚕️) the joiner is content — deleting it would split the sequence into its component emoji
+    (and alter what a later `HandleEmoji` sees), so a ZWJ flanked by emoji is KEPT and every other
+    ZWJ is stripped. Residual: a joiner between an emoji and an Arabic letter still goes. That one
+    rule is a regex pass, so unlike the other LIGHT repairs this step is contextual and stays its
+    own pass — it does not join the 0018 fused-translate engine (ADR-0006).
     """
 
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
@@ -229,11 +242,6 @@ class StripBidi:
 
     def __call__(self, s: str, /) -> str:
         return strip_bidi(s)
-
-    @property
-    def translate_table(self) -> dict[int, None]:
-        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
-        return chars.STRIP_BIDI
 
     def to_dict(self) -> StepDict:
         return {"name": self.name, "config": {}}
@@ -377,14 +385,36 @@ def _tashkeel_removal_table(classes: Collection[MarkClass]) -> dict[int, None]:
     return dict.fromkeys(code_points)
 
 
-def remove_tashkeel(s: str, /, *, classes: Collection[MarkClass] | None = None) -> str:
+type TashkeelPosition = Literal["all", "final"]
+
+
+def _final_tashkeel_pattern(code_points: Collection[int]) -> re.Pattern[str]:
+    """Compile the WORD-FINAL matcher for the selected marks: a run of them not followed by a
+    character that continues an Arabic word (a letter or any combining mark). A run followed by an
+    UNSELECTED mark is word-internal and kept — only the trailing run at the very word end goes."""
+    mark_class = "".join(re.escape(chr(cp)) for cp in sorted(code_points))
+    return re.compile(rf"[{mark_class}]+(?![{chars.ARABIC_WORD_CLASS}])")
+
+
+def remove_tashkeel(
+    s: str,
+    /,
+    *,
+    classes: Collection[MarkClass] | None = None,
+    position: TashkeelPosition = "all",
+) -> str:
     """Remove the selected tashkeel mark classes (default: all) — lossy linguistic folding.
 
     English: *dediacritization*. Deletes only the vocalization marks of the chosen `MarkClass`es,
     never their carrier letters. ``classes=None`` removes every class. Sukun rides with `HARAKAT`.
+    ``position="final"`` removes only a word-final run of the selected marks (the i3rab case-vowel
+    fold: كَتَبَ → كَتَب), everywhere by default.
     """
     selected = ALL_MARK_CLASSES if classes is None else classes
-    return s.translate(_tashkeel_removal_table(selected))
+    table = _tashkeel_removal_table(selected)
+    if position == "final":
+        return _final_tashkeel_pattern(table).sub("", s)
+    return s.translate(table)
 
 
 @dataclass(frozen=True, slots=True)
@@ -401,35 +431,72 @@ class RemoveTashkeel:
     vowel, not a haraka, but stripping the vowels while leaving a bare sukun is never wanted). The
     orthographic combining madda U+0653 is removed with `MADDA`; the alef-with-madda letter آ U+0622
     is letter folding (issue 0007), kept here.
+
+    `position` selects WHERE the chosen marks are removed: ``"all"`` (the default) everywhere via
+    one `str.translate` pass; ``"final"`` only a WORD-FINAL run of them — the i3rab fold (drop the
+    case vowel, keep the word-internal vocalization: كِتَابٌ → كِتَاب), PyArabic's
+    ``strip_lastharaka`` parity. A trailing run followed by an *unselected* mark counts as
+    word-internal and is kept. ``"final"`` is a contextual regex rule, so in that mode the step
+    stays its own pass and does not join the 0018 fused-translate engine (its `translate_table`
+    raises `AttributeError`, which the planner reads as "not fusible").
     """
 
     classes: Collection[MarkClass] = ALL_MARK_CLASSES
+    position: TashkeelPosition = "all"
     # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
-    # and repr since it is a derived view of `classes`.
+    # and repr since they are a derived view of `classes`/`position`.
     _table: dict[int, None] = field(init=False, repr=False, compare=False)
+    _apply: Callable[[str], str] = field(init=False, repr=False, compare=False)
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
     safety = SafetyClass.LINGUISTIC_FOLDING
     name: ClassVar[str] = "RemoveTashkeel"
 
     def __post_init__(self) -> None:
         # Normalize any selection (set/list/...) to a frozenset so equality and serialization are
-        # order-insensitive and stable, then precompute the deletion table once.
+        # order-insensitive and stable, then precompute the deletion table (or final-run regex)
+        # once.
         classes = frozenset(self.classes)
         object.__setattr__(self, "classes", classes)
-        object.__setattr__(self, "_table", _tashkeel_removal_table(classes))
+        table = _tashkeel_removal_table(classes)
+        object.__setattr__(self, "_table", table)
+        if self.position == "all":
+
+            def apply(s: str, /) -> str:
+                return s.translate(table)
+        elif self.position == "final":
+            pattern = _final_tashkeel_pattern(table)
+
+            def apply(s: str, /) -> str:
+                return pattern.sub("", s)
+        else:
+            raise ValueError(
+                f"RemoveTashkeel position must be 'all' or 'final', got {self.position!r}"
+            )
+        object.__setattr__(self, "_apply", apply)
 
     def __call__(self, s: str, /) -> str:
-        return s.translate(self._table)
+        return self._apply(s)
 
     @property
     def translate_table(self) -> dict[int, None]:
-        """The precomputed `str.translate` deletion table — the fused-engine seam (0018)."""
+        """The precomputed `str.translate` deletion table — the fused-engine seam (0018).
+
+        Only ``position="all"`` IS one translate pass; ``"final"`` is contextual, so this raises
+        `AttributeError` and the fusion planner leaves the step as its own pass.
+        """
+        if self.position != "all":
+            raise AttributeError(
+                "RemoveTashkeel(position='final') is contextual — no single translate table"
+            )
         return self._table
 
     def to_dict(self) -> StepDict:
         return {
             "name": self.name,
-            "config": {"classes": sorted(mark_class.value for mark_class in self.classes)},
+            "config": {
+                "classes": sorted(mark_class.value for mark_class in self.classes),
+                "position": self.position,
+            },
         }
 
     @classmethod
@@ -694,9 +761,23 @@ def _digit_table(target: DigitTarget) -> dict[int, str]:
     return table
 
 
-def map_digits(s: str, /, *, target: DigitTarget = DigitTarget.ASCII) -> str:
-    """Convert digits among Arabic-Indic / Extended / ASCII to a target (ASCII default) — lossy."""
-    return s.translate(_digit_table(target))
+def _map_separators(s: str, /) -> str:
+    """Rewrite the dedicated Arabic number separators when digit-flanked: ٫ → '.', ٬ → ','."""
+    return chars.NUMBER_SEPARATOR_BETWEEN_DIGITS.sub(
+        lambda m: chars.ARABIC_NUMBER_SEPARATORS[m.group()], s
+    )
+
+
+def map_digits(
+    s: str, /, *, target: DigitTarget = DigitTarget.ASCII, map_separators: bool = False
+) -> str:
+    """Convert digits among Arabic-Indic / Extended / ASCII to a target (ASCII default) — lossy.
+
+    ``map_separators=True`` also rewrites the dedicated Arabic decimal/thousands separators when
+    digit-flanked (٫ → ``.``, ٬ → ``,``), so ١٢٫٥ becomes 12.5 rather than the mixed-script 12٫5.
+    """
+    converted = s.translate(_digit_table(target))
+    return _map_separators(converted) if map_separators else converted
 
 
 @dataclass(frozen=True, slots=True)
@@ -708,9 +789,18 @@ class MapDigits:
     consistently regardless of how they were typed (story 31). The default target is `ASCII`. The
     map erases which script a digit was written in, so `safety` is `LINGUISTIC_FOLDING`: opt-in via
     a lossy profile or an explicit step, never under `LIGHT`.
+
+    The dedicated Arabic number separators (decimal ٫ U+066B, thousands ٬ U+066C) are NOT digits,
+    so by default they stay — ١٢٫٥ becomes the mixed-script 12٫5. The opt-in
+    ``map_separators=True`` also rewrites a separator when digit-flanked on BOTH sides (٫ → ``.``,
+    ٬ → ``,``; the inverse of `MapPunctuation`'s guard), giving 12.5; a stray separator outside a
+    number is never touched. That guard is a contextual regex, so with the knob on the step stays
+    its own pass and does not join the 0018 fused-translate engine (its `translate_table` raises
+    `AttributeError`, which the planner reads as "not fusible").
     """
 
     target: DigitTarget = DigitTarget.ASCII
+    map_separators: bool = False
     # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
     # and repr since it is a derived view of `target`.
     _table: dict[int, str] = field(init=False, repr=False, compare=False)
@@ -726,15 +816,28 @@ class MapDigits:
         object.__setattr__(self, "_table", _digit_table(target))
 
     def __call__(self, s: str, /) -> str:
-        return s.translate(self._table)
+        converted = s.translate(self._table)
+        return _map_separators(converted) if self.map_separators else converted
 
     @property
     def translate_table(self) -> dict[int, str]:
-        """The precomputed `str.translate` table this step applies — fused-engine seam (0018)."""
+        """The precomputed `str.translate` table this step applies — fused-engine seam (0018).
+
+        Only the pure digit map IS one translate pass; with ``map_separators=True`` the
+        digit-flanked guard is contextual, so this raises `AttributeError` and the fusion planner
+        leaves the step as its own pass.
+        """
+        if self.map_separators:
+            raise AttributeError(
+                "MapDigits(map_separators=True) is contextual — no single translate table"
+            )
         return self._table
 
     def to_dict(self) -> StepDict:
-        return {"name": self.name, "config": {"target": self.target.value}}
+        return {
+            "name": self.name,
+            "config": {"target": self.target.value, "map_separators": self.map_separators},
+        }
 
     @classmethod
     def from_dict(cls, config: Mapping[str, Any]) -> Self:
@@ -782,40 +885,64 @@ class MapPunctuation:
 registry.register(MapPunctuation.name, MapPunctuation.from_dict)
 
 
-def _compile_elongation(cap: int) -> tuple[re.Pattern[str], str]:
-    """Build the (pattern, replacement) for capping a repeated-letter run at `cap` copies.
+def _resolve_min_run(cap: int, min_run: int | None) -> int:
+    """Resolve the elongation trigger: ``max(cap + 1, 3)`` when unset (see `ReduceElongation`)."""
+    return max(cap + 1, 3) if min_run is None else min_run
 
-    The pattern matches a letter followed by `cap`-or-more of the same letter (a run longer than
-    `cap`); the replacement re-emits the captured letter `cap` times. `cap` must be >= 1 — `cap < 1`
-    would match a lone letter and replace it with nothing, i.e. delete letters, so it is rejected.
+
+def _compile_elongation(cap: int, min_run: int | None) -> tuple[re.Pattern[str], str]:
+    """Build the (pattern, replacement) collapsing runs of >= `min_run` letters to `cap` copies.
+
+    The pattern matches a letter followed by ``min_run - 1``-or-more of the same letter (a run of
+    at least `min_run`); the replacement re-emits the captured letter `cap` times. `cap` must be
+    >= 1 — `cap < 1` would match a lone letter and replace it with nothing, i.e. delete letters,
+    so it is rejected. `min_run` must be > `cap` — a trigger at or below the cap would EXPAND a
+    short run up to `cap` copies instead of only collapsing long ones.
     """
     if cap < 1:
         raise ValueError(f"ReduceElongation cap must be >= 1, got {cap}")
-    pattern = re.compile(rf"(?P<c>[{chars.ELONGATABLE_CLASS}])(?P=c){{{cap},}}")
+    resolved = _resolve_min_run(cap, min_run)
+    if resolved <= cap:
+        raise ValueError(
+            f"ReduceElongation min_run must be > cap so the step only collapses runs longer than "
+            f"the cap; got min_run={resolved} with cap={cap}."
+        )
+    pattern = re.compile(rf"(?P<c>[{chars.ELONGATABLE_CLASS}])(?P=c){{{resolved - 1},}}")
     replacement = "\\g<c>" * cap
     return pattern, replacement
 
 
-def reduce_elongation(s: str, /, *, cap: int = 1) -> str:
-    """Cap runs of a repeated Arabic letter at `cap` copies (default 1) — lossy linguistic folding.
+def reduce_elongation(s: str, /, *, cap: int = 1, min_run: int | None = None) -> str:
+    """Collapse runs of >= `min_run` repeated Arabic letters to `cap` copies — lossy folding.
 
     English: *elongation reduction*. Collapses emphatic word-lengthening (جمييييل → جميل) so the
-    vocabulary does not explode. ``cap=1`` reduces to a single letter; ``cap=2`` keeps a doubled
-    letter so emphasis survives. ``cap`` must be >= 1.
+    vocabulary does not explode, while a legitimately doubled letter (الله، ممكن) is never touched:
+    `min_run` (the trigger, default ``max(cap + 1, 3)``) decides what counts as elongation, `cap`
+    what a run is reduced to. ``cap`` must be >= 1 and ``min_run`` > ``cap``.
     """
-    pattern, replacement = _compile_elongation(cap)
+    pattern, replacement = _compile_elongation(cap, min_run)
     return pattern.sub(replacement, s)
 
 
 @dataclass(frozen=True, slots=True)
 class ReduceElongation:
-    """Cap runs of a repeated Arabic letter at `cap` copies — lossy linguistic folding.
+    """Collapse runs of >= `min_run` repeated Arabic letters to `cap` copies — lossy folding.
 
     English: *elongation reduction*. Word-lengthening repeats a letter for emphasis (جمييييل,
-    راااائع); this collapses any run of the same Arabic letter to at most `cap` copies so emphatic
-    spellings stop exploding the vocabulary. ``cap=1`` (the default) reduces a run to a single
-    letter; ``cap=2`` keeps a doubled letter so emphasis is retained (what SOCIAL wants). A run no
-    longer than `cap` — an ordinary doubled letter — is left untouched: the cap is the contract.
+    راااائع); this collapses such a run so emphatic spellings stop exploding the vocabulary. Two
+    knobs, because the TRIGGER and the TARGET are different decisions:
+
+    - `min_run` — what counts as elongation: only a run of at least `min_run` copies collapses.
+      Defaults to ``max(cap + 1, 3)``: Arabic spells true doubled letters constantly (the
+      assimilated definite article الله/اللغة, verb prefixes تتكلم, lexical doubles ممكن/مما),
+      while a TRIPLED letter is virtually nonexistent in real spelling — so 3+ is the safe
+      elongation signal (the literature's standard rule) and a double is presumed legitimate. A
+      2-copy emphatic spelling is indistinguishable from a legitimate double without a lexicon, so
+      it is deliberately left alone.
+    - `cap` — what a run reduces to: ``cap=1`` (the default) collapses to the canonical single
+      letter, so جمييييل merges with جميل (what ML/SEARCH want); ``cap=2`` keeps a doubled letter
+      so emphasis survives as a feature (what SOCIAL wants — its trigger is already 3, so its
+      behavior is identical with the default `min_run`).
 
     Only contemporary Arabic letters are capped; digits are never touched (a repeated digit is a
     number, not emphasis, so 1000 stays 1000), nor are tashkeel marks or tatweel. The fold discards
@@ -825,8 +952,9 @@ class ReduceElongation:
     """
 
     cap: int = 1
+    min_run: int | None = None
     # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
-    # and repr since they are a derived view of `cap`.
+    # and repr since they are a derived view of `cap`/`min_run`.
     _pattern: re.Pattern[str] = field(init=False, repr=False, compare=False)
     _replacement: str = field(init=False, repr=False, compare=False)
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
@@ -834,7 +962,10 @@ class ReduceElongation:
     name: ClassVar[str] = "ReduceElongation"
 
     def __post_init__(self) -> None:
-        pattern, replacement = _compile_elongation(self.cap)
+        pattern, replacement = _compile_elongation(self.cap, self.min_run)
+        # Pin the RESOLVED trigger (never None) so equality and serialization are stable however
+        # the step was built: ReduceElongation(cap=1) == ReduceElongation(cap=1, min_run=3).
+        object.__setattr__(self, "min_run", _resolve_min_run(self.cap, self.min_run))
         object.__setattr__(self, "_pattern", pattern)
         object.__setattr__(self, "_replacement", replacement)
 
@@ -842,7 +973,7 @@ class ReduceElongation:
         return self._pattern.sub(self._replacement, s)
 
     def to_dict(self) -> StepDict:
-        return {"name": self.name, "config": {"cap": self.cap}}
+        return {"name": self.name, "config": {"cap": self.cap, "min_run": self.min_run}}
 
     @classmethod
     def from_dict(cls, config: Mapping[str, Any]) -> Self:
@@ -931,6 +1062,16 @@ class CleanURLs:
 registry.register(CleanURLs.name, CleanURLs.from_dict)
 
 
+def _mention_substitution(replacement: str) -> Callable[[re.Match[str]], str]:
+    """The substitution callback for `chars.MENTION_OR_EMAIL`: an email match passes through
+    verbatim (it is an address, not a mention); a mention match becomes `replacement`."""
+
+    def substitute(match: re.Match[str]) -> str:
+        return match.group() if match.group("email") is not None else replacement
+
+    return substitute
+
+
 def clean_mentions(
     s: str, /, *, mode: CleanMode = CleanMode.DELETE, placeholder: str = "[MENTION]"
 ) -> str:
@@ -938,11 +1079,13 @@ def clean_mentions(
 
     English: *mention cleaning*. An ``@`` followed by word characters (Unicode-aware, so an Arabic
     handle @محمد counts) is deleted (default) or swapped for `placeholder`. Pass an Arabic token
-    (e.g. ``[مستخدم]``) explicitly. Email handling is out of v1 scope, so the host of
-    ``user@example`` reads as a mention.
+    (e.g. ``[مستخدم]``) explicitly. An email address (dotted domain) is recognized first and kept
+    verbatim — ``user@example.com`` is an address, not a mention; the dotless ``user@example``
+    still has its host read as a mention (the documented residual).
     """
-    replacement = _clean_replacement(mode, placeholder)
-    return chars.MENTION.sub(lambda _m: replacement, s)
+    return chars.MENTION_OR_EMAIL.sub(
+        _mention_substitution(_clean_replacement(mode, placeholder)), s
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -953,8 +1096,10 @@ class CleanMentions:
     or, in `PLACEHOLDER` mode, replaced by the `placeholder` token (the AraBERT ``[مستخدم]``/
     ``[MENTION]`` expectation, kept first-class; the default token is the English ``[MENTION]``). A
     handle is ``@`` plus Unicode word characters, so an Arabic handle @محمد is matched as readily as
-    @user; a bare ``@`` with no following word character is left alone. Email local-parts are not
-    special-cased (email is out of v1 scope), so ``user@example`` has its host read as a mention.
+    @user; a bare ``@`` with no following word character is left alone. An EMAIL ADDRESS is
+    recognized before the mention shape and kept verbatim — ``user@example.com`` is an address,
+    not a mention to rewrite into ``user[MENTION].com``. The email shape requires a dotted domain,
+    so the dotless ``user@example`` still has its host read as a mention (documented residual).
 
     `safety` is `CLEANING`: it discards non-linguistic noise, never run under `LIGHT` (ADR-0011).
     """
@@ -963,7 +1108,7 @@ class CleanMentions:
     placeholder: str = "[MENTION]"
     # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
     # and repr since it is a derived view of `mode`/`placeholder`.
-    _replacement: str = field(init=False, repr=False, compare=False)
+    _substitute: Callable[[re.Match[str]], str] = field(init=False, repr=False, compare=False)
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
     safety = SafetyClass.CLEANING
     name: ClassVar[str] = "CleanMentions"
@@ -971,11 +1116,12 @@ class CleanMentions:
     def __post_init__(self) -> None:
         mode = CleanMode(self.mode)
         object.__setattr__(self, "mode", mode)
-        object.__setattr__(self, "_replacement", _clean_replacement(mode, self.placeholder))
+        object.__setattr__(
+            self, "_substitute", _mention_substitution(_clean_replacement(mode, self.placeholder))
+        )
 
     def __call__(self, s: str, /) -> str:
-        replacement = self._replacement
-        return chars.MENTION.sub(lambda _m: replacement, s)
+        return chars.MENTION_OR_EMAIL.sub(self._substitute, s)
 
     def to_dict(self) -> StepDict:
         return {
@@ -1022,6 +1168,11 @@ class CleanHTML:
     Strict idempotence does not hold over arbitrary text — ``html.unescape`` decodes only one level,
     so a multiply-encoded entity (``&amp;amp;`` → ``&amp;`` → ``&``) changes on each pass — but on
     realistic single-encoded markup the step is a fixed point.
+
+    SCOPE BOUNDARY: this is a tag stripper, not an HTML parser. The *content* of a container
+    element survives even when its tags go — including ``<script>`` and ``<style>``, whose
+    JavaScript/CSS text is kept as text. Fine for the social-snippet case this step serves; for
+    web-scrape corpora, strip script/style containers with a real HTML parser before araclean.
     """
 
     mode: CleanMode = CleanMode.DELETE
@@ -1193,6 +1344,11 @@ def remove_stopwords(s: str, /) -> str:
     versioned list (see `araclean.stopwords`); surrounding whitespace is left as written. The list
     is flat (not clitic-aware) and negation-safe — ``ما`` / ``لا`` / ``لم`` / ``لن`` / ``ليس`` are
     kept so sentiment is never silently flipped.
+
+    PRECONDITION: the list ships in FOLDED form, so `s` must already be dediacritized and
+    letter-folded (`remove_tashkeel`, `fold_alef`, `fold_alef_maqsura`, `fold_hamza` — the SEARCH
+    recipe). On raw text the hamza/tashkeel spellings simply do not match. Inside a `Pipeline` the
+    ordering is enforced at construction; this bare function trusts the caller.
     """
     return stopwords.STOPWORD_PATTERN.sub("", s)
 
@@ -1213,10 +1369,27 @@ class RemoveStopwords:
     and it is **negation-safe** — the polarity particles ``ما`` / ``لا`` / ``لم`` / ``لن`` / ``ليس``
     are excluded so removal can never flip a sentence's polarity. A removed token leaves its
     whitespace as written (a gap), like the other delete-style steps (CleanURLs); a later
-    `CollapseWhitespace` tidies the gaps. Matching is on surface (NFC) forms, so run it **before**
-    any lossy letter folding. The list version is serialized so a `Profile` pins it reproducibly.
+    `CollapseWhitespace` tidies the gaps. The list version is serialized so a `Profile` pins it
+    reproducibly.
+
+    ORDERING CONTRACT (enforced): the list ships in FOLDED form (`araclean.stopwords`), so this
+    step must run AFTER dediacritization and the letter folds — `requires_before` names them, and
+    `Pipeline` rejects at construction any pipeline where they do not precede this step. Folding
+    first is what makes matching robust: real typed Arabic routinely omits hamza (انا، الى) and
+    vocalized text never matches a bare list, but after `RemoveTashkeel` + `FoldAlef` +
+    `FoldAlefMaqsura` + `FoldHamza` every spelling variant lands on the one folded form the list
+    carries. The folds are idempotent and cheap, so a pipeline over already-normalized text simply
+    includes them as no-ops.
     """
 
+    # The construction-time ordering contract `Pipeline` enforces (see the class docstring): each
+    # named step must appear somewhere before this one.
+    requires_before: ClassVar[tuple[str, ...]] = (
+        "RemoveTashkeel",
+        "FoldAlef",
+        "FoldAlefMaqsura",
+        "FoldHamza",
+    )
     # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
     safety = SafetyClass.LINGUISTIC_FOLDING
     name: ClassVar[str] = "RemoveStopwords"
@@ -1241,3 +1414,382 @@ class RemoveStopwords:
 
 
 registry.register(RemoveStopwords.name, RemoveStopwords.from_dict)
+
+
+class HashtagMode(StrEnum):
+    """How `CleanHashtags` treats a #hashtag (roadmap Phase 1).
+
+    English: *hashtag handling*. `SEGMENT` (default — the entrenched AraBERT recipe) drops the
+    ``#`` and maps ``_`` to a space, so the tag's words survive as text; `DELETE` removes the tag;
+    `PLACEHOLDER` swaps in a fixed token; `KEEP` leaves it untouched (the no-op a config override
+    can pin).
+    """
+
+    SEGMENT = "segment"  # drop '#', '_' -> ' ' (default — keep the tag's words as text)
+    DELETE = "delete"  # remove the whole tag
+    PLACEHOLDER = "placeholder"  # replace the tag with the `placeholder` token
+    KEEP = "keep"  # leave hashtags untouched (a lossless no-op)
+
+
+def _hashtag_substitution(mode: HashtagMode, placeholder: str) -> Callable[[re.Match[str]], str]:
+    """The substitution callback for one `HashtagMode` (`KEEP` never substitutes)."""
+    if mode is HashtagMode.SEGMENT:
+        return lambda m: m.group(1).replace("_", " ")
+    replacement = _clean_replacement(
+        CleanMode.PLACEHOLDER if mode is HashtagMode.PLACEHOLDER else CleanMode.DELETE, placeholder
+    )
+    return lambda _m: replacement
+
+
+def clean_hashtags(
+    s: str, /, *, mode: HashtagMode = HashtagMode.SEGMENT, placeholder: str = "[HASHTAG]"
+) -> str:
+    """Segment, remove, or replace #hashtags (default: segment) — cleaning.
+
+    English: *hashtag handling*. ``mode="segment"`` (default) applies the entrenched recipe —
+    ``#اليوم_الوطني`` → ``اليوم الوطني`` (drop ``#``, ``_`` → space); ``"delete"`` removes the
+    tag; ``"placeholder"`` swaps in `placeholder`; ``"keep"`` leaves tags untouched.
+    """
+    mode = HashtagMode(mode)
+    if mode is HashtagMode.KEEP:
+        return s
+    return chars.HASHTAG.sub(_hashtag_substitution(mode, placeholder), s)
+
+
+# `KEEP` is a pure no-op, so it is lossless `ENCODING_REPAIR`; the other modes rewrite or discard
+# social-metadata markup, so they are `CLEANING` (ADR-0011) — the same mode-dependent split as
+# `HandleEmoji`.
+_HASHTAG_SAFETY: dict[HashtagMode, SafetyClass] = {
+    HashtagMode.SEGMENT: SafetyClass.CLEANING,
+    HashtagMode.DELETE: SafetyClass.CLEANING,
+    HashtagMode.PLACEHOLDER: SafetyClass.CLEANING,
+    HashtagMode.KEEP: SafetyClass.ENCODING_REPAIR,
+}
+
+
+@dataclass(frozen=True, slots=True)
+class CleanHashtags:
+    """Segment, remove, or replace #hashtags — cleaning (social-metadata markup), no-op when kept.
+
+    English: *hashtag handling*. A ``#tag`` is social metadata wrapping real words — in Arabic
+    social text often a full phrase (#اليوم_الوطني_السعودي). The default `SEGMENT` mode applies
+    the entrenched AraBERT recipe: drop the ``#``, map ``_`` to a space, so the words stay in the
+    text as content (what SOCIAL pins). `DELETE` removes the tag outright; `PLACEHOLDER` swaps in
+    the `placeholder` token (default the English ``[HASHTAG]``; pass an Arabic one explicitly);
+    `KEEP` leaves tags untouched, so a config override can pin "do not touch hashtags".
+
+    A tag is ``#`` plus Unicode word characters (Arabic matches as readily as Latin; ``_`` is a
+    word character, so multi-word tags match whole). In SOCIAL, `CleanURLs` runs FIRST, so a URL
+    fragment (…/page#section) is gone before this step could read it as a tag. `safety` is
+    mode-dependent, like `HandleEmoji`: `KEEP` is a lossless no-op (`ENCODING_REPAIR`); the
+    rewriting modes are `CLEANING` (ADR-0011).
+    """
+
+    mode: HashtagMode = HashtagMode.SEGMENT
+    placeholder: str = "[HASHTAG]"
+    # Derived from `mode`, precomputed at construction so __call__ does no setup (ADR-0003/0006);
+    # excluded from equality and repr since both follow from `mode`/`placeholder`.
+    safety: SafetyClass = field(init=False, repr=False, compare=False)
+    _substitute: Callable[[re.Match[str]], str] | None = field(
+        init=False, repr=False, compare=False
+    )
+    name: ClassVar[str] = "CleanHashtags"
+
+    def __post_init__(self) -> None:
+        # Coerce a plain string ("segment") to the enum so equality, serialization and dispatch are
+        # stable regardless of how the mode was passed, then resolve the substitution once.
+        mode = HashtagMode(self.mode)
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "safety", _HASHTAG_SAFETY[mode])
+        substitute = (
+            None if mode is HashtagMode.KEEP else _hashtag_substitution(mode, self.placeholder)
+        )
+        object.__setattr__(self, "_substitute", substitute)
+
+    def __call__(self, s: str, /) -> str:
+        if self._substitute is None:  # KEEP
+            return s
+        return chars.HASHTAG.sub(self._substitute, s)
+
+    def to_dict(self) -> StepDict:
+        return {
+            "name": self.name,
+            "config": {"mode": self.mode.value, "placeholder": self.placeholder},
+        }
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "mode" in kwargs:
+            kwargs["mode"] = HashtagMode(kwargs["mode"])
+        return cls(**kwargs)
+
+
+registry.register(CleanHashtags.name, CleanHashtags.from_dict)
+
+
+def _punctuation_removal_table(keep: Collection[str]) -> dict[int, None]:
+    """Build the deletion table: every Unicode P* code point except the `keep` characters. Each
+    `keep` entry must be a single character — a longer string is a config error, rejected here."""
+    keep_code_points: set[int] = set()
+    for entry in keep:
+        if len(entry) != 1:
+            raise ValueError(
+                f"RemovePunctuation keep entries must be single characters, got {entry!r}"
+            )
+        keep_code_points.add(ord(entry))
+    return dict.fromkeys(chars.punctuation_code_points() - keep_code_points)
+
+
+def remove_punctuation(s: str, /, *, keep: Collection[str] = ()) -> str:
+    """Delete every Unicode punctuation character (category P*) — lossy linguistic folding.
+
+    English: *punctuation removal*. The bag-of-words / classification staple: all punctuation —
+    Arabic ، ؛ ؟ as much as the ASCII set and every other script's — is deleted in one pass.
+    ``keep`` lists characters to preserve (e.g. ``keep=("-",)``).
+    """
+    return s.translate(_punctuation_removal_table(keep))
+
+
+@dataclass(frozen=True, slots=True)
+class RemovePunctuation:
+    """Delete every Unicode punctuation character (category P*) — lossy linguistic folding.
+
+    English: *punctuation removal*. The bag-of-words / classification staple every incumbent
+    ships: for token-frequency features, punctuation is noise. One stated principle: a code point
+    is removed iff its Unicode general category is P* (Po/Pd/Ps/Pe/Pi/Pf/Pc) — which covers the
+    Arabic marks ، ؛ ؟ ٪ ۔ as much as ASCII and every other script's punctuation, re-derived from
+    the live UCD so it tracks Unicode releases. Symbols (S*: ``$ + = ~``), digits and letters are
+    not punctuation and pass through. `keep` carves out characters to preserve (each entry one
+    character).
+
+    Distinct from `MapPunctuation` (which REWRITES the three Arabic sentence marks to their Latin
+    equivalents for tokenizer uniformity): this step DELETES, so the two compose — map first if
+    you want the Latin marks, or just remove everything. Deleting sentence structure is lossy, so
+    `safety` is `LINGUISTIC_FOLDING`: opt-in, never under `LIGHT`. The whole behavior is one
+    `str.translate`, so it is fusible (0018).
+    """
+
+    keep: Collection[str] = ()
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since it is a derived view of `keep`.
+    _table: dict[int, None] = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "RemovePunctuation"
+
+    def __post_init__(self) -> None:
+        # Normalize the keep-set to a frozenset so equality and serialization are order-insensitive
+        # and stable, then precompute the deletion table once (the first construction pays the
+        # lazy UCD scan; see chars.punctuation_code_points).
+        keep = frozenset(self.keep)
+        object.__setattr__(self, "keep", keep)
+        object.__setattr__(self, "_table", _punctuation_removal_table(keep))
+
+    def __call__(self, s: str, /) -> str:
+        return s.translate(self._table)
+
+    @property
+    def translate_table(self) -> dict[int, None]:
+        """The precomputed `str.translate` deletion table — the fused-engine seam (0018)."""
+        return self._table
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {"keep": sorted(self.keep)}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "keep" in kwargs:
+            kwargs["keep"] = frozenset(kwargs["keep"])
+        return cls(**kwargs)
+
+
+registry.register(RemovePunctuation.name, RemovePunctuation.from_dict)
+
+
+def fold_tanween_alef(s: str, /) -> str:
+    """Drop a word-final tanween-fath carrier alef (كتاباً → كتاب) — lossy linguistic folding."""
+    return chars.TANWEEN_ALEF.sub("", s)
+
+
+@dataclass(frozen=True, slots=True)
+class FoldTanweenAlef:
+    """Drop the word-final tanween-fath carrier alef: كتاباً → كتاب — lossy linguistic folding.
+
+    English: *tanween-alef folding*. The adverbial-accusative ending writes its tanween-fath on a
+    carrier alef (كتاباً, or the same pair typed tanween-first as كتابًا); for recall (SEARCH) the
+    whole ending folds away so the inflected spelling matches the bare كتاب. `RemoveTashkeel`
+    alone cannot do this — it strips only the mark, leaving كتابا, a different spelling — so this
+    step MUST RUN BEFORE dediacritization, while the tanween still marks which alef is a carrier
+    (the SEARCH ordering). A tanween seated directly on a letter (خطأً، مدرسةً) has no carrier and
+    is left to `RemoveTashkeel`; only the standard fathatan U+064B participates.
+
+    It discards a real grammatical ending, so `safety` is `LINGUISTIC_FOLDING`: opt-in via SEARCH
+    or an explicit step, never under `LIGHT`. A contextual `re` rule (word-final anchoring), so it
+    stays its own pass and is not a candidate for the 0018 fused-translate engine (ADR-0006).
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "FoldTanweenAlef"
+
+    def __call__(self, s: str, /) -> str:
+        return fold_tanween_alef(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(FoldTanweenAlef.name, FoldTanweenAlef.from_dict)
+
+
+def remove_foreign(
+    s: str, /, *, mode: CleanMode = CleanMode.DELETE, placeholder: str = "[FOREIGN]"
+) -> str:
+    """Remove non-Arabic-script letter spans, or replace each with a placeholder — cleaning.
+
+    English: *foreign-span removal*. A maximal run of letters outside the Arabic script (Latin,
+    Cyrillic, CJK, …, with their combining marks) is deleted (default) or swapped for
+    `placeholder`. Digits, punctuation, whitespace, symbols and emoji are not letters and pass
+    through. Pass an Arabic token (e.g. ``[أجنبي]``) explicitly.
+    """
+    replacement = _clean_replacement(mode, placeholder)
+    return chars.foreign_span_pattern().sub(lambda _m: replacement, s)
+
+
+@dataclass(frozen=True, slots=True)
+class RemoveForeign:
+    """Remove non-Arabic-script letter spans or replace them with a placeholder token — cleaning.
+
+    English: *foreign-span removal*. The standard Arabic corpus-prep filter: for an Arabic corpus,
+    embedded foreign words are noise, so a maximal run of non-Arabic-script LETTERS (category L*
+    outside the Arabic blocks, with any combining marks riding along — a decomposed ``café``
+    travels whole) is `DELETE`d (default) or, in `PLACEHOLDER` mode, replaced by the `placeholder`
+    token (default the English ``[FOREIGN]``; pass ``[أجنبي]`` explicitly). A span must START with
+    a letter, so a lone combining mark — the VS16 after an emoji, a stray accent — never opens a
+    span and emoji are untouched. Digits, punctuation, whitespace and symbols pass through: this
+    filters foreign WORDS, not structure (`RemovePunctuation` / `MapDigits` own those concerns).
+
+    `safety` is `CLEANING`: for the Arabic-corpus contract, non-Arabic-script content is
+    surrounding noise like a URL, not an Arabic-internal distinction (ADR-0011) — and like every
+    cleaning step it is opt-in, never under `LIGHT`. Deletion leaves whitespace gaps; a later
+    `CollapseWhitespace` tidies them. A contextual rule over a UCD-derived span pattern (built
+    lazily, once per process), so it stays its own pass (ADR-0006).
+    """
+
+    mode: CleanMode = CleanMode.DELETE
+    placeholder: str = "[FOREIGN]"
+    # Precomputed at construction so __call__ does no setup (ADR-0003/0006); excluded from equality
+    # and repr since they derive from `mode`/`placeholder` (the pattern from the process-wide UCD
+    # scan).
+    _replacement: str = field(init=False, repr=False, compare=False)
+    _pattern: re.Pattern[str] = field(init=False, repr=False, compare=False)
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.CLEANING
+    name: ClassVar[str] = "RemoveForeign"
+
+    def __post_init__(self) -> None:
+        mode = CleanMode(self.mode)
+        object.__setattr__(self, "mode", mode)
+        object.__setattr__(self, "_replacement", _clean_replacement(mode, self.placeholder))
+        object.__setattr__(self, "_pattern", chars.foreign_span_pattern())
+
+    def __call__(self, s: str, /) -> str:
+        replacement = self._replacement
+        return self._pattern.sub(lambda _m: replacement, s)
+
+    def to_dict(self) -> StepDict:
+        return {
+            "name": self.name,
+            "config": {"mode": self.mode.value, "placeholder": self.placeholder},
+        }
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        kwargs = dict(config)
+        if "mode" in kwargs:
+            kwargs["mode"] = CleanMode(kwargs["mode"])
+        return cls(**kwargs)
+
+
+registry.register(RemoveForeign.name, RemoveForeign.from_dict)
+
+
+def trim(s: str, /) -> str:
+    """Strip leading and trailing whitespace — lossless encoding repair."""
+    return s.strip()
+
+
+@dataclass(frozen=True, slots=True)
+class Trim:
+    """Strip leading and trailing whitespace — lossless encoding repair.
+
+    English: *trimming*. `CollapseWhitespace` deliberately does NOT trim — collapsing an edge run
+    in place is what keeps it a fixed point — so edge whitespace survives every profile. This
+    separate, explicit step removes it (``str.strip()``, so every Unicode whitespace counts),
+    keeping both contracts clean: collapse stays a fixed point, trim is its own idempotent
+    operation a caller composes when wanted. Edge whitespace carries no linguistic signal, so
+    `safety` is `ENCODING_REPAIR`. Positional (start/end), hence contextual — its own pass, not a
+    0018 fusion candidate.
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.ENCODING_REPAIR
+    name: ClassVar[str] = "Trim"
+
+    def __call__(self, s: str, /) -> str:
+        return trim(s)
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(Trim.name, Trim.from_dict)
+
+
+def map_quotes(s: str, /) -> str:
+    """Fold typographic quotes (« » " " ' ' …) to straight ASCII quotes — lossy folding."""
+    return s.translate(chars.MAP_QUOTES)
+
+
+@dataclass(frozen=True, slots=True)
+class MapQuotes:
+    """Fold typographic quotation marks to the straight ASCII pair — lossy linguistic folding.
+
+    English: *quote normalization*. Arabic text quotes with guillemets «», and word processors
+    emit the curly/low-9 variants; folding them all to ``"`` / ``'`` (by visual family — double
+    to double, single to single) gives a tokenizer one quote vocabulary. It erases the quote
+    style, so `safety` is `LINGUISTIC_FOLDING`: opt-in via an explicit step, never under `LIGHT`
+    and in no built-in profile. One `str.translate` pass, so it is fusible (0018).
+    """
+
+    # Unannotated class attribute (not a dataclass field): matches `Step.safety`, as a custom step.
+    safety = SafetyClass.LINGUISTIC_FOLDING
+    name: ClassVar[str] = "MapQuotes"
+
+    def __call__(self, s: str, /) -> str:
+        return map_quotes(s)
+
+    @property
+    def translate_table(self) -> dict[int, str]:
+        """The static `str.translate` table this step applies — the fused-engine seam (0018)."""
+        return chars.MAP_QUOTES
+
+    def to_dict(self) -> StepDict:
+        return {"name": self.name, "config": {}}
+
+    @classmethod
+    def from_dict(cls, config: Mapping[str, Any]) -> Self:
+        return cls(**config)
+
+
+registry.register(MapQuotes.name, MapQuotes.from_dict)

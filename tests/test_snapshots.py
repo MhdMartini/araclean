@@ -31,6 +31,12 @@ CORPUS: list[tuple[str, str]] = [
     ("lookalikes", chr(0x06A9) + chr(0x06CC) + chr(0x06C1)),
     # the one accepted residual: a Persian-keyboard yeh merges علی -> علي
     ("maqsura-residual", chr(0x0639) + chr(0x0644) + chr(0x06CC)),
+    # an emoji ZWJ sequence survives WHOLE (the joiner is content inside emoji — roadmap 0.2);
+    # a joiner between Arabic letters is still stripped
+    (
+        "emoji-zwj-sequence",
+        chr(0x1F468) + chr(0x200D) + chr(0x1F469) + " " + chr(0x0645) + chr(0x200D) + chr(0x062D),
+    ),
     # whitespace runs (NBSP + double space) collapse to one ASCII space (CollapseWhitespace, 0004)
     ("whitespace", "a" + chr(0x00A0) + chr(0x0020) + "b"),
     # line breaks are preserved (ADR-0010): a blank-line run collapses to a single newline, while
@@ -111,6 +117,13 @@ SEARCH_CORPUS: list[tuple[str, str]] = [
     ),
     # emphatic elongation collapses to a single letter (جمييييل -> جميل)
     ("elongation", chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)),
+    # a legitimately DOUBLED letter is not elongation (roadmap 0.1): الله keeps its lams
+    ("doubled-letter-preserved", chr(0x0627) + chr(0x0644) * 2 + chr(0x0647)),
+    # the tanween-fath carrier alef folds away word-finally (roadmap Phase 1): كتاباً -> كتاب
+    (
+        "tanween-alef",
+        chr(0x0643) + chr(0x062A) + chr(0x0627) + chr(0x0628) + chr(0x0627) + chr(0x064B),
+    ),
     # SEARCH ⊋ LIGHT on lam-alef: LIGHT keeps ﻷ -> لأ, but SEARCH then folds the hamza alef -> لا
     ("lam-alef-then-folded", chr(0xFEF7)),
     # encoding repair still runs: tatweel is removed (محـــمد -> محمد)
@@ -146,6 +159,25 @@ ML_CORPUS: list[tuple[str, str]] = [
     ("dagger-alef", chr(0x0647) + chr(0x0670) + chr(0x0630) + chr(0x0627)),
     # emphatic elongation collapses to a single letter (جمييييل -> جميل) — like SEARCH
     ("elongation", chr(0x062C) + chr(0x0645) + chr(0x064A) * 4 + chr(0x0644)),
+    # legitimately doubled letters are NOT elongation (roadmap 0.1): الله تتكلم ممكن مما unchanged
+    (
+        "doubled-letters-preserved",
+        chr(0x0627)
+        + chr(0x0644) * 2
+        + chr(0x0647)  # الله
+        + " "
+        + chr(0x062A) * 2
+        + chr(0x0643)
+        + chr(0x0644)
+        + chr(0x0645)  # تتكلم
+        + " "
+        + chr(0x0645) * 2
+        + chr(0x0643)
+        + chr(0x0646)  # ممكن
+        + " "
+        + chr(0x0645) * 2
+        + chr(0x0627),  # مما
+    ),
     # alef maqsura is PRESERVED (على stays على) — the headline contrast with SEARCH
     ("maqsura-preserved", chr(0x0639) + chr(0x0644) + chr(0x0649)),
     # alef variants are PRESERVED (أ إ آ ٱ unchanged) — none of the 0007 folds run
@@ -280,6 +312,25 @@ SOCIAL_CORPUS: list[tuple[str, str]] = [
     ("mention-arabic-handle", "@" + chr(0x0645) + chr(0x062D) + chr(0x0645) + chr(0x062F)),
     # URL -> the Arabic placeholder token [رابط]
     ("url-arabic-token", "https://example.com"),
+    # an Arabic hashtag is SEGMENTED (roadmap Phase 1): drop '#', '_' -> space, words survive
+    (
+        "hashtag-segmented",
+        "#"
+        + chr(0x0627)
+        + chr(0x0644)
+        + chr(0x064A)
+        + chr(0x0648)
+        + chr(0x0645)  # اليوم
+        + "_"
+        + chr(0x0627)
+        + chr(0x0644)
+        + chr(0x0648)
+        + chr(0x0637)
+        + chr(0x0646)
+        + chr(0x064A),  # الوطني
+    ),
+    # an email address survives verbatim (roadmap 0.5): it is an address, not a mention
+    ("email-kept", "user@example.com"),
     # HTML: tags stripped, entity unescaped (<b>نص</b> &amp; X -> نص & X)
     ("html-strip-unescape", "<b>" + chr(0x0646) + chr(0x0635) + "</b> &amp; X"),
     # emoji is KEPT — the affective signal SOCIAL exists to preserve (أحبه 😍)
