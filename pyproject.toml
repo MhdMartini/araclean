@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "araclean"
-version = "0.2.1"
+version = "0.2.2"
 description = "Arabic text normalization and cleaning — pure-Python, composable, reproducible, offset-preserving."
 readme = "README.md"
 requires-python = ">=3.12"

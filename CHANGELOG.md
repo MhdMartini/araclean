@@ -1,3 +1,9 @@
+## v0.2.2 (2026-07-01)
+
+### Fix
+
+- version-qualify README docs links so they resolve on the mike site
+
 ## v0.2.1 (2026-06-12)
 
 ## v0.2.0 (2026-06-12)
