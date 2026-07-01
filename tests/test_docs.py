@@ -151,6 +151,48 @@ def test_docs_page_examples_run_as_doctests(page: Path) -> None:
     assert results.failed == 0
 
 
+# --- docs-site links guard: every deep link into the mike-versioned site is version-qualified -----
+
+# mike serves every page under a version segment (`/latest/…`, `/0.2.1/…`); only the site *root*
+# redirects to the default version. So an absolute link to the docs site is valid only if it is the
+# bare root or its first path segment is a version — `latest` or an `X.Y[.Z]` number. A hand-written
+# deep link that omits `/latest/` (as several README links once did) 404s silently: `mkdocs build
+# --strict` validates links *within* the site, never the absolute URLs in these distributed files
+# (README ships as the PyPI long description; pyproject exposes the Documentation URL).
+_FILES_LINKING_TO_SITE = ("README.md", "pyproject.toml")
+_SITE_URL = re.compile(r"^site_url:\s*(\S+)", re.MULTILINE)
+_VERSION_SEGMENT = re.compile(r"^(latest|\d+(\.\d+)+)(/|$)")
+
+
+def _docs_site_base() -> str:
+    """The published docs base URL, read from mkdocs.yml so this guard tracks the real site_url."""
+    mkdocs = (docs_gen.REPO_ROOT / "mkdocs.yml").read_text(encoding="utf-8")
+    match = _SITE_URL.search(mkdocs)
+    assert match, "mkdocs.yml has no site_url"
+    return match.group(1).rstrip("/") + "/"
+
+
+@pytest.mark.parametrize("filename", _FILES_LINKING_TO_SITE)
+def test_docs_site_links_are_version_qualified(filename: str) -> None:
+    """Every absolute docs-site link in a distributed file is the bare root or version-qualified.
+
+    Guards against the `/latest/`-less deep link that 404s on the mike-versioned site (only the root
+    redirects to the default version) — the one class of broken docs link nothing else catches.
+    """
+    base = _docs_site_base()
+    text = (docs_gen.REPO_ROOT / filename).read_text(encoding="utf-8")
+    link = re.compile(re.escape(base) + r"""([^)\s>"']*)""")
+    unqualified = sorted(
+        base + path
+        for path in {match.group(1) for match in link.finditer(text)}
+        if path and not _VERSION_SEGMENT.match(path)
+    )
+    assert not unqualified, (
+        f"{filename}: docs-site links must be the bare root or target a version (e.g. `latest/…`); "
+        "these deep links omit it and will 404:\n  " + "\n  ".join(unqualified)
+    )
+
+
 # --- AC1/AC3: the site builds cleanly under --strict, with tooltips and an English↔Arabic index ---
 
 

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+<!--
+  Version warning banner. mkdocs-material renders the `outdated` block above the header when a reader
+  is on any version other than the one aliased `latest` (see `extra.version.default` in mkdocs.yml),
+  which the CI `docs-deploy` job keeps pointed at the newest release. `{{ '../' ~ base_url }}` links
+  to the site root, which mike redirects to whatever `latest` currently resolves to — so this stays
+  correct without hard-coding a version. It appears only on the mike-deployed site.
+-->
+{% block outdated %}
+  You're not viewing the latest version.
+  <a href="{{ '../' ~ base_url }}">
+    <strong>Click here to go to latest.</strong>
+  </a>
+{% endblock %}

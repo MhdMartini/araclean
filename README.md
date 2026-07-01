@@ -41,27 +41,27 @@ text *and* a map back to every original position:
 ```
 
 No other Arabic NLP library exposes this. See
-[Offset-preserving normalization](https://mhdmartini.github.io/araclean/guides/offset-preserving/).
+[Offset-preserving normalization](https://mhdmartini.github.io/araclean/latest/guides/offset-preserving/).
 
 ## Documentation
 
 Full documentation lives at **<https://mhdmartini.github.io/araclean/>**:
 
-- [Getting started](https://mhdmartini.github.io/araclean/getting-started/) — install,
+- [Getting started](https://mhdmartini.github.io/araclean/latest/getting-started/) — install,
   first call, choosing a profile.
-- [Profiles](https://mhdmartini.github.io/araclean/profiles/) — every step each profile
+- [Profiles](https://mhdmartini.github.io/araclean/latest/profiles/) — every step each profile
   applies, lossless vs lossy (generated from the code).
-- Guides — the [CLI](https://mhdmartini.github.io/araclean/guides/cli/),
-  [pandas & polars](https://mhdmartini.github.io/araclean/guides/dataframes/),
-  [tuning](https://mhdmartini.github.io/araclean/guides/tuning-profiles/) and
-  [composing](https://mhdmartini.github.io/araclean/guides/composing-pipelines/)
-  pipelines, [custom steps](https://mhdmartini.github.io/araclean/guides/custom-steps/),
-  [reproducibility](https://mhdmartini.github.io/araclean/guides/reproducibility/), and
-  [stopwords](https://mhdmartini.github.io/araclean/guides/stopwords/).
-- [Why araclean](https://mhdmartini.github.io/araclean/concepts/why-araclean/) — the
+- Guides — the [CLI](https://mhdmartini.github.io/araclean/latest/guides/cli/),
+  [pandas & polars](https://mhdmartini.github.io/araclean/latest/guides/dataframes/),
+  [tuning](https://mhdmartini.github.io/araclean/latest/guides/tuning-profiles/) and
+  [composing](https://mhdmartini.github.io/araclean/latest/guides/composing-pipelines/)
+  pipelines, [custom steps](https://mhdmartini.github.io/araclean/latest/guides/custom-steps/),
+  [reproducibility](https://mhdmartini.github.io/araclean/latest/guides/reproducibility/), and
+  [stopwords](https://mhdmartini.github.io/araclean/latest/guides/stopwords/).
+- [Why araclean](https://mhdmartini.github.io/araclean/latest/concepts/why-araclean/) — the
   rationale and what sets it apart.
-- [API reference](https://mhdmartini.github.io/araclean/reference/) and
-  [CLI reference](https://mhdmartini.github.io/araclean/reference/cli/).
+- [API reference](https://mhdmartini.github.io/araclean/latest/reference/) and
+  [CLI reference](https://mhdmartini.github.io/araclean/latest/reference/cli/).
 
 Every Python example in the docs is executed as a doctest in CI, and the generated pages
 (profiles, glossary, CLI reference) are drift-checked against the code.

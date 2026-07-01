@@ -14,6 +14,11 @@ strict: true
 
 theme:
   name: material
+  # Holds the ONE template override: main.html redefines mkdocs-material's `outdated` block so a
+  # reader who lands on any non-default version (see `extra.version.default` below) gets a banner
+  # linking back to the latest docs. The override renders on the mike-deployed site only; a plain
+  # `mkdocs build --strict` picks up the dir without complaint.
+  custom_dir: overrides
   features:
     - navigation.sections
     - navigation.top
@@ -40,9 +45,13 @@ theme:
 # tag) publishes each version under gh-pages and writes a versions.json; this `provider: mike` tells
 # mkdocs-material to render the version-selector dropdown that reads it. It is theme config only — a
 # plain `mkdocs build --strict` neither needs `mike` installed nor warns when versions.json is absent.
+# `default: latest` names the alias the CI `docs-deploy` job moves on every release
+# (`mike deploy --update-aliases "$version" latest`): the theme shows the `overrides/main.html`
+# "you're viewing an old version" banner on any version whose aliases don't include it.
 extra:
   version:
     provider: mike
+    default: latest
 
 nav:
   - Home: index.md
