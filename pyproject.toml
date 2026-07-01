@@ -5,13 +5,31 @@ build-backend = "hatchling.build"
 [project]
 name = "araclean"
 version = "0.2.1"
-description = "Arabic text normalization and cleaning — pure-Python, composable, reproducible."
+description = "Arabic text normalization and cleaning — pure-Python, composable, reproducible, offset-preserving."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Mohamed Martini", email = "mohamedmartini1991@gmail.com" }]
-keywords = ["arabic", "nlp", "normalization", "text", "preprocessing"]
+keywords = [
+    "arabic",
+    "nlp",
+    "normalization",
+    "text",
+    "preprocessing",
+    "offset-preserving",
+    "offset-mapping",
+    "alignment",
+    "character-offsets",
+    "span-preserving",
+    "reversible",
+    "non-destructive",
+    "tashkeel",
+    "diacritics",
+    "arabic-nlp",
+    "tokenization",
+    "text-cleaning",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -31,6 +49,7 @@ dependencies = ["pydantic>=2"]
 Homepage = "https://github.com/MhdMartini/araclean"
 Repository = "https://github.com/MhdMartini/araclean"
 Issues = "https://github.com/MhdMartini/araclean/issues"
+Documentation = "https://mhdmartini.github.io/araclean/"
 
 # The `araclean` command-line entry point. It lives behind the [cli] extra: the
 # console script resolves to `araclean.cli:main`, which prints an actionable "install araclean[cli]"

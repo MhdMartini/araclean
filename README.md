@@ -7,7 +7,7 @@
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Docs](https://img.shields.io/badge/docs-online-teal.svg)](https://mhdmartini.github.io/araclean/)
 
-Arabic text normalization and cleaning — pure-Python, composable, reproducible.
+Arabic text normalization and cleaning — pure-Python, composable, reproducible, offset-preserving.
 
 > **Status:** pre-release (`0.x`). The v1 normalization core is complete and fully
 > tested; the API may still shift before 1.0.
@@ -26,6 +26,22 @@ reproduced.
 >>> normalize("اَلسّلامُ عليكم", profile="search")   # opt-in lossy folds for recall
 'السلام عليكم'
 ```
+
+For span-level work — RAG citation, NER projection — `apply_aligned` returns the normalized
+text *and* a map back to every original position:
+
+```python
+>>> from araclean import Pipeline, RemoveTatweel, FoldAlef
+>>> pipe = Pipeline([RemoveTatweel(), FoldAlef()])
+>>> normalized, omap = pipe.apply_aligned("أحمـد")
+>>> normalized
+'احمد'
+>>> omap.to_original((0, 4))   # where does the whole normalized word sit in the original?
+(0, 5)
+```
+
+No other Arabic NLP library exposes this. See
+[Offset-preserving normalization](https://mhdmartini.github.io/araclean/guides/offset-preserving/).
 
 ## Documentation
 
