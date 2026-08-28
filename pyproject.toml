@@ -188,6 +188,8 @@ plugins = ["pydantic.mypy"]
 include = ["src", "tests"]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
+venvPath = "."
+venv = ".venv"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
