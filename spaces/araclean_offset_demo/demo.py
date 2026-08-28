@@ -4,10 +4,35 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TypedDict
 
 from araclean import OffsetMap, Pipeline, ProfileName
 
 PROFILE_NAMES: tuple[str, ...] = tuple(profile.value for profile in ProfileName)
+DEFAULT_TEXT = "ﻻ يَحْــمِلُ الحِــقدَ مَــنْ تَعـلُــو بِــهِ الرُّتَبُ"
+DEFAULT_PROFILE = "search"
+DEFAULT_NORMALIZED_SPAN = (8, 13)
+EXAMPLES: tuple[tuple[str, str], ...] = (
+    (DEFAULT_TEXT, DEFAULT_PROFILE),
+    ("قال الرئيسُ محمـدٌ في المؤتمرِ", "ml"),
+    ("ﻻ تزالُ العربيةُ جميلةً", "classical"),
+    ("زوروا https://example.com يا @صديقي 😍", "social"),
+)
+
+
+class HighlightEntity(TypedDict):
+    """One labeled half-open span for the highlighted-text widget."""
+
+    entity: str
+    start: int
+    end: int
+
+
+class HighlightedText(TypedDict):
+    """Text and its labeled spans in Gradio's serializable value shape."""
+
+    text: str
+    entities: list[HighlightEntity]
 
 
 class Direction(StrEnum):
@@ -58,23 +83,6 @@ class PreparedNormalization:
             projected_text=projected_text,
         )
 
-    def offset_rows(self) -> list[list[str | int]]:
-        """Render the normalized-to-original character map as table rows."""
-        rows: list[list[str | int]] = []
-        for normalized_index, character in enumerate(self.normalized):
-            original_start, original_end = self.offset_map.to_original(
-                (normalized_index, normalized_index + 1)
-            )
-            rows.append(
-                [
-                    normalized_index,
-                    character,
-                    f"[{original_start}, {original_end})",
-                    self.original[original_start:original_end],
-                ]
-            )
-        return rows
-
 
 def prepare_normalization(text: str, profile: str) -> PreparedNormalization:
     """Normalize *text* with a named profile and retain its original and offset map."""
@@ -83,6 +91,25 @@ def prepare_normalization(text: str, profile: str) -> PreparedNormalization:
         raise ValueError(f"unknown profile {profile!r}; choose one of {', '.join(PROFILE_NAMES)}")
     normalized, offset_map = Pipeline.from_profile(normalized_profile).apply_aligned(text)
     return PreparedNormalization(text, normalized, offset_map)
+
+
+def highlight(text: str, span: tuple[int, int] | None, label: str) -> HighlightedText:
+    """Build a highlighted-text value with an optional labeled span."""
+    entities: list[HighlightEntity] = []
+    if span is not None and span[0] != span[1]:
+        entities.append({"entity": label, "start": span[0], "end": span[1]})
+    return {"text": text, "entities": entities}
+
+
+def normalize_ui(original: str, profile: str) -> tuple[str, HighlightedText, HighlightedText, str]:
+    """Normalize the current UI input and reset its selection display."""
+    prepared = prepare_normalization(original, profile)
+    return (
+        prepared.normalized,
+        highlight(original, None, "Original"),
+        highlight(prepared.normalized, None, "Normalized"),
+        "Select a span in either text box to project it through the offset map.",
+    )
 
 
 def project_selection(

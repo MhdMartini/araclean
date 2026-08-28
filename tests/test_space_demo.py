@@ -3,11 +3,52 @@
 from __future__ import annotations
 
 from spaces.araclean_offset_demo.demo import (
+    DEFAULT_NORMALIZED_SPAN,
+    DEFAULT_PROFILE,
+    DEFAULT_TEXT,
+    EXAMPLES,
     Direction,
+    normalize_ui,
     prepare_normalization,
     project_selection,
     utf16_span_to_codepoints,
 )
+
+
+def test_default_example_starts_with_a_visible_normalized_to_original_projection() -> None:
+    """The initial view demonstrates span projection without requiring a first click."""
+    assert DEFAULT_TEXT == "ﻻ يَحْــمِلُ الحِــقدَ مَــنْ تَعـلُــو بِــهِ الرُّتَبُ"
+
+    result = project_selection(
+        DEFAULT_TEXT,
+        DEFAULT_PROFILE,
+        Direction.NORMALIZED_TO_ORIGINAL,
+        DEFAULT_NORMALIZED_SPAN,
+    )
+
+    assert result.normalized == "لا يحمل الحقد من تعلو به الرتب"
+    assert result.source_span == (8, 13)
+    assert result.projected_span == (13, 21)
+    assert result.source_text == "الحقد"
+    assert result.projected_text == "الحِــقد"
+
+
+def test_switching_examples_recomputes_the_current_rows_normalized_text() -> None:
+    """Repeated A→B→A→B selection never retains the previous example's output."""
+    default_example = EXAMPLES[0]
+    ner_example = EXAMPLES[1]
+
+    normalized_texts = [
+        normalize_ui(*example)[0]
+        for example in (default_example, ner_example, default_example, ner_example)
+    ]
+
+    assert normalized_texts == [
+        "لا يحمل الحقد من تعلو به الرتب",
+        "قال الرئيس محمد في المؤتمر",
+        "لا يحمل الحقد من تعلو به الرتب",
+        "قال الرئيس محمد في المؤتمر",
+    ]
 
 
 def test_normalized_selection_projects_to_the_original_rag_citation() -> None:

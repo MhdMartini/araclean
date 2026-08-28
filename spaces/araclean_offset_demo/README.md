@@ -32,8 +32,7 @@ visible:
 
 The first direction demonstrates **RAG citation grounding**: search normalized text, then cite the
 untouched source. The reverse direction demonstrates **NER/span annotation**: project an annotation
-or model result between raw and normalized text. The character table shows the underlying half-open
-`[start, end)` intervals.
+or model result between raw and normalized text.
 
 The demo runs entirely on CPU and downloads no model or dataset. Learn more in the
 [AraClean repository](https://github.com/MhdMartini/araclean) and
