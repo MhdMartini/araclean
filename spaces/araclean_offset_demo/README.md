@@ -9,7 +9,6 @@ python_version: 3.12
 app_file: app.py
 pinned: false
 license: mit
-suggested_hardware: cpu-basic
 short_description: Project normalized Arabic spans back to their original text.
 tags:
   - arabic

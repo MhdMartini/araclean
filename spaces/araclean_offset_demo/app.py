@@ -18,6 +18,17 @@ from demo import (
     utf16_span_to_codepoints,
 )
 
+try:
+    import spaces
+except ImportError:
+    spaces = None
+
+if spaces is not None and hasattr(spaces, "GPU"):
+
+    @spaces.GPU(duration=1)
+    def _zerogpu_hosting_probe() -> None:
+        pass
+
 
 def _status(result: ProjectionResult) -> str:
     if result.direction is Direction.NORMALIZED_TO_ORIGINAL:
