@@ -45,9 +45,9 @@ def test_switching_examples_recomputes_the_current_rows_normalized_text() -> Non
 
     assert normalized_texts == [
         "لا يحمل الحقد من تعلو به الرتب",
-        "قال الرئيس محمد في المؤتمر",
+        "أراك عصي الدمع شيمتك الصبر",
         "لا يحمل الحقد من تعلو به الرتب",
-        "قال الرئيس محمد في المؤتمر",
+        "أراك عصي الدمع شيمتك الصبر",
     ]
 
 

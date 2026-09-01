@@ -25,14 +25,14 @@ Optional extras: `araclean[cli]`, `araclean[pandas]`, `araclean[polars]`, `aracl
 
 ```pycon
 >>> from araclean import normalize
->>> normalize("العـــربية")  # default LIGHT profile: lossless encoding repair (here, drops tatweel)
-'العربية'
->>> normalize("اَلسّلامُ عليكم", profile="search")  # SEARCH: lossy folds that maximize recall
-'السلام عليكم'
+>>> normalize("على قدر أهل العـــزم")  # LIGHT removes tatweel without folding letters
+'على قدر أهل العزم'
+>>> normalize("عَلَى قَدْرِ أَهْلِ العَزْمِ", profile="search")
+'علي قدر اهل العزم'
 
 ```
 
-That's the whole surface for batch use. For span-level work — RAG citation, NER projection —
+For ordinary batch use, that is the whole API. For RAG citations and NER projection,
 `apply_aligned` returns the normalized text *and* a map back to every original position:
 
 ```pycon
@@ -46,13 +46,14 @@ That's the whole surface for batch use. For span-level work — RAG citation, NE
 
 ```
 
-No other Arabic NLP library exposes this. See **[Offset-preserving normalization](guides/offset-preserving.md)**.
+Try the **[live offset-map demo](https://huggingface.co/spaces/momartini/araclean)** or read
+**[Offset-preserving normalization](guides/offset-preserving.md)**.
 
 The default `LIGHT` profile is safe to run on any corpus; reach for `SEARCH`, `ML`, `SOCIAL`, or
 `CLASSICAL` when you want their specific folding. Every Python example in these docs is executed
 by the test suite, so what you read is what runs.
 
-## Where to next
+## Read next
 
 **New to araclean?**
 
@@ -76,7 +77,7 @@ by the test suite, so what you read is what runs.
 
 **Understanding it**
 
-- **[Why araclean](concepts/why-araclean.md)** — the rationale, and what sets it apart.
+- **[Why araclean](concepts/why-araclean.md)** — the problem it solves and its design choices.
 - **[The safety contract](concepts/safety.md)** — lossless vs lossy, and how to audit a pipeline.
 - **[Architecture & performance](concepts/architecture.md)** — the three-layer design and the fused
   execution engine.

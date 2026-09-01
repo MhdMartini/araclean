@@ -32,8 +32,8 @@ pipeline without the Arabic-assuming steps.
 
 ## Does araclean stem, lemmatize, segment clitics, or tokenize?
 
-No, deliberately. Morphology needs lexicons or models, which would end the pip-install-and-go core
-(and most options drag in GPL code, Java, or torch). Compose downstream instead — e.g.
+No. Morphology needs lexicons or models, which would make the core package heavier. Compose a
+specialized tool downstream instead — for example,
 `snowballstemmer`'s Arabic algorithm (BSD, zero deps) after an araclean profile. The same goes for
 dialect ID, Arabizi transliteration, and diacritization restoration. See
 [Why araclean](concepts/why-araclean.md#what-araclean-is-not).
@@ -52,9 +52,9 @@ outside the loop.
 
 ## Can I find out where a normalized span sits in the original text?
 
-Not yet. Offset/alignment tracking (`apply_aligned`) is reserved on every seam and raises a clear
-`AlignmentNotSupportedError` today; it is the planned flagship of a future release, designed for
-since v1. If you need provenance now, keep the raw text alongside and index by record, not offset.
+Yes. `Pipeline.apply_aligned(text)` returns the normalized text and an `OffsetMap` that projects
+half-open spans in either direction. See [Offset-preserving normalization](guides/offset-preserving.md)
+or try the [live demo](https://huggingface.co/spaces/momartini/araclean).
 
 ## What does `demojize` need? Why an extra?
 
@@ -80,6 +80,6 @@ pin `araclean==X.Y.Z` together with your serialized pipeline for full reproducib
 
 ## Something looks wrong — where do I report it?
 
-[GitHub issues](https://github.com/MhdMartini/araclean/issues). Bug reports with a minimal input
-string are gold: every fold is table-driven and tested against the live Unicode database, so a
-counterexample usually localizes the fix to one table entry.
+Open a [GitHub issue](https://github.com/MhdMartini/araclean/issues). Include the smallest input
+that reproduces the problem, the profile or pipeline, and the output you expected. Most folds are
+table-driven, so a small counterexample is especially useful.

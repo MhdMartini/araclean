@@ -1,6 +1,6 @@
 # Writing custom steps
 
-A `Step` is the extension seam of the library. The contract is deliberately tiny — a readable
+A `Step` is the library's extension point. Its contract is a readable
 `safety` attribute plus a pure `str -> str` call — so your own transform drops into a `Pipeline`
 next to the built-ins, participates in the [safety audit](../concepts/safety.md), and needs no
 registration just to *run*.
@@ -20,7 +20,7 @@ True
 
 ```
 
-Pick the safety class honestly — it is what the audit reports:
+Choose the safety class according to what the step removes; the audit reports that declaration:
 
 - `ENCODING_REPAIR` if your step discards no linguistic signal (lossless),
 - `LINGUISTIC_FOLDING` if it discards a distinction *within* the Arabic text,
@@ -31,8 +31,8 @@ Compose it like any built-in, for example on top of LIGHT's encoding repair:
 ```pycon
 >>> light = Pipeline.from_profile("light")
 >>> pipe = Pipeline([*light.steps, StripQuestionMarks()])
->>> pipe("كيف الحال؟")
-'كيف الحال'
+>>> pipe("إذا غامرت في شرف مروم؟")
+'إذا غامرت في شرف مروم'
 >>> pipe.audit().lossy_steps  # the audit sees your step's declared safety class
 ('StripQuestionMarks',)
 

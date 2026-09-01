@@ -6,7 +6,7 @@ new `Step`, a doc fix, or a glossary correction.
 
 By participating you agree to abide by our [Code of Conduct](./CODE_OF_CONDUCT.md).
 
-## Ground rules in one minute
+## Project rules
 
 - **Arabic-primary terminology** ([ADR-0007](./docs/adr/0007-arabic-primary-terminology.md)): public
   names use the established Arabic term (`RemoveTashkeel`, not `RemoveDiacritics`), glossed to the
@@ -47,10 +47,9 @@ uv sync --group docs
 uv run mkdocs build --strict
 ```
 
-## The test bar (Definition of Done)
+## Required checks
 
-Every change must meet this bar — it is the same bar each implementation slice was built to, and CI
-will not go green without it.
+Every change must pass these checks:
 
 - **Failing behavior test written first** (TDD). See [`tests/`](./tests/) for the style.
 - Tests assert **observable behavior through the module interface** — input string + config → output

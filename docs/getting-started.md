@@ -1,6 +1,6 @@
 # Getting started
 
-araclean needs Python 3.12+ and installs in seconds: the core depends only on
+araclean needs Python 3.12+. The core depends only on
 [pydantic](https://docs.pydantic.dev/) — no compiler, no Java, no model download.
 
 ## Install
@@ -24,14 +24,12 @@ naming the exact `pip install` command to run.
 
 ## Your first normalization
 
-The whole quick-use surface is one function:
+The quick-use API is one function:
 
 ```pycon
 >>> from araclean import normalize
->>> normalize("ﻣﺮﺣﺒﺎ")  # OCR/copy-paste presentation forms fold back to real letters
-'مرحبا'
->>> normalize("العـــربية")  # tatweel (visual elongation) is dropped
-'العربية'
+>>> normalize("ﻻ يَحْمِلُ الحِــقْدَ")  # repair a presentation form and tatweel
+'لا يَحْمِلُ الحِقْدَ'
 
 ```
 
@@ -47,10 +45,10 @@ Qur'anic text.
 Anything lossy is opt-in through a named profile. Pass the name to `normalize`:
 
 ```pycon
->>> normalize("عَلَى")                    # LIGHT: vocalization and spelling preserved
-'عَلَى'
->>> normalize("عَلَى", profile="search")  # SEARCH: tashkeel removed, alef maqsura folded
-'علي'
+>>> normalize("عَلَى قَدْرِ أَهْلِ العَزْمِ")  # LIGHT preserves marks and spelling
+'عَلَى قَدْرِ أَهْلِ العَزْمِ'
+>>> normalize("عَلَى قَدْرِ أَهْلِ العَزْمِ", profile="search")
+'علي قدر اهل العزم'
 >>> normalize("جميييييل", profile="ml")   # ML: dediacritize + collapse emphatic elongation
 'جميل'
 >>> normalize("رااااائع 😍 https://t.co/xyz", profile="social")  # SOCIAL: clean noise, keep emoji
@@ -68,8 +66,8 @@ Pick by task:
 | social-media text | [`SOCIAL`](profiles/social.md) | cleans URLs/mentions/HTML, segments hashtags, keeps emoji |
 | vocalized / classical / Qur'anic text | [`CLASSICAL`](profiles/classical.md) | lossless repair with an explicit every-mark-preserved guarantee |
 
-Each profile page lists the exact steps it runs, in order, each labelled lossless or lossy — the
-pages are generated from the assembled pipelines themselves, so they cannot drift from the code.
+Each profile page lists its steps in order and labels each one lossless or lossy. The pages are
+generated from the assembled pipelines, and CI checks them against the code.
 
 ## Beyond one call
 

@@ -6,11 +6,12 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Docs](https://img.shields.io/badge/docs-online-teal.svg)](https://mhdmartini.github.io/araclean/)
+[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Space-try%20it-yellow.svg)](https://huggingface.co/spaces/momartini/araclean)
 
 Arabic text normalization and cleaning — pure-Python, composable, reproducible, offset-preserving.
 
-> **Status:** pre-release (`0.x`). The v1 normalization core is complete and fully
-> tested; the API may still shift before 1.0.
+> **Status:** pre-release (`0.x`). The normalization core is tested, but the API may still change
+> before 1.0.
 
 araclean is **non-destructive by default**: the bare call is lossless *encoding repair*
 (Unicode form, presentation forms, tatweel, bidi/zero-width characters, look-alike
@@ -21,10 +22,10 @@ reproduced.
 
 ```python
 >>> from araclean import normalize
->>> normalize("العـــربية")                          # lossless encoding repair (default)
-'العربية'
->>> normalize("اَلسّلامُ عليكم", profile="search")   # opt-in lossy folds for recall
-'السلام عليكم'
+>>> normalize("على قدر أهل العـــزم")                 # default: remove tatweel
+'على قدر أهل العزم'
+>>> normalize("عَلَى قَدْرِ أَهْلِ العَزْمِ", profile="search")
+'علي قدر اهل العزم'
 ```
 
 For span-level work — RAG citation, NER projection — `apply_aligned` returns the normalized
@@ -40,8 +41,9 @@ text *and* a map back to every original position:
 (0, 5)
 ```
 
-No other Arabic NLP library exposes this. See
-[Offset-preserving normalization](https://mhdmartini.github.io/araclean/latest/guides/offset-preserving/).
+See the map in action in the
+[live Hugging Face Space](https://huggingface.co/spaces/momartini/araclean), or read the
+[offset-preserving normalization guide](https://mhdmartini.github.io/araclean/latest/guides/offset-preserving/).
 
 ## Documentation
 
@@ -59,12 +61,12 @@ Full documentation lives at **<https://mhdmartini.github.io/araclean/>**:
   [reproducibility](https://mhdmartini.github.io/araclean/latest/guides/reproducibility/), and
   [stopwords](https://mhdmartini.github.io/araclean/latest/guides/stopwords/).
 - [Why araclean](https://mhdmartini.github.io/araclean/latest/concepts/why-araclean/) — the
-  rationale and what sets it apart.
+  problem it solves and its design choices.
 - [API reference](https://mhdmartini.github.io/araclean/latest/reference/) and
   [CLI reference](https://mhdmartini.github.io/araclean/latest/reference/cli/).
 
-Every Python example in the docs is executed as a doctest in CI, and the generated pages
-(profiles, glossary, CLI reference) are drift-checked against the code.
+CI runs every Python example as a doctest and checks generated pages (profiles, glossary, and CLI
+reference) against the code.
 
 ## Install
 
@@ -72,7 +74,7 @@ Every Python example in the docs is executed as a doctest in CI, and the generat
 pip install araclean
 ```
 
-Optional extras (declared now, populated by later slices):
+Optional extras:
 
 ```bash
 pip install "araclean[cli]"     # command-line interface

@@ -62,9 +62,9 @@ Lossless is defined over *Arabic-language text content*, with three deliberate e
    opt-in (`collapse_lines=True`; only SEARCH does it by default, where bag-of-words matching wants
    it).
 
-## Loud failure over silent drift
+## Invalid configuration fails early
 
-The same philosophy governs configuration. Overrides are validated against a closed model: an
+Overrides are validated against a closed model: an
 unknown profile, a typo'd knob, or a knob that does not apply to the chosen profile raises
 immediately —
 
@@ -78,7 +78,7 @@ override(s) ['emoji'] do not apply to profile 'light': it has no matching step t
 
 ```
 
-— because a preprocessing option that silently no-ops is a description of your data that lies.
+— because a silently ignored option would make the recorded configuration inaccurate.
 The same applies across the API: `drop()` on an absent step name raises, deserializing against a
 mismatched stopword-list version raises, and `map_digits=True` is rejected on any profile whose
 contract it would silently change.

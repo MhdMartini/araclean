@@ -12,8 +12,7 @@ reproducibility, but upgrade to the latest patch release to receive fixes.
 
 Report privately through GitHub's
 [private vulnerability reporting](https://github.com/MhdMartini/araclean/security/advisories/new)
-(Security → Report a vulnerability). If you cannot use that, contact the maintainer at
-`[INSERT CONTACT EMAIL]`.
+(Security → Report a vulnerability).
 
 Please include enough detail to reproduce: the input string, the configuration/profile, the araclean
 and Python versions, and the observed vs. expected behavior. We aim to acknowledge a report within a

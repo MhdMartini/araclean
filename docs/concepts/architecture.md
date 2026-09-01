@@ -1,7 +1,7 @@
 # Architecture & performance
 
-araclean is a small library with a deliberate shape: validate once at the edge, run a precompiled
-plan in the middle, and keep every behavior in one deep core that several thin adapters share.
+araclean validates configuration once, compiles a pipeline, and shares the same normalization core
+across the Python, CLI, pandas, and polars interfaces.
 
 ## Three layers, one validation boundary
 
@@ -15,12 +15,11 @@ All untrusted input — profile names, override knobs, serialized configs — is
 facade through one pydantic model (`NormalizeConfig`, a closed set of enums and bounded scalars),
 so a bad option fails there with a clear error. Below the boundary, nothing validates per string:
 steps precompute their tables and regexes at construction, and `Pipeline.__call__` just runs them.
-That split is why the facade can be friendly *and* the per-string path fast.
+This keeps validation out of the per-string path.
 
-The CLI, the pandas accessor, and the polars namespace are **adapters at the same seam**: each
-parses its own input format, passes through the same boundary once, then streams or maps the
-resulting pipeline. None of them contains normalization logic, which is why behavior is identical
-across all four entry points.
+The CLI, pandas accessor, and polars namespace each parse their input, pass configuration through
+the same validation boundary, and then stream or map the resulting pipeline. They contain no
+normalization logic, so all four entry points use the same behavior.
 
 ## The fused execution engine
 
@@ -69,9 +68,7 @@ True
 These are pinned by property-based tests (Hypothesis) and snapshot tests in the repository, not
 just asserted in prose.
 
-## Correctness machinery behind the scenes
-
-Worth knowing even if you never touch it:
+## Correctness checks
 
 - **Whole-category character tables are derived from the live Unicode Character Database** and
   enforced by invariant tests, so e.g. the tashkeel repertoire tracks Unicode releases instead of
@@ -83,10 +80,10 @@ Worth knowing even if you never touch it:
   [CLI reference](../reference/cli.md) are generated from the code and re-checked by tests, and
   every Python example in these docs runs as a doctest in CI.
 
-## Reserved seams
+## Offset maps
 
-`apply_aligned()` — offset/alignment tracking that maps normalized spans back to the original
-text — is reserved on every step and on `Pipeline`, and currently raises a clear
-`AlignmentNotSupportedError`. It is the designed next major feature (the architecture's
-per-code-point tables and anchored regexes were chosen to make it tractable); until then the
-contract is honest: it fails loudly rather than approximating.
+`Pipeline.apply_aligned()` runs the same normalization while composing each step's offset map. It
+returns the normalized string and an `OffsetMap` that projects spans between normalized and
+original text. Built-in steps support alignment; a custom step without an `apply_aligned()` method
+raises `AlignmentNotSupportedError`. See the
+[offset-preserving normalization guide](../guides/offset-preserving.md).

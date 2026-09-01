@@ -11,8 +11,8 @@ Stopword removal is an opt-in knob of the SEARCH profile:
 
 ```pycon
 >>> from araclean import normalize
->>> normalize("ذهبنا في الصباح الى المدرسة", profile="search", remove_stopwords=True)
-'ذهبنا الصباح المدرسه'
+>>> normalize("لا يحمل الحقد من تعلو به الرتب", profile="search", remove_stopwords=True)
+'لا يحمل الحقد تعلو به الرتب'
 
 ```
 
@@ -20,12 +20,11 @@ Stopword removal is an opt-in knob of the SEARCH profile:
 **folded** spelling, so it requires exactly the letter folds SEARCH runs before it — see the
 ordering contract below.
 
-## Negation-safe by default
+## Negation is preserved
 
-The headline design decision: the polarity-bearing particles — `لا`, `ما`, `لم`, `لن`, `ليس` — are
-**deliberately excluded** from the list. A naive stopword list deletes them as "frequent function
-words", silently flipping the meaning of a sentence (`لا أحب` *I don't like* → `أحب` *I like*) —
-a real hazard in shipped Arabic stopword lists. With araclean, removal can never invert polarity:
+The polarity-bearing particles `لا`, `ما`, `لم`, `لن`, and `ليس` are excluded from the list. Removing
+one could reverse a sentence's meaning (`لا أحب` *I don't like* → `أحب` *I like*), so araclean
+preserves them:
 
 ```pycon
 >>> normalize("لا أحب الانتظار", profile="search", remove_stopwords=True)
@@ -42,8 +41,8 @@ The list is flat, not morphology-aware. Only a *standalone* token is removed; a 
 fused into a longer token as a proclitic or suffix is kept:
 
 ```pycon
->>> normalize("والكتاب فيها", profile="search", remove_stopwords=True)  # و+الكتاب, في+ها: kept
-'والكتاب فيها'
+>>> normalize("والكتاب خير جليس فيها", profile="search", remove_stopwords=True)
+'والكتاب خير جليس فيها'
 
 ```
 
@@ -77,8 +76,8 @@ True
 ```
 
 `STOPWORDS_VERSION` identifies the exact list revision; serialized pipelines pin it, and
-rehydrating against a release with a different list fails loudly instead of removing different
-words — see [Reproducible preprocessing](reproducibility.md).
+rehydrating against a release with a different list raises an error instead of removing different
+words. See [Reproducible preprocessing](reproducibility.md).
 
 Want a *different* list? Compose a [custom step](custom-steps.md) — `RemoveStopwords` deliberately
 takes no word-list parameter, so that "the bundled list, version X" is the whole story a serialized

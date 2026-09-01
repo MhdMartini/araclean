@@ -19,18 +19,18 @@ clear error naming the extra):
 ```pycon
 >>> import pandas as pd
 >>> import araclean.pandas
->>> s = pd.Series(["العـــربية", "اَلسّلامُ عليكم"])
+>>> s = pd.Series(["على قدر أهل العـــزم", "وَخَيْرُ جَلِيسٍ فِي الزَّمَانِ كِتَابُ"])
 >>> s.araclean.normalize(profile="search").tolist()
-['العربيه', 'السلام عليكم']
+['علي قدر اهل العزم', 'وخير جليس في الزمان كتاب']
 
 ```
 
 In a dataframe workflow:
 
 ```pycon
->>> df = pd.DataFrame({"text": ["جميييييل 😍 https://t.co/xyz"]})
+>>> df = pd.DataFrame({"text": ["قال @المتنبي: على قدر أهل العزم https://t.co/xyz"]})
 >>> df["text"].araclean.normalize(profile="social", emoji="strip").tolist()
-['جمييل [رابط]']
+['قال [مستخدم]: على قدر أهل العزم [رابط]']
 
 ```
 
@@ -44,9 +44,9 @@ Importing `araclean.polars` registers the namespace, mirroring the pandas access
 ```pycon
 >>> import polars as pl
 >>> import araclean.polars
->>> s = pl.Series(["العـــربية", "اَلسّلامُ عليكم"])
+>>> s = pl.Series(["على قدر أهل العـــزم", "وَخَيْرُ جَلِيسٍ فِي الزَّمَانِ كِتَابُ"])
 >>> s.araclean.normalize(profile="search").to_list()
-['العربيه', 'السلام عليكم']
+['علي قدر اهل العزم', 'وخير جليس في الزمان كتاب']
 
 ```
 

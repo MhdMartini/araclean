@@ -87,6 +87,7 @@
     "mkdocs",
     "mkdocstrings",
     "mojibake",
+    "momartini",
     "mypy",
     "NAACL",
     "NBSP",
@@ -194,7 +195,8 @@
     "khata",
     "kitab",
     "kitaban",
-    "undiacritized"
+    "undiacritized",
+    "zerogpu"
   ],
   "flagWords": [
     "alif",

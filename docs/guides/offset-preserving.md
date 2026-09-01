@@ -1,18 +1,16 @@
 # Offset-preserving normalization
 
-araclean's flagship differentiator: normalize text *and* keep a map from every position in the
-normalized string back to the original.  No other Arabic NLP library exposes this.
+`apply_aligned` normalizes text while keeping a map between the normalized and original strings.
 
 ## The problem
 
-When you normalize Arabic for search or ML, you change the text.  Tatweel is stripped, alef
-variants fold, tashkeel disappears.  That is fine for indexing — but the moment you need to:
+Search and ML profiles change the text: tatweel is stripped, alef variants fold, and tashkeel may
+disappear. If you then need to
 
 - **cite a span** in the original document (RAG answer grounding)
 - **project a model prediction** back to raw text (NER / span annotation)
 
-you need to know *where* the normalized span came from.  Without an offset map, you have two bad
-choices: skip normalization (losing recall) or lose provenance.
+the character positions need to remain traceable through those changes.
 
 ## The solution: `apply_aligned`
 
@@ -40,7 +38,7 @@ from araclean import Pipeline, RemoveTatweel, FoldAlef, RemoveTashkeel
 pipe = Pipeline([RemoveTatweel(), FoldAlef(), RemoveTashkeel()])
 
 # Index-time: normalize, store the original
-original = "كتاب أحمـد الكبير"
+original = "قال أحمـد: على قدر أهل العزم"
 normalized, omap = pipe.apply_aligned(original)
 
 # Retrieval-time: a search hit in the normalized index gives a span
@@ -61,7 +59,7 @@ from araclean import Pipeline, FoldAlef, RemoveTashkeel, RemoveTatweel
 
 pipe = Pipeline([RemoveTatweel(), RemoveTashkeel(), FoldAlef()])
 
-original_doc = "قال الرئيسُ محمـدٌ في المؤتمرِ"
+original_doc = "وَقَفَ الشاعرُ محمـدٌ أمامَ الجمهورِ"
 normalized, omap = pipe.apply_aligned(original_doc)
 
 # A NER model running on normalized text predicts a PERSON span

@@ -1,7 +1,7 @@
 # Tuning profiles
 
-A named profile is a preset, not a straitjacket. `normalize` (and the CLI, and the dataframe
-accessors) accept per-knob **overrides** that adjust exactly one behavior of the chosen profile:
+A named profile is a preset. `normalize`, the CLI, and the dataframe accessors accept **overrides**
+that adjust one behavior of the chosen profile:
 
 ```pycon
 >>> from araclean import normalize
@@ -15,7 +15,7 @@ accessors) accept per-knob **overrides** that adjust exactly one behavior of the
 ```
 
 Every override is validated up front against `NormalizeConfig` — a pydantic model with
-`extra="forbid"` — so a typo'd knob or a bad value fails loudly at the call, and an override that
+`extra="forbid"` — so a misspelled knob or invalid value raises at the call, and an override that
 names a step the profile does not carry is rejected rather than silently doing nothing:
 
 ```pycon
@@ -27,8 +27,8 @@ override(s) ['emoji'] do not apply to profile 'light': it has no matching step t
 
 ```
 
-This is a reproducibility guarantee, not pedantry: a knob that silently no-ops is a preprocessing
-description that lies. See [Reproducible preprocessing](reproducibility.md).
+A silently ignored knob would make the recorded preprocessing configuration inaccurate. See
+[Reproducible preprocessing](reproducibility.md).
 
 ## The knobs
 
@@ -45,7 +45,7 @@ description that lies. See [Reproducible preprocessing](reproducibility.md).
 | `tashkeel_classes` | `search`, `ml`, `social` | Which mark classes `RemoveTashkeel` removes: any subset of `harakat`, `tanween`, `shadda`, `madda`, `dagger_alef`, `quranic`. |
 | `collapse_lines` | every profile | Flatten line breaks to spaces (`True`) or keep line structure (`False`). Only SEARCH flattens by default. |
 
-Some examples:
+For example:
 
 ```pycon
 >>> normalize("مَدْرَسَةٌ", profile="search")                       # default: ة → ه

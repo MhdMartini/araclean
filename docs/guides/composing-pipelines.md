@@ -16,9 +16,9 @@ Pipeline([NormalizeUnicode, StripBidi, FoldPresentationForms, RemoveTatweel, Uni
 
 ```
 
-Building the pipeline once and reusing it is the fast path: all validation and table-building
-happens at construction, so the per-string call does no setup. For a stream or a corpus, `batch`
-is a lazy generator — nothing is materialized:
+Build the pipeline once and reuse it. Validation and table construction happen when the pipeline
+is created, so each string call does no setup. For a stream or corpus, `batch` returns a lazy
+generator:
 
 ```pycon
 >>> list(pipe.batch(["العـــربية", "ﻣﺮﺣﺒﺎ"]))

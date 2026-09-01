@@ -7,9 +7,9 @@ The `araclean` command normalizes text from the shell — no Python required. It
 pip install 'araclean[cli]'
 ```
 
-It is a thin adapter over the same core the Python API uses: arguments are validated once, the
-pipeline is built once, then text **streams** through it line by line — so a corpus larger than
-memory works without further ceremony. Every flag is listed in the
+It uses the same core as the Python API: arguments are validated once, the pipeline is built once,
+and text then **streams** through it line by line. This works for corpora larger than memory. Every
+flag is listed in the
 [CLI reference](../reference/cli.md), which is generated from the command itself.
 
 ## Files, stdin, stdout
@@ -34,9 +34,8 @@ Line endings are preserved per line, and all I/O is UTF-8.
 ## Choosing and tuning a profile
 
 `--profile` / `-p` picks the named profile (default `light` — lossless encoding repair). Every
-per-knob override from the Python API has a flag twin, and the same validation applies: a flag that
-does not apply to the chosen profile is rejected with a clear error *before any input is read*,
-never silently ignored.
+per-knob override from the Python API has a matching flag. A flag that does not apply to the chosen
+profile is rejected with a clear error *before any input is read*.
 
 ```console
 $ printf '٢٠٢٤\n' | araclean normalize -p ml --map-digits

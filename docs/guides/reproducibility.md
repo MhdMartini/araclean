@@ -1,13 +1,11 @@
 # Reproducible preprocessing
 
-Preprocessing is part of your method. If a paper, a teammate, or your future self cannot rerun
-*exactly* the normalization a dataset went through, results stop being comparable — and Arabic
-preprocessing is where that silently goes wrong most often. araclean treats the preprocessing
-configuration as a first-class, serializable artifact.
+Preprocessing is part of a dataset's method. To compare or reproduce results, record the exact
+normalization configuration. araclean makes that configuration serializable.
 
 ## Name the profile, pin the version
 
-The cheapest reproducibility statement is a profile name plus the araclean version:
+At minimum, record the profile name and araclean version:
 
 ```pycon
 >>> import araclean
@@ -69,8 +67,8 @@ way back in:
 
 ```
 
-Because the model is `extra="forbid"` with closed enums, a stale or typo'd config from disk fails
-loudly instead of running something subtly different. There is a published JSON Schema for it, so
+Because the model is `extra="forbid"` with closed enums, a stale or misspelled config fails
+validation instead of changing behavior. There is a published JSON Schema for it, so
 non-Python tooling can validate configs too:
 
 ```pycon
@@ -104,5 +102,4 @@ For a dataset card or appendix, ship three things:
 2. the serialized pipeline (`pipe.to_dict()`) or config (`config.model_dump_json()`),
 3. the audit summary (`pipe.audit()`).
 
-Anyone with `pip install araclean==X.Y.Z` and the payload reproduces your preprocessing exactly —
-no notebook archaeology required.
+Anyone with `pip install araclean==X.Y.Z` and the payload can reproduce the preprocessing.

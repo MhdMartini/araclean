@@ -14,9 +14,9 @@ DEFAULT_PROFILE = "search"
 DEFAULT_NORMALIZED_SPAN = (8, 13)
 EXAMPLES: tuple[tuple[str, str], ...] = (
     (DEFAULT_TEXT, DEFAULT_PROFILE),
-    ("قال الرئيسُ محمـدٌ في المؤتمرِ", "ml"),
-    ("ﻻ تزالُ العربيةُ جميلةً", "classical"),
-    ("زوروا https://example.com يا @صديقي 😍", "social"),
+    ("أراك عصي الدمع شيمتك الصبر", "ml"),
+    ("قِفَا نَبْكِ مِنْ ذِكْرَى حَبِيبٍ وَمَنْزِلِ", "classical"),
+    ("قال @المتنبي: على قدر أهل العزم تأتي العزائم https://example.com", "social"),
 )
 
 
