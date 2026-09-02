@@ -1,3 +1,17 @@
+## v0.3.0 (2026-09-02)
+
+## v0.2.3 (2026-09-01)
+
+### Feat
+
+- **demo**: add Hugging Face offset-map Space
+
+### Fix
+
+- unslop docs
+- **demo**: add @spaces.GPU decorator
+- **demo**: refresh selected example output
+
 ## v0.2.2 (2026-07-01)
 
 ### Fix
